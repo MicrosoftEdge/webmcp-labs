@@ -1,0 +1,1 @@
+chrome.action.onClicked.addListener(async e=>{e.id!=null&&await chrome.sidePanel.open({tabId:e.id})});chrome.runtime.onMessage.addListener((e,i)=>{var n;e.type==="toolchange"&&((n=i.tab)==null?void 0:n.id)!=null&&chrome.runtime.sendMessage(e).catch(()=>{})});

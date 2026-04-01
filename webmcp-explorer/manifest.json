@@ -1,0 +1,28 @@
+{
+  "manifest_version": 3,
+  "name": "WebMCP Explorer",
+  "version": "0.1.0",
+  "description": "Inspect, debug, and interact with WebMCP-enabled web pages.",
+  "permissions": [
+    "activeTab",
+    "sidePanel",
+    "storage"
+  ],
+  "side_panel": {
+    "default_path": "sidepanel/index.html"
+  },
+  "background": {
+    "service_worker": "service-worker.js",
+    "type": "module"
+  },
+  "content_scripts": [
+    {
+      "matches": ["<all_urls>"],
+      "js": ["content-script.js"],
+      "run_at": "document_idle"
+    }
+  ],
+  "action": {
+    "default_title": "Open WebMCP Explorer"
+  }
+}

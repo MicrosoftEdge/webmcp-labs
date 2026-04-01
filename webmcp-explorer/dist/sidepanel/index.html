@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>WebMCP Explorer</title>
+  <script type="module" crossorigin src="/sidepanel.js"></script>
+  <link rel="stylesheet" crossorigin href="/assets/sidepanel.css">
+</head>
+<body>
+  <div class="panel">
+    <nav class="tablist" role="tablist">
+      <button class="tab active" role="tab" aria-selected="true" data-pane="tools">
+        Tools <span class="badge" id="tools-badge" hidden>0</span>
+      </button>
+      <button class="tab" role="tab" aria-selected="false" data-pane="agent">Agent</button>
+      <button class="tab" role="tab" aria-selected="false" data-pane="config">Config</button>
+    </nav>
+
+    <main class="pane-container">
+
+      <!-- Tools Pane -->
+      <section id="pane-tools" class="pane active" role="tabpanel">
+        <div class="stack gap-md">
+          <div class="row gap-md" style="justify-content: space-between;">
+            <h2 style="font-size: var(--smtc-text-global-subtitle1-font-size); margin: 0;">Tools</h2>
+            <button class="btn btn-subtle btn-sm" id="tools-refresh">↻ Refresh</button>
+          </div>
+          <div id="tools-list" class="stack gap-md"></div>
+          <div id="tools-empty" class="text-secondary" hidden>No tools found on this page.</div>
+        </div>
+      </section>
+
+      <!-- Agent Pane -->
+      <section id="pane-agent" class="pane" role="tabpanel">
+        <div class="stack gap-md">
+          <h2 style="font-size: var(--smtc-text-global-subtitle1-font-size); margin: 0;">Agent</h2>
+          <div class="form-group">
+            <label class="label" for="agent-goal">Goal</label>
+            <textarea class="textarea" id="agent-goal" rows="2" placeholder="Describe what you want the agent to do…"></textarea>
+          </div>
+          <div class="row gap-md">
+            <button class="btn btn-primary" id="agent-run">Run</button>
+            <button class="btn btn-neutral" id="agent-stop" disabled>Stop</button>
+          </div>
+          <div id="agent-status" hidden></div>
+          <div id="agent-trace" class="stack gap-sm"></div>
+        </div>
+      </section>
+
+      <!-- Config Pane -->
+      <section id="pane-config" class="pane" role="tabpanel">
+        <div class="stack gap-lg">
+          <h2 style="font-size: var(--smtc-text-global-subtitle1-font-size); margin: 0;">Configuration</h2>
+
+          <div class="form-group">
+            <label class="label" for="provider-select">Provider</label>
+            <select class="select" id="provider-select"></select>
+          </div>
+
+          <!-- Provider-specific fields rendered by config-pane.ts -->
+          <div id="provider-fields"></div>
+
+          <!-- Common settings -->
+          <div class="form-group">
+            <label class="label" for="max-iterations">Max Agent Iterations</label>
+            <input class="input" id="max-iterations" type="number" min="1" max="50" value="10" />
+          </div>
+
+          <!-- Actions -->
+          <div class="row gap-md">
+            <button class="btn btn-primary" id="config-save">Save</button>
+            <button class="btn btn-neutral" id="config-test">Test Connection</button>
+          </div>
+
+          <div id="config-message" hidden></div>
+        </div>
+      </section>
+
+    </main>
+  </div>
+
+</body>
+</html>
