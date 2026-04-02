@@ -351,7 +351,7 @@ async function runAgentLoop(startMode: 'run' | 'step') {
     if (mode === 'step') {
       modelStepIdx = addStep('model call', 'pending', { tools: toolInfos });
       setState('paused');
-      setStatus('Paused — step to call model.', 'info');
+      setStatus('Paused. Step to call model.', 'info');
       await new Promise<void>((resolve) => { stepResolver = resolve; });
       setState(mode === 'step' ? 'stepping' : 'running');
       setStatus('Calling model…', 'info');
@@ -423,7 +423,7 @@ async function runAgentLoop(startMode: 'run' | 'step') {
 
       if (mode === 'step') {
         setState('paused');
-        setStatus('Paused — execute step or resume.', 'info');
+        setStatus('Paused. Execute step or resume.', 'info');
         await new Promise<void>((resolve) => { stepResolver = resolve; });
         // User may have switched to run mode via "Resume" button
         setState(mode === 'step' ? 'stepping' : 'running');
