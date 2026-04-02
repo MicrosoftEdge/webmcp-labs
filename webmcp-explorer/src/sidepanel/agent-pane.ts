@@ -193,14 +193,6 @@ function renderDetail(idx: number) {
   const headerStatus = s.status === 'error' ? ' &middot; error' : '';
   let html = `<div class="detail-header">Step ${idx + 1} &middot; ${escapeHtml(s.name)}${headerStatus}</div>`;
 
-  // Thinking
-  if (s.thinking) {
-    html += `<div class="detail-section">
-      <span class="label">Thinking</span>
-      <div class="detail-thinking">${escapeHtml(s.thinking)}</div>
-    </div>`;
-  }
-
   // Tools available
   if (s.tools && s.tools.length > 0) {
     html += `<div class="detail-section">
@@ -208,6 +200,14 @@ function renderDetail(idx: number) {
       <div class="detail-tools">${s.tools.map(t =>
         `<span class="detail-tool-chip${t.system ? ' detail-tool-chip-system' : ''}">${escapeHtml(t.name)}${t.system ? '<span class="tool-chip-label">system</span>' : ''}</span>`
       ).join('')}</div>
+    </div>`;
+  }
+
+  // Thinking
+  if (s.thinking) {
+    html += `<div class="detail-section">
+      <span class="label">Thinking</span>
+      <div class="detail-thinking">${escapeHtml(s.thinking)}</div>
     </div>`;
   }
 
