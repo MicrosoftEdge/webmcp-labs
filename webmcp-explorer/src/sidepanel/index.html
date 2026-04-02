@@ -20,20 +20,41 @@
 
       <!-- Tools Pane -->
       <section id="pane-tools" class="pane active" role="tabpanel">
-        <div class="stack gap-md">
-          <div class="row gap-md" style="justify-content: space-between;">
-            <h2 style="font-size: var(--smtc-text-global-subtitle1-font-size); margin: 0;">Tools</h2>
-            <button class="btn btn-subtle btn-sm" id="tools-refresh">↻ Refresh</button>
+        <div class="stack gap-lg">
+          <!-- Available Tools list -->
+          <div class="stack gap-sm">
+            <span class="label">Available Tools</span>
+            <div class="tools-list-scroll">
+              <div id="tools-list" class="stack gap-xs"></div>
+            </div>
+            <div id="tools-empty" class="text-secondary" hidden>No tools found on this page.</div>
           </div>
-          <div id="tools-list" class="stack gap-md"></div>
-          <div id="tools-empty" class="text-secondary" hidden>No tools found on this page.</div>
+
+          <!-- Execute Tool form -->
+          <div class="stack gap-sm">
+            <span class="label">Execute Tool</span>
+            <div class="form-group">
+              <label class="label" for="tool-select">Tool</label>
+              <select class="select" id="tool-select"></select>
+            </div>
+            <div class="form-group">
+              <label class="label" for="tool-args">Arguments (JSON)</label>
+              <textarea class="textarea" id="tool-args" rows="5" placeholder='{"key": "value"}'></textarea>
+            </div>
+            <div class="row gap-sm">
+              <button class="btn btn-primary" id="tool-execute">Execute</button>
+            </div>
+            <div id="tool-result-section">
+              <label class="label">Result</label>
+              <div id="tool-result"><pre class="code-block"></pre></div>
+            </div>
+          </div>
         </div>
       </section>
 
       <!-- Agent Pane -->
       <section id="pane-agent" class="pane" role="tabpanel">
         <div class="stack gap-md">
-          <h2 style="font-size: var(--smtc-text-global-subtitle1-font-size); margin: 0;">Agent</h2>
           <div class="form-group">
             <label class="label" for="agent-goal">Goal</label>
             <textarea class="textarea" id="agent-goal" rows="2" placeholder="Describe what you want the agent to do…"></textarea>
@@ -50,7 +71,6 @@
       <!-- Config Pane -->
       <section id="pane-config" class="pane" role="tabpanel">
         <div class="stack gap-lg">
-          <h2 style="font-size: var(--smtc-text-global-subtitle1-font-size); margin: 0;">Configuration</h2>
 
           <div class="form-group">
             <label class="label" for="provider-select">Provider</label>

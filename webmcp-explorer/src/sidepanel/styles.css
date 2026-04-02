@@ -555,6 +555,41 @@ html, body {
   display: none !important;
 }
 
+/* ============================================================
+   Tools List Items
+   ============================================================ */
+.tool-list-item {
+  cursor: pointer;
+  padding: var(--smtc-padding-content-x-small) var(--smtc-padding-content-small);
+  border-radius: var(--smtc-corner-ctrl-rest);
+}
+
+.tool-list-item.card {
+  border-radius: var(--smtc-corner-ctrl-rest);
+}
+
+.tools-list-scroll {
+  max-height: 30vh;
+  overflow-y: auto;
+}
+
+.tool-list-item-name {
+  font-weight: var(--smtc-text-style-default-header-weight);
+  font-size: var(--smtc-text-global-body3-font-size);
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.tool-list-item-desc {
+  font-size: var(--smtc-text-global-caption1-font-size);
+  line-height: var(--smtc-text-global-caption1-line-height);
+  color: var(--smtc-foreground-ctrl-neutral-secondary-rest);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  text-align: right;
+}
+
 /* JSON / code display */
 .code-block {
   font-family: var(--smtc-text-style-code-regular-font-family);
