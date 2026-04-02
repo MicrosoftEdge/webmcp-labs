@@ -55,17 +55,24 @@
 
       <!-- Agent Pane -->
       <section id="pane-agent" class="pane" role="tabpanel">
-        <div class="stack gap-md">
+        <div class="stack gap-md agent-layout">
           <div class="form-group">
             <label class="label" for="agent-goal">Goal</label>
             <textarea class="textarea" id="agent-goal" rows="2" placeholder="Describe what you want the agent to do…"></textarea>
           </div>
-          <div class="row gap-md">
-            <button class="btn btn-primary" id="agent-run">Run</button>
-            <button class="btn btn-neutral" id="agent-stop" disabled>Stop</button>
+          <div class="agent-controls row gap-sm">
+            <button class="btn btn-primary btn-sm" id="agent-run">Run</button>
+            <button class="btn btn-neutral btn-sm" id="agent-step">Step</button>
+            <button class="btn btn-neutral btn-sm" id="agent-stop" disabled>Stop</button>
+            <button class="btn btn-neutral btn-sm" id="agent-reset" disabled>Reset</button>
           </div>
           <div id="agent-status" hidden></div>
-          <div id="agent-trace" class="stack gap-sm"></div>
+          <div class="stack gap-xs">
+            <span class="label">Steps</span>
+            <div id="agent-steps" class="step-list"></div>
+            <div id="agent-steps-empty" class="text-secondary">No steps yet.</div>
+          </div>
+          <div id="agent-detail" class="detail-panel" hidden></div>
         </div>
       </section>
 
