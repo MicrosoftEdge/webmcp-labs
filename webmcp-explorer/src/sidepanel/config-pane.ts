@@ -26,15 +26,7 @@ const PROVIDERS: ProviderDef[] = [
     label: 'OpenAI',
     fields: [
       { id: 'openai-api-key', label: 'API Key', type: 'password', placeholder: 'sk-…' },
-      {
-        id: 'openai-model', label: 'Model', type: 'select',
-        options: [
-          { value: 'gpt-4o', label: 'gpt-4o' },
-          { value: 'gpt-4o-mini', label: 'gpt-4o-mini' },
-          { value: 'gpt-4.1', label: 'gpt-4.1' },
-          { value: 'gpt-4.1-mini', label: 'gpt-4.1-mini' },
-        ],
-      },
+      { id: 'openai-model', label: 'Model', type: 'text', placeholder: 'gpt-5.3-chat' },
     ],
     toConfig: (v) => ({ provider: 'openai', apiKey: v['openai-api-key'], model: v['openai-model'] }),
     fromConfig: (c) => c.provider === 'openai' ? { 'openai-api-key': c.apiKey, 'openai-model': c.model } : ({} as Record<string, string>),
@@ -45,7 +37,7 @@ const PROVIDERS: ProviderDef[] = [
     fields: [
       { id: 'azure-endpoint', label: 'Endpoint URL', type: 'url', placeholder: 'https://your-resource.openai.azure.com/' },
       { id: 'azure-api-key', label: 'API Key', type: 'password' },
-      { id: 'azure-deployment', label: 'Deployment Name', type: 'text', placeholder: 'gpt-4o' },
+      { id: 'azure-deployment', label: 'Deployment Name', type: 'text', placeholder: 'gpt-5.3-chat' },
       { id: 'azure-api-version', label: 'API Version', type: 'text', defaultValue: '2025-03-01-preview' },
     ],
     toConfig: (v) => ({
@@ -138,15 +130,14 @@ function captureProvider(key: string) {
   const def = PROVIDERS.find((p) => p.key === key);
   if (!def) return;
   const values: Record<string, string> = {};
-  let hasValue = false;
+  let hasNonDefault = false;
   for (const field of def.fields) {
     const el = document.getElementById(field.id) as HTMLInputElement | HTMLSelectElement | null;
-    if (el && el.value.trim()) {
-      values[field.id] = el.value.trim();
-      hasValue = true;
-    }
+    const val = el?.value.trim() ?? '';
+    values[field.id] = val;
+    if (val && val !== (field.defaultValue ?? '')) hasNonDefault = true;
   }
-  if (hasValue) {
+  if (hasNonDefault) {
     providerConfigs[def.key] = def.toConfig(values);
   }
 }
