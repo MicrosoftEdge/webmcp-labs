@@ -16,6 +16,7 @@ export interface ExecuteToolOptions {
  * Messages sent from the side panel to the content script.
  */
 export type BridgeRequest =
+  | { type: 'ping' }
   | { type: 'listTools' }
   | { type: 'executeTool'; name: string; args: string; signal?: boolean };
 
@@ -23,6 +24,7 @@ export type BridgeRequest =
  * Messages sent from the content script back to the side panel.
  */
 export type BridgeResponse =
+  | { type: 'pong' }
   | { type: 'listTools'; tools: RegisteredTool[] }
   | { type: 'executeTool'; result: string | null }
   | { type: 'error'; message: string }

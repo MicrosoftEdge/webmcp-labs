@@ -34,6 +34,12 @@ chrome.runtime.onMessage.addListener(
     _sender: chrome.runtime.MessageSender,
     sendResponse: (response: BridgeResponse) => void
   ) => {
+    // Ping check — service worker uses this to verify the content script is loaded
+    if (message.type === 'ping') {
+      sendResponse({ type: 'pong' } as BridgeResponse);
+      return true;
+    }
+
     const ctx = getModelContext();
 
     if (!ctx) {
