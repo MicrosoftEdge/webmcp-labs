@@ -6,9 +6,9 @@ import type {
   ToolDefinition,
   ToolCall,
   LLMResponse,
-  AzureOpenAIConfig,
+  ProviderConfig,
+  ProviderMetadata,
 } from './provider';
-import { defineProviderMetadata } from './provider';
 
 /**
  * AzureOpenAIProvider — uses the Azure OpenAI Responses API internally.
@@ -17,7 +17,7 @@ export class AzureOpenAIProvider implements LLMProvider {
   private client: AzureOpenAI;
   private deployment: string;
 
-  constructor(config: AzureOpenAIConfig) {
+  constructor(config: ProviderConfig) {
     this.client = new AzureOpenAI({
       endpoint: config.endpoint,
       apiKey: config.apiKey,
@@ -112,7 +112,7 @@ function parseResponse(response: OpenAITypes.Responses.Response): LLMResponse {
   };
 }
 
-export const providerMetadata = defineProviderMetadata({
+export const providerMetadata: ProviderMetadata = {
   key: 'azure-openai',
   label: 'Azure OpenAI',
   fields: [
@@ -121,5 +121,5 @@ export const providerMetadata = defineProviderMetadata({
     { id: 'azure-deployment', configKey: 'deployment', label: 'Deployment Name', type: 'text', placeholder: 'gpt-5.3-chat' },
     { id: 'azure-api-version', configKey: 'apiVersion', label: 'API Version', type: 'text', defaultValue: '2025-03-01-preview' },
   ],
-  createProvider: async (config) => new AzureOpenAIProvider(config as AzureOpenAIConfig),
-});
+  createProvider: async (config) => new AzureOpenAIProvider(config),
+};

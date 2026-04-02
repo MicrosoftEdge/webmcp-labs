@@ -60,7 +60,9 @@ function captureProvider(key: string) {
     if (val && val !== (field.defaultValue ?? '')) hasNonDefault = true;
   }
   if (hasNonDefault) {
-    providerConfigs[def.key] = def.toConfig(values);
+    const config: ProviderConfig = { provider: def.key };
+    for (const field of def.fields) config[field.configKey] = values[field.id];
+    providerConfigs[def.key] = config;
   }
 }
 
@@ -68,10 +70,9 @@ function captureProvider(key: string) {
 function populateFromCache(def: ProviderMetadata) {
   const cached = providerConfigs[def.key];
   if (!cached) return;
-  const values = def.fromConfig(cached);
-  for (const [id, val] of Object.entries(values)) {
-    const el = document.getElementById(id) as HTMLInputElement | HTMLSelectElement | null;
-    if (el) el.value = val;
+  for (const field of def.fields) {
+    const el = document.getElementById(field.id) as HTMLInputElement | HTMLSelectElement | null;
+    if (el) el.value = cached[field.configKey] ?? '';
   }
 }
 
@@ -96,13 +97,7 @@ loadConfig().then((config) => {
     const def = getProviderDef();
     renderProviderFields(def);
 
-    if (def) {
-      const values = def.fromConfig(config.provider);
-      for (const [id, val] of Object.entries(values)) {
-        const el = document.getElementById(id) as HTMLInputElement | HTMLSelectElement | null;
-        if (el) el.value = val;
-      }
-    }
+    if (def) populateFromCache(def);
   }
   (document.getElementById('max-iterations') as HTMLInputElement).value = String(config.maxIterations);
 });
@@ -131,7 +126,9 @@ function getProviderConfig(): ProviderConfig | null {
     values[field.id] = val;
   }
 
-  return def.toConfig(values);
+  const config: ProviderConfig = { provider: def.key };
+  for (const field of def.fields) config[field.configKey] = values[field.id];
+  return config;
 }
 
 // Save

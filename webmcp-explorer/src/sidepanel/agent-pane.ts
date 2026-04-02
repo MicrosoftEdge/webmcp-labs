@@ -1,5 +1,6 @@
 import { loadConfig } from '../lib/storage';
 import type { LLMProvider, Message, ToolDefinition } from '../lib/llm/provider';
+import { PROVIDERS } from '../lib/llm/registry';
 
 // --- DOM references ---
 const goalInput = document.getElementById('agent-goal') as HTMLTextAreaElement;
@@ -83,19 +84,8 @@ async function getActiveTabId(): Promise<number | null> {
 async function createProvider(): Promise<LLMProvider | null> {
   const config = await loadConfig();
   if (!config.provider) return null;
-
-  if (config.provider.provider === 'openai') {
-    const { OpenAIProvider } = await import('../lib/llm/openai');
-    return new OpenAIProvider(config.provider);
-  } else if (config.provider.provider === 'azure-openai') {
-    const { AzureOpenAIProvider } = await import('../lib/llm/azure-openai');
-    return new AzureOpenAIProvider(config.provider);
-  } else if (config.provider.provider === 'anthropic') {
-    const { AnthropicProvider } = await import('../lib/llm/anthropic');
-    return new AnthropicProvider(config.provider);
-  } else {
-    return null;
-  }
+  const meta = PROVIDERS.find((p) => p.key === config.provider!.provider);
+  return meta ? meta.createProvider(config.provider) : null;
 }
 
 function escapeHtml(str: string): string {

@@ -5,9 +5,9 @@ import type {
   ToolDefinition,
   ToolCall,
   LLMResponse,
-  AnthropicConfig,
+  ProviderConfig,
+  ProviderMetadata,
 } from './provider';
-import { defineProviderMetadata } from './provider';
 
 /**
  * AnthropicProvider — uses the Anthropic Messages API internally.
@@ -16,7 +16,7 @@ export class AnthropicProvider implements LLMProvider {
   private client: Anthropic;
   private model: string;
 
-  constructor(config: AnthropicConfig) {
+  constructor(config: ProviderConfig) {
     this.client = new Anthropic({
       apiKey: config.apiKey,
       dangerouslyAllowBrowser: true,
@@ -128,12 +128,12 @@ function parseResponse(response: Anthropic.Message): LLMResponse {
   };
 }
 
-export const providerMetadata = defineProviderMetadata({
+export const providerMetadata: ProviderMetadata = {
   key: 'anthropic',
   label: 'Anthropic',
   fields: [
     { id: 'anthropic-api-key', configKey: 'apiKey', label: 'API Key', type: 'password', placeholder: 'sk-ant-…' },
     { id: 'anthropic-model', configKey: 'model', label: 'Model', type: 'text', placeholder: 'claude-sonnet-4-20250514' },
   ],
-  createProvider: async (config) => new AnthropicProvider(config as AnthropicConfig),
-});
+  createProvider: async (config) => new AnthropicProvider(config),
+};

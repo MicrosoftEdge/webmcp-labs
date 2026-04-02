@@ -5,9 +5,9 @@ import type {
   ToolDefinition,
   ToolCall,
   LLMResponse,
-  OpenAIConfig,
+  ProviderConfig,
+  ProviderMetadata,
 } from './provider';
-import { defineProviderMetadata } from './provider';
 
 /**
  * OpenAIProvider — uses the OpenAI Responses API internally.
@@ -16,7 +16,7 @@ export class OpenAIProvider implements LLMProvider {
   private client: OpenAI;
   private model: string;
 
-  constructor(config: OpenAIConfig) {
+  constructor(config: ProviderConfig) {
     this.client = new OpenAI({
       apiKey: config.apiKey,
       dangerouslyAllowBrowser: true,
@@ -110,12 +110,12 @@ function parseResponse(response: OpenAI.Responses.Response): LLMResponse {
   };
 }
 
-export const providerMetadata = defineProviderMetadata({
+export const providerMetadata: ProviderMetadata = {
   key: 'openai',
   label: 'OpenAI',
   fields: [
     { id: 'openai-api-key', configKey: 'apiKey', label: 'API Key', type: 'password', placeholder: 'sk-…' },
     { id: 'openai-model', configKey: 'model', label: 'Model', type: 'text', placeholder: 'gpt-5.3-chat' },
   ],
-  createProvider: async (config) => new OpenAIProvider(config as OpenAIConfig),
-});
+  createProvider: async (config) => new OpenAIProvider(config),
+};
