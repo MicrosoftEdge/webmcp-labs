@@ -64,6 +64,9 @@ const PROVIDERS: ProviderDef[] = [
   },
 ];
 
+// --- In-memory cache for per-provider configs ---
+let providerConfigs: Record<string, ProviderConfig> = {};
+
 // --- DOM refs ---
 
 const providerSelect = document.getElementById('provider-select') as HTMLSelectElement;
@@ -128,15 +131,55 @@ function renderProviderFields(def: ProviderDef | null) {
   providerFieldsContainer.appendChild(wrapper);
 }
 
+let previousProviderKey: string = '';
+
+/** Capture the form values for a given provider key into providerConfigs. */
+function captureProvider(key: string) {
+  const def = PROVIDERS.find((p) => p.key === key);
+  if (!def) return;
+  const values: Record<string, string> = {};
+  let hasValue = false;
+  for (const field of def.fields) {
+    const el = document.getElementById(field.id) as HTMLInputElement | HTMLSelectElement | null;
+    if (el && el.value.trim()) {
+      values[field.id] = el.value.trim();
+      hasValue = true;
+    }
+  }
+  if (hasValue) {
+    providerConfigs[def.key] = def.toConfig(values);
+  }
+}
+
+/** Populate fields from the providerConfigs cache for the given provider. */
+function populateFromCache(def: ProviderDef) {
+  const cached = providerConfigs[def.key];
+  if (!cached) return;
+  const values = def.fromConfig(cached);
+  for (const [id, val] of Object.entries(values)) {
+    const el = document.getElementById(id) as HTMLInputElement | HTMLSelectElement | null;
+    if (el) el.value = val;
+  }
+}
+
 // Switch provider fields on change
 providerSelect.addEventListener('change', () => {
-  renderProviderFields(getProviderDef());
+  // Capture the previous provider's fields before they are removed from the DOM
+  if (previousProviderKey) captureProvider(previousProviderKey);
+  previousProviderKey = providerSelect.value;
+  const def = getProviderDef();
+  renderProviderFields(def);
+  if (def) populateFromCache(def);
 });
 
 // Load saved config
 loadConfig().then((config) => {
+  // Hydrate in-memory cache from stored per-provider configs
+  providerConfigs = { ...config.providerConfigs };
+
   if (config.provider) {
     providerSelect.value = config.provider.provider;
+    previousProviderKey = config.provider.provider;
     const def = getProviderDef();
     renderProviderFields(def);
 
@@ -184,8 +227,10 @@ document.getElementById('config-save')!.addEventListener('click', async () => {
   if (!providerConfig) return;
 
   const maxIterations = parseInt((document.getElementById('max-iterations') as HTMLInputElement).value, 10) || 10;
-  await saveConfig({ provider: providerConfig, maxIterations });
-  showMessage('Configuration saved.', 'success');
+  // Update the active provider in the cache, then persist everything
+  providerConfigs[providerConfig.provider] = providerConfig;
+  await saveConfig({ provider: providerConfig, providerConfigs: { ...providerConfigs }, maxIterations });
+  showMessage('All provider configurations saved.', 'success');
 });
 
 // Test connection

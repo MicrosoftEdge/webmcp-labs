@@ -4,11 +4,13 @@ const STORAGE_KEY = 'webmcp-explorer-config';
 
 export interface AppConfig {
   provider: ProviderConfig | null;
+  providerConfigs: Record<string, ProviderConfig>;
   maxIterations: number;
 }
 
 const DEFAULT_CONFIG: AppConfig = {
   provider: null,
+  providerConfigs: {},
   maxIterations: 20,
 };
 
@@ -18,7 +20,12 @@ const DEFAULT_CONFIG: AppConfig = {
 export async function loadConfig(): Promise<AppConfig> {
   const result = await chrome.storage.local.get(STORAGE_KEY);
   if (result[STORAGE_KEY]) {
-    return { ...DEFAULT_CONFIG, ...result[STORAGE_KEY] };
+    const raw = { ...DEFAULT_CONFIG, ...result[STORAGE_KEY] };
+    // Migrate: if providerConfigs is missing but provider exists, seed it
+    if (!result[STORAGE_KEY].providerConfigs && raw.provider) {
+      raw.providerConfigs = { [raw.provider.provider]: raw.provider };
+    }
+    return raw;
   }
   return { ...DEFAULT_CONFIG };
 }
