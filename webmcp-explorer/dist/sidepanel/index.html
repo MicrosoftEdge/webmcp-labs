@@ -14,6 +14,7 @@
         Tools <span class="badge" id="tools-badge" hidden>0</span>
       </button>
       <button class="tab" role="tab" aria-selected="false" data-pane="agent">Agent</button>
+      <button class="tab" role="tab" aria-selected="false" data-pane="chat">Chat</button>
       <button class="tab" role="tab" aria-selected="false" data-pane="config">Config</button>
     </nav>
 
@@ -76,6 +77,22 @@
         </div>
       </section>
 
+      <!-- Chat Pane -->
+      <section id="pane-chat" class="pane" role="tabpanel">
+        <div class="chat-layout">
+          <div id="chat-empty" class="chat-empty">Send a message to start chatting. Use available page tools to explore what WebMCP can do.</div>
+          <div id="chat-messages" class="chat-messages" hidden></div>
+          <div class="chat-input-bar">
+            <textarea class="textarea chat-input" id="chat-input" rows="2" placeholder="Type a message…"></textarea>
+            <div class="row gap-sm">
+              <button class="btn btn-primary btn-sm" id="chat-send">Send</button>
+              <button class="btn btn-subtle btn-sm" id="chat-stop" disabled>Stop</button>
+              <button class="btn btn-subtle btn-sm" id="chat-reset">Reset</button>
+            </div>
+          </div>
+        </div>
+      </section>
+
       <!-- Config Pane -->
       <section id="pane-config" class="pane" role="tabpanel">
         <div class="stack gap-lg">
@@ -92,6 +109,11 @@
           <div class="form-group">
             <label class="label" for="max-iterations">Max Agent Iterations</label>
             <input class="input" id="max-iterations" type="number" min="1" max="50" value="10" />
+          </div>
+
+          <div class="form-group">
+            <label class="label" for="max-chat-messages">Max Chat Messages</label>
+            <input class="input" id="max-chat-messages" type="number" min="1" max="200" value="50" />
           </div>
 
           <!-- Actions -->

@@ -100,6 +100,7 @@ loadConfig().then((config) => {
     if (def) populateFromCache(def);
   }
   (document.getElementById('max-iterations') as HTMLInputElement).value = String(config.maxIterations);
+  (document.getElementById('max-chat-messages') as HTMLInputElement).value = String(config.maxChatMessages);
 });
 
 function showMessage(text: string, type: 'success' | 'error' | 'info') {
@@ -137,9 +138,10 @@ document.getElementById('config-save')!.addEventListener('click', async () => {
   if (!providerConfig) return;
 
   const maxIterations = parseInt((document.getElementById('max-iterations') as HTMLInputElement).value, 10) || 10;
+  const maxChatMessages = parseInt((document.getElementById('max-chat-messages') as HTMLInputElement).value, 10) || 50;
   // Update the active provider in the cache, then persist everything
   providerConfigs[providerConfig.provider] = providerConfig;
-  await saveConfig({ provider: providerConfig, providerConfigs: { ...providerConfigs }, maxIterations });
+  await saveConfig({ provider: providerConfig, providerConfigs: { ...providerConfigs }, maxIterations, maxChatMessages });
   showMessage('All provider configurations saved.', 'success');
 });
 

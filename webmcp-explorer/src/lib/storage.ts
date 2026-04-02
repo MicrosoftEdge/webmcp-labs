@@ -6,12 +6,14 @@ export interface AppConfig {
   provider: ProviderConfig | null;
   providerConfigs: Record<string, ProviderConfig>;
   maxIterations: number;
+  maxChatMessages: number;
 }
 
 const DEFAULT_CONFIG: AppConfig = {
   provider: null,
   providerConfigs: {},
   maxIterations: 20,
+  maxChatMessages: 50,
 };
 
 /**

@@ -23,4 +23,5 @@ tabs.forEach((tab) => {
 // Pane modules — each wires up listeners on the static HTML
 import './tools-pane';
 import './agent-pane';
+import './chat-pane';
 import './config-pane';
