@@ -780,10 +780,15 @@ html, body {
   flex: 1;
   overflow-y: auto;
   overflow-x: hidden;
+  scrollbar-width: none; /* Firefox */
   display: flex;
   flex-direction: column;
   gap: var(--smtc-gap-between-content-small);
   padding-bottom: var(--smtc-padding-content-small);
+}
+
+.chat-messages::-webkit-scrollbar {
+  display: none; /* Chrome/Edge */
 }
 
 .chat-input-bar {
