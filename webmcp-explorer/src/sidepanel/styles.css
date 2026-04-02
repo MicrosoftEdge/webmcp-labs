@@ -669,6 +669,12 @@ html, body {
   text-overflow: ellipsis;
 }
 
+.step-name-model {
+  font-family: var(--smtc-text-style-default-regular-font-family);
+  font-size: var(--smtc-text-global-caption1-font-size);
+  color: var(--smtc-foreground-ctrl-neutral-secondary-rest);
+}
+
 .step-status {
   font-size: var(--smtc-text-global-caption1-font-size);
   color: var(--smtc-foreground-ctrl-neutral-secondary-rest);
@@ -755,5 +761,6 @@ html, body {
   font-family: var(--smtc-text-style-default-regular-font-family);
   font-size: 10px;
   opacity: 0.6;
+  margin-left: 4px;
 }
 

@@ -44,11 +44,12 @@ let askResolver: ((answer: string) => void) | null = null;
 // --- Constants ---
 const SYSTEM_PROMPT = `You have tools to interact with the current web page. Use them to accomplish the user's goal.
 
-IMPORTANT RULES:
-- Always use tools to take actions. Never respond with plain text unless the task is fully complete.
-- Call task_complete with a summary ONLY when the goal is fully achieved.
-- Call ask_user whenever you need ANY information or clarification from the user. Do NOT ask questions in plain text — you MUST use the ask_user tool.
-- If you respond without calling any tool, the agent loop will end immediately.`;
+CRITICAL RULES:
+- You MUST call a tool in EVERY response. Plain text responses immediately terminate the session.
+- When you receive information from the user (via ask_user), use it to call the next appropriate page tool. Do NOT just repeat the information back as text.
+- Call task_complete ONLY after you have fully completed the goal using the page tools.
+- Call ask_user when you need information from the user. Never ask questions in plain text.
+- After receiving a tool result, decide what tool to call next. Keep making progress.`;
 
 const BUILT_IN_TOOLS: ToolDefinition[] = [
   {
@@ -70,6 +71,8 @@ const BUILT_IN_TOOLS: ToolDefinition[] = [
     },
   },
 ];
+
+const SYSTEM_TOOL_NAMES = new Set(BUILT_IN_TOOLS.map(t => t.name));
 
 // --- Helpers ---
 async function getActiveTabId(): Promise<number | null> {
@@ -158,7 +161,9 @@ function renderStepList() {
     row.setAttribute('tabindex', '0');
 
     const indexSpan = `<span class="step-index">${i + 1}</span>`;
-    const nameSpan = `<span class="step-name">${escapeHtml(s.name)}</span>`;
+    const isModel = s.name === 'model call';
+    const isSystem = SYSTEM_TOOL_NAMES.has(s.name);
+    const nameSpan = `<span class="step-name${isModel ? ' step-name-model' : ''}">${escapeHtml(s.name)}${isSystem ? '<span class="tool-chip-label">system</span>' : ''}</span>`;
 
     let statusHtml = '';
     if (s.status === 'pending') {
@@ -211,8 +216,8 @@ function renderDetail(idx: number) {
     </div>`;
   }
 
-  // Args
-  if (s.args) {
+  // Args (skip for ask_user when question is shown — it's redundant)
+  if (s.args && !(s.question)) {
     html += `<div class="detail-section">
       <span class="label">Args</span>
       <pre class="code-block">${escapeHtml(prettyJson(s.args))}</pre>
@@ -226,10 +231,17 @@ function renderDetail(idx: number) {
     </div>`;
   }
 
-  // Waiting — ask_user inline
+  // ask_user question (always show if present)
+  if (s.question) {
+    html += `<div class="detail-section">
+      <span class="label">Question</span>
+      <div class="ask-user-question">${escapeHtml(s.question)}</div>
+    </div>`;
+  }
+
+  // Waiting — ask_user inline input
   if (s.status === 'waiting' && s.question) {
     html += `<div class="detail-section">
-      <div class="ask-user-question">${escapeHtml(s.question)}</div>
       <div class="ask-user-row">
         <input class="input" id="detail-ask-input" type="text" placeholder="Your answer…" />
         <button class="btn btn-primary btn-sm" id="detail-ask-reply">Reply</button>
@@ -277,8 +289,6 @@ function renderDetail(idx: number) {
     });
     replyInput.focus();
   }
-
-  detailEl.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
 }
 
 // --- Agent loop ---
@@ -338,6 +348,19 @@ async function runAgentLoop(startMode: 'run' | 'step') {
       pageTools = await fetchPageTools();
     } catch { /* keep previous tools if refresh fails */ }
     const allTools = [...pageTools, ...BUILT_IN_TOOLS];
+    const builtInNames = new Set(BUILT_IN_TOOLS.map(t => t.name));
+    const toolInfos: ToolInfo[] = allTools.map(t => ({ name: t.name, system: builtInNames.has(t.name) || undefined }));
+
+    // In step mode, show a pending Model call step and pause before calling LLM
+    let modelStepIdx: number | null = null;
+    if (mode === 'step') {
+      modelStepIdx = addStep('model call', 'pending', { tools: toolInfos });
+      setState('paused');
+      setStatus('Paused — step to call model.', 'info');
+      await new Promise<void>((resolve) => { stepResolver = resolve; });
+      setState(mode === 'step' ? 'stepping' : 'running');
+      setStatus('Calling model…', 'info');
+    }
 
     // Call LLM
     let result;
@@ -345,24 +368,27 @@ async function runAgentLoop(startMode: 'run' | 'step') {
       result = await provider.sendMessage(SYSTEM_PROMPT, messages, allTools, { signal: abortController.signal });
     } catch (e) {
       if (abortController.signal.aborted) { setStatus('Stopped by user.', 'info'); break; }
-      addStep('LLM Error', 'error', { error: e instanceof Error ? e.message : String(e) });
+      if (modelStepIdx != null) updateStep(modelStepIdx, { status: 'error', error: e instanceof Error ? e.message : String(e) });
+      else addStep('LLM Error', 'error', { error: e instanceof Error ? e.message : String(e) });
       setStatus('Agent failed.', 'error');
       break;
     }
 
-    const builtInNames = new Set(BUILT_IN_TOOLS.map(t => t.name));
-    const toolInfos: ToolInfo[] = allTools.map(t => ({ name: t.name, system: builtInNames.has(t.name) || undefined }));
-
     // No tool calls — final text response
     if (result.toolCalls.length === 0) {
+      if (modelStepIdx != null) updateStep(modelStepIdx, { status: 'success', thinking: result.text ?? undefined });
       addStep('Assistant', 'done', { result: result.text ?? '(no response)' });
       messages.push({ role: 'assistant', content: result.text ?? '' });
       setStatus('Agent finished.', 'success');
       break;
     }
 
-    // Add a model call step showing thinking + available tools
-    addStep('Model call', 'success', { thinking: result.text || undefined, tools: toolInfos });
+    // Update or add model call step with thinking
+    if (modelStepIdx != null) {
+      updateStep(modelStepIdx, { status: 'success', thinking: result.text || undefined });
+    } else {
+      addStep('model call', 'success', { thinking: result.text || undefined, tools: toolInfos });
+    }
 
     // Record assistant message with tool calls
     messages.push({ role: 'assistant', content: result.text ?? '', toolCalls: result.toolCalls });
