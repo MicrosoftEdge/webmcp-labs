@@ -123,7 +123,7 @@ async function fetchTools() {
   if (tabId == null) {
     listEl.innerHTML = '';
     emptyEl.hidden = false;
-    emptyEl.textContent = 'No active tab.';
+    emptyEl.textContent = 'No tools available.';
     updateBadge(0);
     return;
   }
@@ -133,7 +133,7 @@ async function fetchTools() {
     if (response.type === 'error') {
       listEl.innerHTML = '';
       emptyEl.hidden = false;
-      emptyEl.textContent = response.message;
+      emptyEl.textContent = 'No tools available.';
       updateBadge(0);
     } else {
       renderTools(response.tools);
@@ -141,7 +141,7 @@ async function fetchTools() {
   } catch {
     listEl.innerHTML = '';
     emptyEl.hidden = false;
-    emptyEl.textContent = 'Could not connect to page. Reload the page and try again.';
+    emptyEl.textContent = 'No tools available.';
     updateBadge(0);
   }
 }
@@ -153,6 +153,12 @@ document.getElementById('tools-refresh')!.addEventListener('click', fetchTools);
 chrome.runtime.onMessage.addListener((message) => {
   if (message.type === 'toolchange') fetchTools();
 });
+
+// Auto-refresh on tab navigation
+chrome.tabs.onUpdated.addListener((_tabId, changeInfo) => {
+  if (changeInfo.status === 'complete') fetchTools();
+});
+chrome.tabs.onActivated.addListener(() => fetchTools());
 
 // Initial fetch
 fetchTools();
