@@ -722,3 +722,30 @@ html, body {
   flex: 1;
 }
 
+/* Detail: thinking text */
+.detail-thinking {
+  font-size: var(--smtc-text-global-caption1-font-size);
+  line-height: var(--smtc-text-global-caption1-line-height);
+  color: var(--smtc-foreground-ctrl-neutral-secondary-rest);
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+/* Detail: tool chips */
+.detail-tools {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--smtc-gap-between-content-xx-small);
+}
+
+.detail-tool-chip {
+  display: inline-block;
+  padding: 2px var(--smtc-padding-content-x-small);
+  font-family: var(--smtc-text-style-code-regular-font-family);
+  font-size: var(--smtc-text-global-caption1-font-size);
+  line-height: var(--smtc-text-global-caption1-line-height);
+  background: var(--smtc-background-ctrl-subtle-hover);
+  border-radius: var(--smtc-corner-ctrl-rest);
+  color: var(--smtc-foreground-ctrl-neutral-secondary-rest);
+}
+

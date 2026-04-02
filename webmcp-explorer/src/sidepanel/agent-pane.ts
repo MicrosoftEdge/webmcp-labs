@@ -22,6 +22,8 @@ interface StepData {
   result?: string;
   error?: string;
   question?: string;
+  thinking?: string;
+  tools?: string[];
 }
 
 // --- State ---
@@ -36,8 +38,12 @@ let askResolver: ((answer: string) => void) | null = null;
 
 // --- Constants ---
 const SYSTEM_PROMPT = `You have tools to interact with the current web page. Use them to accomplish the user's goal.
-Call task_complete with a summary when the goal is achieved.
-Call ask_user if you need clarification from the user.`;
+
+IMPORTANT RULES:
+- Always use tools to take actions. Never respond with plain text unless the task is fully complete.
+- Call task_complete with a summary ONLY when the goal is fully achieved.
+- Call ask_user whenever you need ANY information or clarification from the user. Do NOT ask questions in plain text — you MUST use the ask_user tool.
+- If you respond without calling any tool, the agent loop will end immediately.`;
 
 const BUILT_IN_TOOLS: ToolDefinition[] = [
   {
@@ -182,6 +188,22 @@ function renderDetail(idx: number) {
   const headerStatus = s.status === 'error' ? ' &middot; error' : '';
   let html = `<div class="detail-header">Step ${idx + 1} &middot; ${escapeHtml(s.name)}${headerStatus}</div>`;
 
+  // Thinking
+  if (s.thinking) {
+    html += `<div class="detail-section">
+      <span class="label">Thinking</span>
+      <div class="detail-thinking">${escapeHtml(s.thinking)}</div>
+    </div>`;
+  }
+
+  // Tools available
+  if (s.tools && s.tools.length > 0) {
+    html += `<div class="detail-section">
+      <span class="label">Tools (${s.tools.length})</span>
+      <div class="detail-tools">${s.tools.map(t => `<span class="detail-tool-chip">${escapeHtml(t)}</span>`).join('')}</div>
+    </div>`;
+  }
+
   // Args
   if (s.args) {
     html += `<div class="detail-section">
@@ -321,9 +343,11 @@ async function runAgentLoop(startMode: 'run' | 'step') {
       break;
     }
 
+    const toolNames = allTools.map(t => t.name);
+
     // No tool calls — final text response
     if (result.toolCalls.length === 0) {
-      addStep('Assistant', 'done', { result: result.text ?? '(no response)' });
+      addStep('Assistant', 'done', { result: result.text ?? '(no response)', thinking: result.text ?? undefined, tools: toolNames });
       messages.push({ role: 'assistant', content: result.text ?? '' });
       setStatus('Agent finished.', 'success');
       break;
@@ -332,14 +356,20 @@ async function runAgentLoop(startMode: 'run' | 'step') {
     // Record assistant message with tool calls
     messages.push({ role: 'assistant', content: result.text ?? '', toolCalls: result.toolCalls });
 
+    // Capture thinking text for the first tool call in this turn
+    const turnThinking = result.text || undefined;
+
     // Process each tool call
+    let isFirstInTurn = true;
     for (const tc of result.toolCalls) {
       if (abortController.signal.aborted) break;
 
       // Built-in: task_complete
       if (tc.name === 'task_complete') {
         const parsed = JSON.parse(tc.arguments);
-        addStep('task_complete', 'done', { args: tc.arguments, result: parsed.summary ?? 'Task complete.' });
+        const doneExtra: Partial<StepData> = { args: tc.arguments, result: parsed.summary ?? 'Task complete.' };
+        if (isFirstInTurn) { doneExtra.thinking = turnThinking; doneExtra.tools = toolNames; isFirstInTurn = false; }
+        addStep('task_complete', 'done', doneExtra);
         messages.push({ role: 'tool', toolCallId: tc.id, content: parsed.summary ?? 'Task complete.' });
         setStatus('Goal achieved.', 'success');
         setState('idle');
@@ -349,7 +379,9 @@ async function runAgentLoop(startMode: 'run' | 'step') {
       // Built-in: ask_user
       if (tc.name === 'ask_user') {
         const parsed = JSON.parse(tc.arguments);
-        const stepIdx = addStep('ask_user', 'waiting', { args: tc.arguments, question: parsed.question ?? 'The agent has a question:' });
+        const askExtra: Partial<StepData> = { args: tc.arguments, question: parsed.question ?? 'The agent has a question:' };
+        if (isFirstInTurn) { askExtra.thinking = turnThinking; askExtra.tools = toolNames; isFirstInTurn = false; }
+        const stepIdx = addStep('ask_user', 'waiting', askExtra);
         setState('waiting');
         setStatus('Waiting for your reply…', 'info');
 
@@ -363,7 +395,13 @@ async function runAgentLoop(startMode: 'run' | 'step') {
       }
 
       // Page tool — show pending, optionally pause for step
-      const stepIdx = addStep(tc.name, mode === 'step' ? 'pending' : 'success', { args: tc.arguments });
+      const stepExtra: Partial<StepData> = { args: tc.arguments };
+      if (isFirstInTurn) {
+        stepExtra.thinking = turnThinking;
+        stepExtra.tools = toolNames;
+        isFirstInTurn = false;
+      }
+      const stepIdx = addStep(tc.name, mode === 'step' ? 'pending' : 'success', stepExtra);
 
       if (mode === 'step') {
         setState('paused');
