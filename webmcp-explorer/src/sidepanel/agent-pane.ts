@@ -1,5 +1,5 @@
 import { loadConfig } from '../lib/storage';
-import type { LLMProvider, ChatMessage, ToolDefinition } from '../lib/llm/provider';
+import type { LLMProvider, Message, ToolDefinition } from '../lib/llm/provider';
 
 const goalInput = document.getElementById('agent-goal') as HTMLTextAreaElement;
 const runBtn = document.getElementById('agent-run') as HTMLButtonElement;
@@ -15,27 +15,21 @@ Call ask_user if you need clarification from the user.`;
 
 const BUILT_IN_TOOLS: ToolDefinition[] = [
   {
-    type: 'function',
-    function: {
-      name: 'task_complete',
-      description: 'Call when the goal is achieved. Provide a summary.',
-      parameters: {
-        type: 'object',
-        properties: { summary: { type: 'string', description: 'Summary of what was done' } },
-        required: ['summary'],
-      },
+    name: 'task_complete',
+    description: 'Call when the goal is achieved. Provide a summary.',
+    parameters: {
+      type: 'object',
+      properties: { summary: { type: 'string', description: 'Summary of what was done' } },
+      required: ['summary'],
     },
   },
   {
-    type: 'function',
-    function: {
-      name: 'ask_user',
-      description: 'Ask the user a clarifying question. The loop pauses until the user responds.',
-      parameters: {
-        type: 'object',
-        properties: { question: { type: 'string', description: 'The question to ask' } },
-        required: ['question'],
-      },
+    name: 'ask_user',
+    description: 'Ask the user a clarifying question. The loop pauses until the user responds.',
+    parameters: {
+      type: 'object',
+      properties: { question: { type: 'string', description: 'The question to ask' } },
+      required: ['question'],
     },
   },
 ];
@@ -128,12 +122,9 @@ async function runAgentLoop() {
     const response = await chrome.tabs.sendMessage(tabId, { type: 'listTools' });
     if (response.type === 'listTools') {
       pageTools = response.tools.map((t: { name: string; description: string; inputSchema?: string }) => ({
-        type: 'function' as const,
-        function: {
-          name: t.name,
-          description: t.description,
-          parameters: t.inputSchema ? JSON.parse(t.inputSchema) : { type: 'object', properties: {} },
-        },
+        name: t.name,
+        description: t.description,
+        parameters: t.inputSchema ? JSON.parse(t.inputSchema) : { type: 'object', properties: {} },
       }));
     }
   } catch {
@@ -143,8 +134,7 @@ async function runAgentLoop() {
   }
 
   const allTools = [...pageTools, ...BUILT_IN_TOOLS];
-  const messages: ChatMessage[] = [
-    { role: 'system', content: SYSTEM_PROMPT },
+  const messages: Message[] = [
     { role: 'user', content: goal },
   ];
 
@@ -155,9 +145,9 @@ async function runAgentLoop() {
     }
 
     // Call LLM
-    let completion;
+    let result;
     try {
-      completion = await provider.chatCompletion(messages, allTools, { signal: abortController.signal });
+      result = await provider.sendMessage(SYSTEM_PROMPT, messages, allTools, { signal: abortController.signal });
     } catch (e) {
       if (abortController.signal.aborted) { setStatus('Stopped by user.', 'info'); break; }
       addTraceStep('LLM Error', e instanceof Error ? e.message : String(e), 'error');
@@ -165,26 +155,24 @@ async function runAgentLoop() {
       break;
     }
 
-    const msg = completion.message;
-    messages.push(msg);
-
     // No tool calls — final answer
-    if (!msg.tool_calls || msg.tool_calls.length === 0) {
-      addTraceStep('Assistant', msg.content ?? '(no response)', 'assistant');
+    if (result.toolCalls.length === 0) {
+      addTraceStep('Assistant', result.text ?? '(no response)', 'assistant');
+      messages.push({ role: 'assistant', content: result.text ?? '' });
       setStatus('Agent finished.', 'success');
       break;
     }
 
-    // Process tool calls
-    for (const tc of msg.tool_calls) {
-      const fnName = tc.function.name;
-      const fnArgs = tc.function.arguments;
+    // Record the assistant's response with tool calls in history
+    messages.push({ role: 'assistant', content: result.text ?? '', toolCalls: result.toolCalls });
 
-      addTraceStep(`Tool: ${fnName}`, fnArgs, 'tool');
+    // Process tool calls
+    for (const tc of result.toolCalls) {
+      addTraceStep(`Tool: ${tc.name}`, tc.arguments, 'tool');
 
       // Built-in: task_complete
-      if (fnName === 'task_complete') {
-        const parsed = JSON.parse(fnArgs);
+      if (tc.name === 'task_complete') {
+        const parsed = JSON.parse(tc.arguments);
         addTraceStep('Done', parsed.summary ?? 'Task complete.', 'done');
         setStatus('Goal achieved.', 'success');
         setRunning(false);
@@ -192,10 +180,10 @@ async function runAgentLoop() {
       }
 
       // Built-in: ask_user
-      if (fnName === 'ask_user') {
-        const parsed = JSON.parse(fnArgs);
+      if (tc.name === 'ask_user') {
+        const parsed = JSON.parse(tc.arguments);
         const answer = prompt(parsed.question ?? 'The agent has a question:');
-        messages.push({ role: 'tool', content: answer ?? '(no answer)', tool_call_id: tc.id });
+        messages.push({ role: 'tool', toolCallId: tc.id, content: answer ?? '(no answer)' });
         addTraceStep('User Answer', answer ?? '(no answer)', 'assistant');
         continue;
       }
@@ -203,15 +191,15 @@ async function runAgentLoop() {
       // Page tool — execute via content script
       try {
         const response = await chrome.tabs.sendMessage(tabId, {
-          type: 'executeTool', name: fnName, args: fnArgs,
+          type: 'executeTool', name: tc.name, args: tc.arguments,
         });
-        const result = response.type === 'error' ? `Error: ${response.message}` : (response.result ?? '(null)');
-        messages.push({ role: 'tool', content: result, tool_call_id: tc.id });
-        addTraceStep(`Result: ${fnName}`, result, 'tool');
+        const toolResult = response.type === 'error' ? `Error: ${response.message}` : (response.result ?? '(null)');
+        messages.push({ role: 'tool', toolCallId: tc.id, content: toolResult });
+        addTraceStep(`Result: ${tc.name}`, toolResult, 'tool');
       } catch (e) {
         const errMsg = e instanceof Error ? e.message : String(e);
-        messages.push({ role: 'tool', content: `Error: ${errMsg}`, tool_call_id: tc.id });
-        addTraceStep(`Error: ${fnName}`, errMsg, 'error');
+        messages.push({ role: 'tool', toolCallId: tc.id, content: `Error: ${errMsg}` });
+        addTraceStep(`Error: ${tc.name}`, errMsg, 'error');
       }
     }
 

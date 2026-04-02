@@ -46,7 +46,7 @@ const PROVIDERS: ProviderDef[] = [
       { id: 'azure-endpoint', label: 'Endpoint URL', type: 'url', placeholder: 'https://your-resource.openai.azure.com/' },
       { id: 'azure-api-key', label: 'API Key', type: 'password' },
       { id: 'azure-deployment', label: 'Deployment Name', type: 'text', placeholder: 'gpt-4o' },
-      { id: 'azure-api-version', label: 'API Version', type: 'text', defaultValue: '2024-04-01-preview' },
+      { id: 'azure-api-version', label: 'API Version', type: 'text', defaultValue: '2025-03-01-preview' },
     ],
     toConfig: (v) => ({
       provider: 'azure-openai',
@@ -205,8 +205,9 @@ document.getElementById('config-test')!.addEventListener('click', async () => {
       provider = new AzureOpenAIProvider(providerConfig);
     }
 
-    await provider.chatCompletion(
-      [{ role: 'user', content: 'Say "ok"' }],
+    await provider.sendMessage(
+      'You are a test.',
+      [{ role: 'user', content: 'Say ok' }],
       []
     );
     showMessage('Connection successful!', 'success');

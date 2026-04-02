@@ -1,48 +1,44 @@
-import type OpenAI from 'openai';
-
 /**
- * Common types used by LLM providers.
+ * API-agnostic LLM types and interface.
+ * No OpenAI/Anthropic-specific concepts — each provider translates internally.
  */
 
-export interface ChatMessage {
-  role: 'system' | 'user' | 'assistant' | 'tool';
-  content: string | null;
-  tool_calls?: ToolCall[];
-  tool_call_id?: string;
+/** A message in the conversation history. */
+export type Message =
+  | { role: 'user'; content: string }
+  | { role: 'assistant'; content: string; toolCalls?: ToolCall[] }
+  | { role: 'tool'; toolCallId: string; content: string };
+
+/** A tool the model can call. */
+export interface ToolDefinition {
+  name: string;
+  description: string;
+  parameters?: Record<string, unknown>;
 }
 
+/** A tool call returned by the model. */
 export interface ToolCall {
   id: string;
-  type: 'function';
-  function: {
-    name: string;
-    arguments: string;
-  };
+  name: string;
+  arguments: string;
 }
 
-export interface ToolDefinition {
-  type: 'function';
-  function: {
-    name: string;
-    description: string;
-    parameters?: Record<string, unknown>;
-  };
-}
-
-export interface ChatCompletion {
-  message: ChatMessage;
-  finishReason: string | null;
+/** The model's response. */
+export interface LLMResponse {
+  text: string | null;
+  toolCalls: ToolCall[];
 }
 
 /**
- * LLMProvider — common interface for all LLM backends.
+ * LLMProvider — every LLM backend implements this.
  */
 export interface LLMProvider {
-  chatCompletion(
-    messages: ChatMessage[],
+  sendMessage(
+    systemPrompt: string,
+    messages: Message[],
     tools: ToolDefinition[],
     options?: { signal?: AbortSignal }
-  ): Promise<ChatCompletion>;
+  ): Promise<LLMResponse>;
 }
 
 /**

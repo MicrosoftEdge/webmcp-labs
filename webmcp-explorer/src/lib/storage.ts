@@ -9,7 +9,7 @@ export interface AppConfig {
 
 const DEFAULT_CONFIG: AppConfig = {
   provider: null,
-  maxIterations: 10,
+  maxIterations: 20,
 };
 
 /**
