@@ -15,6 +15,11 @@ const detailEl = document.getElementById('agent-detail')!;
 type AgentState = 'idle' | 'running' | 'stepping' | 'paused' | 'waiting';
 type StepStatus = 'success' | 'error' | 'pending' | 'waiting' | 'done';
 
+interface ToolInfo {
+  name: string;
+  system?: boolean;
+}
+
 interface StepData {
   name: string;
   status: StepStatus;
@@ -23,7 +28,7 @@ interface StepData {
   error?: string;
   question?: string;
   thinking?: string;
-  tools?: string[];
+  tools?: ToolInfo[];
 }
 
 // --- State ---
@@ -199,8 +204,10 @@ function renderDetail(idx: number) {
   // Tools available
   if (s.tools && s.tools.length > 0) {
     html += `<div class="detail-section">
-      <span class="label">Tools (${s.tools.length})</span>
-      <div class="detail-tools">${s.tools.map(t => `<span class="detail-tool-chip">${escapeHtml(t)}</span>`).join('')}</div>
+      <span class="label">Available tools (${s.tools.length})</span>
+      <div class="detail-tools">${s.tools.map(t =>
+        `<span class="detail-tool-chip${t.system ? ' detail-tool-chip-system' : ''}">${escapeHtml(t.name)}${t.system ? '<span class="tool-chip-label">system</span>' : ''}</span>`
+      ).join('')}</div>
     </div>`;
   }
 
@@ -343,33 +350,31 @@ async function runAgentLoop(startMode: 'run' | 'step') {
       break;
     }
 
-    const toolNames = allTools.map(t => t.name);
+    const builtInNames = new Set(BUILT_IN_TOOLS.map(t => t.name));
+    const toolInfos: ToolInfo[] = allTools.map(t => ({ name: t.name, system: builtInNames.has(t.name) || undefined }));
 
     // No tool calls — final text response
     if (result.toolCalls.length === 0) {
-      addStep('Assistant', 'done', { result: result.text ?? '(no response)', thinking: result.text ?? undefined, tools: toolNames });
+      addStep('Assistant', 'done', { result: result.text ?? '(no response)' });
       messages.push({ role: 'assistant', content: result.text ?? '' });
       setStatus('Agent finished.', 'success');
       break;
     }
 
+    // Add a model call step showing thinking + available tools
+    addStep('Model call', 'success', { thinking: result.text || undefined, tools: toolInfos });
+
     // Record assistant message with tool calls
     messages.push({ role: 'assistant', content: result.text ?? '', toolCalls: result.toolCalls });
 
-    // Capture thinking text for the first tool call in this turn
-    const turnThinking = result.text || undefined;
-
     // Process each tool call
-    let isFirstInTurn = true;
     for (const tc of result.toolCalls) {
       if (abortController.signal.aborted) break;
 
       // Built-in: task_complete
       if (tc.name === 'task_complete') {
         const parsed = JSON.parse(tc.arguments);
-        const doneExtra: Partial<StepData> = { args: tc.arguments, result: parsed.summary ?? 'Task complete.' };
-        if (isFirstInTurn) { doneExtra.thinking = turnThinking; doneExtra.tools = toolNames; isFirstInTurn = false; }
-        addStep('task_complete', 'done', doneExtra);
+        addStep('task_complete', 'done', { args: tc.arguments, result: parsed.summary ?? 'Task complete.' });
         messages.push({ role: 'tool', toolCallId: tc.id, content: parsed.summary ?? 'Task complete.' });
         setStatus('Goal achieved.', 'success');
         setState('idle');
@@ -379,9 +384,7 @@ async function runAgentLoop(startMode: 'run' | 'step') {
       // Built-in: ask_user
       if (tc.name === 'ask_user') {
         const parsed = JSON.parse(tc.arguments);
-        const askExtra: Partial<StepData> = { args: tc.arguments, question: parsed.question ?? 'The agent has a question:' };
-        if (isFirstInTurn) { askExtra.thinking = turnThinking; askExtra.tools = toolNames; isFirstInTurn = false; }
-        const stepIdx = addStep('ask_user', 'waiting', askExtra);
+        const stepIdx = addStep('ask_user', 'waiting', { args: tc.arguments, question: parsed.question ?? 'The agent has a question:' });
         setState('waiting');
         setStatus('Waiting for your reply…', 'info');
 
@@ -395,13 +398,7 @@ async function runAgentLoop(startMode: 'run' | 'step') {
       }
 
       // Page tool — show pending, optionally pause for step
-      const stepExtra: Partial<StepData> = { args: tc.arguments };
-      if (isFirstInTurn) {
-        stepExtra.thinking = turnThinking;
-        stepExtra.tools = toolNames;
-        isFirstInTurn = false;
-      }
-      const stepIdx = addStep(tc.name, mode === 'step' ? 'pending' : 'success', stepExtra);
+      const stepIdx = addStep(tc.name, mode === 'step' ? 'pending' : 'success', { args: tc.arguments });
 
       if (mode === 'step') {
         setState('paused');
