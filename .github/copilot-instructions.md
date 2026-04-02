@@ -1,5 +1,9 @@
 # Copilot Instructions
 
+## Code Style
+
+- Prefer slightly verbose, descriptive names over abbreviations (e.g. `ProviderMetadata` over `ProviderMeta`, `FieldDefinition` over `FieldDef`).
+
 ## WebMCP Explorer Extension
 
 - **Build**: `cd webmcp-explorer && npm run build`

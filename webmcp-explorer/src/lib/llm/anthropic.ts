@@ -7,6 +7,7 @@ import type {
   LLMResponse,
   AnthropicConfig,
 } from './provider';
+import { defineProviderMetadata } from './provider';
 
 /**
  * AnthropicProvider — uses the Anthropic Messages API internally.
@@ -126,3 +127,13 @@ function parseResponse(response: Anthropic.Message): LLMResponse {
     toolCalls,
   };
 }
+
+export const providerMetadata = defineProviderMetadata({
+  key: 'anthropic',
+  label: 'Anthropic',
+  fields: [
+    { id: 'anthropic-api-key', configKey: 'apiKey', label: 'API Key', type: 'password', placeholder: 'sk-ant-…' },
+    { id: 'anthropic-model', configKey: 'model', label: 'Model', type: 'text', placeholder: 'claude-sonnet-4-20250514' },
+  ],
+  createProvider: async (config) => new AnthropicProvider(config as AnthropicConfig),
+});

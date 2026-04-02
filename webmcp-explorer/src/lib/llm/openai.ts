@@ -7,6 +7,7 @@ import type {
   LLMResponse,
   OpenAIConfig,
 } from './provider';
+import { defineProviderMetadata } from './provider';
 
 /**
  * OpenAIProvider — uses the OpenAI Responses API internally.
@@ -108,3 +109,13 @@ function parseResponse(response: OpenAI.Responses.Response): LLMResponse {
     toolCalls,
   };
 }
+
+export const providerMetadata = defineProviderMetadata({
+  key: 'openai',
+  label: 'OpenAI',
+  fields: [
+    { id: 'openai-api-key', configKey: 'apiKey', label: 'API Key', type: 'password', placeholder: 'sk-…' },
+    { id: 'openai-model', configKey: 'model', label: 'Model', type: 'text', placeholder: 'gpt-5.3-chat' },
+  ],
+  createProvider: async (config) => new OpenAIProvider(config as OpenAIConfig),
+});

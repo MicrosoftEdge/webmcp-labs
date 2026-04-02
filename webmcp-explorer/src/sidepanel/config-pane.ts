@@ -1,70 +1,6 @@
 import { loadConfig, saveConfig } from '../lib/storage';
-import type { ProviderConfig } from '../lib/llm/provider';
-
-// --- Provider registry (add new providers here) ---
-
-interface FieldDef {
-  id: string;
-  label: string;
-  type: 'text' | 'password' | 'url' | 'select';
-  placeholder?: string;
-  defaultValue?: string;
-  options?: { value: string; label: string }[];
-}
-
-interface ProviderDef {
-  key: string;
-  label: string;
-  fields: FieldDef[];
-  toConfig: (values: Record<string, string>) => ProviderConfig;
-  fromConfig: (config: ProviderConfig) => Record<string, string>;
-}
-
-const PROVIDERS: ProviderDef[] = [
-  {
-    key: 'openai',
-    label: 'OpenAI',
-    fields: [
-      { id: 'openai-api-key', label: 'API Key', type: 'password', placeholder: 'sk-…' },
-      { id: 'openai-model', label: 'Model', type: 'text', placeholder: 'gpt-5.3-chat' },
-    ],
-    toConfig: (v) => ({ provider: 'openai', apiKey: v['openai-api-key'], model: v['openai-model'] }),
-    fromConfig: (c) => c.provider === 'openai' ? { 'openai-api-key': c.apiKey, 'openai-model': c.model } : ({} as Record<string, string>),
-  },
-  {
-    key: 'azure-openai',
-    label: 'Azure OpenAI',
-    fields: [
-      { id: 'azure-endpoint', label: 'Endpoint URL', type: 'url', placeholder: 'https://your-resource.openai.azure.com/' },
-      { id: 'azure-api-key', label: 'API Key', type: 'password' },
-      { id: 'azure-deployment', label: 'Deployment Name', type: 'text', placeholder: 'gpt-5.3-chat' },
-      { id: 'azure-api-version', label: 'API Version', type: 'text', defaultValue: '2025-03-01-preview' },
-    ],
-    toConfig: (v) => ({
-      provider: 'azure-openai',
-      endpoint: v['azure-endpoint'],
-      apiKey: v['azure-api-key'],
-      deployment: v['azure-deployment'],
-      apiVersion: v['azure-api-version'],
-    }),
-    fromConfig: (c) => c.provider === 'azure-openai' ? {
-      'azure-endpoint': c.endpoint,
-      'azure-api-key': c.apiKey,
-      'azure-deployment': c.deployment,
-      'azure-api-version': c.apiVersion,
-    } : ({} as Record<string, string>),
-  },
-  {
-    key: 'anthropic',
-    label: 'Anthropic',
-    fields: [
-      { id: 'anthropic-api-key', label: 'API Key', type: 'password', placeholder: 'sk-ant-…' },
-      { id: 'anthropic-model', label: 'Model', type: 'text', placeholder: 'claude-sonnet-4-20250514' },
-    ],
-    toConfig: (v) => ({ provider: 'anthropic', apiKey: v['anthropic-api-key'], model: v['anthropic-model'] }),
-    fromConfig: (c) => c.provider === 'anthropic' ? { 'anthropic-api-key': c.apiKey, 'anthropic-model': c.model } : ({} as Record<string, string>),
-  },
-];
+import type { ProviderConfig, ProviderMetadata } from '../lib/llm/provider';
+import { PROVIDERS } from '../lib/llm/registry';
 
 // --- In-memory cache for per-provider configs ---
 let providerConfigs: Record<string, ProviderConfig> = {};
@@ -84,53 +20,29 @@ for (const p of PROVIDERS) {
   providerSelect.appendChild(opt);
 }
 
-function getProviderDef(): ProviderDef | null {
+function getProviderDef(): ProviderMetadata | null {
   return PROVIDERS.find((p) => p.key === providerSelect.value) ?? null;
 }
 
-function renderProviderFields(def: ProviderDef | null) {
-  providerFieldsContainer.innerHTML = '';
-  if (!def) return;
+function renderProviderFields(def: ProviderMetadata | null) {
+  // All values come from our own provider metadata constants, so innerHTML is safe here.
+  if (!def) { providerFieldsContainer.innerHTML = ''; return; }
 
-  const wrapper = document.createElement('div');
-  wrapper.className = 'stack gap-md';
-
-  for (const field of def.fields) {
-    const group = document.createElement('div');
-    group.className = 'form-group';
-
-    const label = document.createElement('label');
-    label.className = 'label';
-    label.htmlFor = field.id;
-    label.textContent = field.label;
-    group.appendChild(label);
-
-    if (field.type === 'select' && field.options) {
-      const select = document.createElement('select');
-      select.className = 'select';
-      select.id = field.id;
-      for (const opt of field.options) {
-        const o = document.createElement('option');
-        o.value = opt.value;
-        o.textContent = opt.label;
-        select.appendChild(o);
-      }
-      group.appendChild(select);
-    } else {
-      const input = document.createElement('input');
-      input.className = 'input';
-      input.id = field.id;
-      input.type = field.type;
-      input.autocomplete = 'off';
-      if (field.placeholder) input.placeholder = field.placeholder;
-      if (field.defaultValue) input.value = field.defaultValue;
-      group.appendChild(input);
-    }
-
-    wrapper.appendChild(group);
-  }
-
-  providerFieldsContainer.appendChild(wrapper);
+  providerFieldsContainer.innerHTML = `
+    <div class="stack gap-md">
+      ${def.fields.map((field) => `
+        <div class="form-group">
+          <label class="label" for="${field.id}">${field.label}</label>
+          ${field.type === 'select' && field.options
+            ? `<select class="select" id="${field.id}">
+                ${field.options.map((o) => `<option value="${o.value}">${o.label}</option>`).join('')}
+              </select>`
+            : `<input class="input" id="${field.id}" type="${field.type}" autocomplete="off"
+                ${field.placeholder ? `placeholder="${field.placeholder}"` : ''}
+                ${field.defaultValue ? `value="${field.defaultValue}"` : ''}>`}
+        </div>
+      `).join('')}
+    </div>`;
 }
 
 let previousProviderKey: string = '';
@@ -153,7 +65,7 @@ function captureProvider(key: string) {
 }
 
 /** Populate fields from the providerConfigs cache for the given provider. */
-function populateFromCache(def: ProviderDef) {
+function populateFromCache(def: ProviderMetadata) {
   const cached = providerConfigs[def.key];
   if (!cached) return;
   const values = def.fromConfig(cached);
@@ -242,19 +154,11 @@ document.getElementById('config-test')!.addEventListener('click', async () => {
   showMessage('Testing connection…', 'info');
 
   try {
-    let provider;
-    if (providerConfig.provider === 'openai') {
-      const { OpenAIProvider } = await import('../lib/llm/openai');
-      provider = new OpenAIProvider(providerConfig);
-    } else if (providerConfig.provider === 'azure-openai') {
-      const { AzureOpenAIProvider } = await import('../lib/llm/azure-openai');
-      provider = new AzureOpenAIProvider(providerConfig);
-    } else if (providerConfig.provider === 'anthropic') {
-      const { AnthropicProvider } = await import('../lib/llm/anthropic');
-      provider = new AnthropicProvider(providerConfig);
-    }
+    const meta = getProviderDef();
+    if (!meta) return;
+    const provider = await meta.createProvider(providerConfig);
 
-    await provider!.sendMessage(
+    await provider.sendMessage(
       'You are a test.',
       [{ role: 'user', content: 'Say ok' }],
       []
