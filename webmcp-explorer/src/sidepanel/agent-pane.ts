@@ -377,7 +377,7 @@ async function runAgentLoop(startMode: 'run' | 'step') {
     // No tool calls — final text response
     if (result.toolCalls.length === 0) {
       if (modelStepIdx != null) updateStep(modelStepIdx, { status: 'success', thinking: result.text ?? undefined });
-      addStep('Assistant', 'done', { result: result.text ?? '(no response)' });
+      addStep('model response (no tool called)', 'done', { result: result.text ?? '(no response)' });
       messages.push({ role: 'assistant', content: result.text ?? '' });
       setStatus('Agent finished.', 'success');
       break;
