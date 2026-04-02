@@ -276,30 +276,39 @@ async function runAgentLoop(startMode: 'run' | 'step') {
   setState(startMode === 'run' ? 'running' : 'stepping');
   setStatus('Running…', 'info');
 
-  // Get page tools
-  let pageTools: ToolDefinition[] = [];
-  try {
-    const response = await chrome.tabs.sendMessage(tabId, { type: 'listTools' });
+  async function fetchPageTools(): Promise<ToolDefinition[]> {
+    const response = await chrome.tabs.sendMessage(tabId!, { type: 'listTools' });
     if (response.type === 'listTools') {
-      pageTools = response.tools.map((t: { name: string; description: string; inputSchema?: string }) => ({
+      return response.tools.map((t: { name: string; description: string; inputSchema?: string }) => ({
         name: t.name,
         description: t.description,
         parameters: t.inputSchema ? JSON.parse(t.inputSchema) : { type: 'object', properties: {} },
       }));
     }
+    return [];
+  }
+
+  // Initial tool fetch — verify connectivity
+  let pageTools: ToolDefinition[];
+  try {
+    pageTools = await fetchPageTools();
   } catch {
     setStatus('Could not connect to page.', 'error');
     setState('idle');
     return;
   }
 
-  const allTools = [...pageTools, ...BUILT_IN_TOOLS];
-
   for (let i = 0; i < maxIterations; i++) {
     if (abortController.signal.aborted) {
       setStatus('Stopped by user.', 'info');
       break;
     }
+
+    // Refresh tools from page before each LLM call
+    try {
+      pageTools = await fetchPageTools();
+    } catch { /* keep previous tools if refresh fails */ }
+    const allTools = [...pageTools, ...BUILT_IN_TOOLS];
 
     // Call LLM
     let result;
