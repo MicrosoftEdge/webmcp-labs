@@ -54,6 +54,16 @@ const PROVIDERS: ProviderDef[] = [
       'azure-api-version': c.apiVersion,
     } : ({} as Record<string, string>),
   },
+  {
+    key: 'anthropic',
+    label: 'Anthropic',
+    fields: [
+      { id: 'anthropic-api-key', label: 'API Key', type: 'password', placeholder: 'sk-ant-…' },
+      { id: 'anthropic-model', label: 'Model', type: 'text', placeholder: 'claude-sonnet-4-20250514' },
+    ],
+    toConfig: (v) => ({ provider: 'anthropic', apiKey: v['anthropic-api-key'], model: v['anthropic-model'] }),
+    fromConfig: (c) => c.provider === 'anthropic' ? { 'anthropic-api-key': c.apiKey, 'anthropic-model': c.model } : ({} as Record<string, string>),
+  },
 ];
 
 // --- In-memory cache for per-provider configs ---
@@ -236,12 +246,15 @@ document.getElementById('config-test')!.addEventListener('click', async () => {
     if (providerConfig.provider === 'openai') {
       const { OpenAIProvider } = await import('../lib/llm/openai');
       provider = new OpenAIProvider(providerConfig);
-    } else {
+    } else if (providerConfig.provider === 'azure-openai') {
       const { AzureOpenAIProvider } = await import('../lib/llm/azure-openai');
       provider = new AzureOpenAIProvider(providerConfig);
+    } else if (providerConfig.provider === 'anthropic') {
+      const { AnthropicProvider } = await import('../lib/llm/anthropic');
+      provider = new AnthropicProvider(providerConfig);
     }
 
-    await provider.sendMessage(
+    await provider!.sendMessage(
       'You are a test.',
       [{ role: 'user', content: 'Say ok' }],
       []

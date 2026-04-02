@@ -87,9 +87,14 @@ async function createProvider(): Promise<LLMProvider | null> {
   if (config.provider.provider === 'openai') {
     const { OpenAIProvider } = await import('../lib/llm/openai');
     return new OpenAIProvider(config.provider);
-  } else {
+  } else if (config.provider.provider === 'azure-openai') {
     const { AzureOpenAIProvider } = await import('../lib/llm/azure-openai');
     return new AzureOpenAIProvider(config.provider);
+  } else if (config.provider.provider === 'anthropic') {
+    const { AnthropicProvider } = await import('../lib/llm/anthropic');
+    return new AnthropicProvider(config.provider);
+  } else {
+    return null;
   }
 }
 

@@ -8,6 +8,7 @@
     "build": "tsc --noEmit && vite build"
   },
   "dependencies": {
+    "@anthropic-ai/sdk": "^0.82.0",
     "openai": "^4.73.0"
   },
   "devDependencies": {

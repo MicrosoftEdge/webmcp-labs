@@ -58,4 +58,10 @@ export interface AzureOpenAIConfig {
   apiVersion: string;
 }
 
-export type ProviderConfig = OpenAIConfig | AzureOpenAIConfig;
+export interface AnthropicConfig {
+  provider: 'anthropic';
+  apiKey: string;
+  model: string;
+}
+
+export type ProviderConfig = OpenAIConfig | AzureOpenAIConfig | AnthropicConfig;
