@@ -56,6 +56,7 @@ export interface FieldDefinition {
   type: 'text' | 'password' | 'url' | 'select';
   placeholder?: string;
   defaultValue?: string;
+  optional?: boolean;
   options?: { value: string; label: string }[];
 }
 

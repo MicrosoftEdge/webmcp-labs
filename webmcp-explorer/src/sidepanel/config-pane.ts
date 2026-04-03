@@ -103,7 +103,7 @@ loadConfig().then((config) => {
   (document.getElementById('max-chat-messages') as HTMLInputElement).value = String(config.maxChatMessages);
 });
 
-function showMessage(text: string, type: 'success' | 'error' | 'info') {
+function showMessage(text: string, type: 'success' | 'error' | 'info' | 'warning') {
   messageEl.hidden = false;
   messageEl.className = `message-bar message-bar-${type}`;
   messageEl.textContent = text;
@@ -120,7 +120,7 @@ function getProviderConfig(): ProviderConfig | null {
   for (const field of def.fields) {
     const el = document.getElementById(field.id) as HTMLInputElement | HTMLSelectElement;
     const val = el.value.trim();
-    if (!val) {
+    if (!val && !field.optional) {
       showMessage(`${field.label} is required.`, 'error');
       return null;
     }
@@ -162,6 +162,24 @@ document.getElementById('config-test')!.addEventListener('click', async () => {
       [{ role: 'user', content: 'Say ok' }],
       []
     );
+
+    // For local providers, probe whether the model supports tool calling
+    if (meta.key === 'chat-completions') {
+      const toolProbe = await provider.sendMessage(
+        'You are a helpful assistant. You MUST call the provided tool.',
+        [{ role: 'user', content: 'Call the test_tool with value "hello"' }],
+        [{
+          name: 'test_tool',
+          description: 'A test tool that accepts a string value',
+          parameters: { type: 'object', properties: { value: { type: 'string' } }, required: ['value'] },
+        }]
+      );
+      if (toolProbe.toolCalls.length === 0) {
+        showMessage('Connected, but the model did not use tool calling. Tool-based features may not work with this model.', 'warning');
+        return;
+      }
+    }
+
     showMessage('Connection successful!', 'success');
   } catch (e) {
     showMessage(`Connection failed: ${e instanceof Error ? e.message : String(e)}`, 'error');
