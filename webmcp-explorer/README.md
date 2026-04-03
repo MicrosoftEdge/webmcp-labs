@@ -50,6 +50,18 @@ Go to the **Config** tab in the side panel. Select a provider, fill in the field
 | **API Key** | From [console.anthropic.com](https://console.anthropic.com/) |
 | **Model** | e.g. `claude-sonnet-4-6` |
 
+### Chat Completions API (Ollama, LM Studio, etc.)
+
+Use any OpenAI-compatible endpoint — local or remote. Works with Ollama, LM Studio, llama.cpp, vLLM, and other servers that expose the `/v1/chat/completions` route.
+
+| Field | Description |
+|---|---|
+| **Base URL** | Server URL (e.g. `http://localhost:11434/v1` for Ollama) |
+| **API Key** | Optional — leave blank if the server doesn't require authentication |
+| **Model** | Model name served by the endpoint (e.g. `llama3`, `mistral`) |
+
+> **Note:** The model must support tool calling. When you click **Test Connection**, the extension sends a probe request with a dummy tool. If the model doesn't return a tool call, you'll see a warning that tool-based features may not work.
+
 ## Extension Tabs
 
 | Tab | Purpose |
