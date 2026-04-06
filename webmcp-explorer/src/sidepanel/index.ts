@@ -1,3 +1,6 @@
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
+
 // Tab routing
 const tabs = document.querySelectorAll<HTMLButtonElement>('.tab');
 const panes = document.querySelectorAll<HTMLElement>('.pane');

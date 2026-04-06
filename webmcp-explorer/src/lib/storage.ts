@@ -1,3 +1,6 @@
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
+
 import type { ProviderConfig } from './llm/provider';
 
 const STORAGE_KEY = 'webmcp-explorer-config';

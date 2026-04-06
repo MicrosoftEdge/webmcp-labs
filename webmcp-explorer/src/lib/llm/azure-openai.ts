@@ -1,3 +1,6 @@
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
+
 import { AzureOpenAI } from 'openai';
 import type OpenAITypes from 'openai';
 import type {

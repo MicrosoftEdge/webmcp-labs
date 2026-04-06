@@ -1,3 +1,6 @@
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
+
 import { defineConfig } from 'vite';
 import { resolve } from 'path';
 import { copyFileSync } from 'fs';

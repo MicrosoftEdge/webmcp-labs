@@ -1,3 +1,6 @@
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
+
 import { loadConfig, saveConfig } from '../lib/storage';
 import type { ProviderConfig, ProviderMetadata } from '../lib/llm/provider';
 import { PROVIDERS } from '../lib/llm/registry';

@@ -1,3 +1,6 @@
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
+
 /**
  * Content script — injected into web pages.
  * Bridges the ModelContextTesting API to the extension side panel

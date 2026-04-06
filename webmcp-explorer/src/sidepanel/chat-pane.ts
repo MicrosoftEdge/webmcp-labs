@@ -1,3 +1,6 @@
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
+
 import { marked } from 'marked';
 import { loadConfig } from '../lib/storage';
 import type { LLMProvider, Message, ToolDefinition, ToolCall } from '../lib/llm/provider';

@@ -1,3 +1,6 @@
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
+
 import Anthropic from '@anthropic-ai/sdk';
 import type {
   LLMProvider,

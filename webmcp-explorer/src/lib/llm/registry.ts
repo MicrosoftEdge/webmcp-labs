@@ -1,3 +1,6 @@
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
+
 import type { ProviderMetadata } from './provider';
 import { providerMetadata as openai } from './openai';
 import { providerMetadata as azureOpenai } from './azure-openai';

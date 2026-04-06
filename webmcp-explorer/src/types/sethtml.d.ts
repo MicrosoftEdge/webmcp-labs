@@ -1,3 +1,6 @@
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
+
 /**
  * Minimal type declarations for the HTML Sanitizer API.
  * Available in Chrome/Edge 146+ and Firefox 148+.

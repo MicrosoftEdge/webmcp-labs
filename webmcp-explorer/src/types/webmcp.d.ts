@@ -1,3 +1,6 @@
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
+
 /**
  * TypeScript types for the ModelContextTesting WebIDL interface.
  */

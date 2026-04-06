@@ -1,3 +1,6 @@
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
+
 /**
  * API-agnostic LLM types and interface.
  * No OpenAI/Anthropic-specific concepts — each provider translates internally.

@@ -1,3 +1,6 @@
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
+
 import OpenAI from 'openai';
 import type {
   LLMProvider,

@@ -1,3 +1,6 @@
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
+
 /**
  * Service worker — extension lifecycle.
  * Opens the side panel when the extension action icon is clicked.
