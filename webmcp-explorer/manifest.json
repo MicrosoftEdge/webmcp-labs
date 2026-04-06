@@ -5,7 +5,6 @@
   "description": "Inspect, debug, and interact with WebMCP-enabled web pages.",
   "permissions": [
     "activeTab",
-    "tabs",
     "sidePanel",
     "storage",
     "scripting"

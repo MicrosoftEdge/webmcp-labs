@@ -102,6 +102,10 @@ function prettyJson(raw: string): string {
   }
 }
 
+function tryParseJSON(str: string): Record<string, unknown> | null {
+  try { return JSON.parse(str); } catch { return null; }
+}
+
 // --- UI: Controls ---
 function setState(next: AgentState) {
   state = next;
@@ -394,9 +398,9 @@ async function runAgentLoop(startMode: 'run' | 'step') {
 
       // Built-in: task_complete
       if (tc.name === 'task_complete') {
-        const parsed = JSON.parse(tc.arguments);
-        addStep('task_complete', 'done', { args: tc.arguments, result: parsed.summary ?? 'Task complete.' });
-        messages.push({ role: 'tool', toolCallId: tc.id, content: parsed.summary ?? 'Task complete.' });
+        const summary = tryParseJSON(tc.arguments)?.summary as string ?? 'Task complete.';
+        addStep('task_complete', 'done', { args: tc.arguments, result: summary });
+        messages.push({ role: 'tool', toolCallId: tc.id, content: summary });
         setStatus('Goal achieved.', 'success');
         setState('idle');
         return;
@@ -404,8 +408,8 @@ async function runAgentLoop(startMode: 'run' | 'step') {
 
       // Built-in: ask_user
       if (tc.name === 'ask_user') {
-        const parsed = JSON.parse(tc.arguments);
-        const stepIdx = addStep('ask_user', 'waiting', { args: tc.arguments, question: parsed.question ?? 'The agent has a question:' });
+        const question = tryParseJSON(tc.arguments)?.question as string ?? 'The agent has a question:';
+        const stepIdx = addStep('ask_user', 'waiting', { args: tc.arguments, question });
         setState('waiting');
         setStatus('Waiting for your reply…', 'info');
 

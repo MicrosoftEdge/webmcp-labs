@@ -283,14 +283,12 @@ async function handleSend() {
     for (const tc of result.toolCalls) {
       if (abortController.signal.aborted) break;
 
-      console.log(`[chat] calling tool "${tc.name}" with args:`, tc.arguments);
       const { bodyEl } = appendToolCard(tc);
 
       try {
         const response = await chrome.tabs.sendMessage(tabId, {
           type: 'executeTool', name: tc.name, args: tc.arguments,
         });
-        console.log(`[chat] tool "${tc.name}" response:`, response);
         const toolResult = response.type === 'error' ? `Error: ${response.message}` : (response.result ?? '(null)');
         const isError = response.type === 'error';
         updateToolCardResult(bodyEl, toolResult, isError);
