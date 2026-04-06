@@ -28,7 +28,7 @@ Open the WebMCP Explorer side panel, switch to the **Chat** or **Agent** tab, an
 
 Go to the **Config** tab in the side panel. Select a provider, fill in the fields, and click **Save**. Use **Test Connection** to verify.
 
-### Azure OpenAI (recommended)
+### Azure OpenAI
 
 | Field | Description |
 |---|---|
