@@ -2,6 +2,8 @@
 
 A browser extension for inspecting, debugging, and interacting with WebMCP-enabled web pages.
 
+> **⚠️ Use on trusted sites only.** This extension sends tool names, descriptions, input schemas, and execution results to your configured LLM provider. Only use it on sites you own or trust — a malicious page could register tools designed to exfiltrate data or manipulate the LLM through crafted descriptions and return values.
+
 ## Prerequisites
 
 - A Chromium-based browser (Edge or Chrome)
