@@ -9,10 +9,7 @@ A browser extension for inspecting, debugging, and interacting with WebMCP-enabl
 
 ## Quick Start
 
-1. Clone the repo:
-   ```
-   git clone https://github.com/MicrosoftEdge/webmcp-labs.git
-   ```
+1. Clone the repo:`git clone https://github.com/MicrosoftEdge/webmcp-labs.git`
 2. Open `edge://extensions` (or `chrome://extensions`)
 3. Enable **Developer mode**
 4. Click **Load unpacked** and select the `webmcp-explorer/dist/` folder
