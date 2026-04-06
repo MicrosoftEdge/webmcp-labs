@@ -47,35 +47,6 @@ function prettyJson(raw: string): string {
 }
 
 /**
- * Sanitize HTML output from marked to prevent XSS.
- * Strips dangerous tags and event handler attributes.
- */
-function sanitizeHtml(html: string): string {
-  const doc = new DOMParser().parseFromString(html, 'text/html');
-
-  // Remove dangerous elements
-  const dangerous = doc.querySelectorAll('script, iframe, object, embed, form, style, link, meta, base');
-  dangerous.forEach((el) => el.remove());
-
-  // Remove event handler attributes from all elements
-  const allElements = doc.body.querySelectorAll('*');
-  allElements.forEach((el) => {
-    const attrs = Array.from(el.attributes);
-    for (const attr of attrs) {
-      if (attr.name.startsWith('on') || attr.name === 'srcdoc') {
-        el.removeAttribute(attr.name);
-      }
-      // Sanitize javascript: protocol in href/src
-      if ((attr.name === 'href' || attr.name === 'src') && /^\s*javascript:/i.test(attr.value)) {
-        el.removeAttribute(attr.name);
-      }
-    }
-  });
-
-  return doc.body.innerHTML;
-}
-
-/**
  * Make all links in rendered HTML open in a new tab safely.
  */
 function makeLinksExternal(container: HTMLElement) {
@@ -86,8 +57,7 @@ function makeLinksExternal(container: HTMLElement) {
 }
 
 function renderMarkdown(text: string): string {
-  const raw = marked.parse(text) as string;
-  return sanitizeHtml(raw);
+  return marked.parse(text) as string;
 }
 
 async function fetchPageTools(tabId: number): Promise<ToolDefinition[]> {
@@ -139,7 +109,7 @@ function appendAssistantBubble(html: string): HTMLElement {
   bubble.className = 'chat-bubble chat-bubble-assistant';
   const content = document.createElement('div');
   content.className = 'chat-message-content';
-  content.innerHTML = html;
+  content.setHTML(html);
   makeLinksExternal(content);
   bubble.appendChild(content);
   messagesEl.appendChild(bubble);
