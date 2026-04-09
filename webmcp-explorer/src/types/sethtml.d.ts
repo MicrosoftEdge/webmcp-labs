@@ -17,9 +17,13 @@ interface SanitizerConfig {
   removeAttributes?: string[];
 }
 
-interface Sanitizer {
-  // eslint-disable-next-line @typescript-eslint/no-misused-new
-  new (config?: SanitizerConfig): Sanitizer;
+declare class Sanitizer {
+  constructor(config?: SanitizerConfig);
+  allowElement(element: string): void;
+  allowAttribute(attribute: string): void;
+  removeElement(element: string): void;
+  removeAttribute(attribute: string): void;
+  get(): SanitizerConfig;
 }
 
 interface SetHTMLOptions {

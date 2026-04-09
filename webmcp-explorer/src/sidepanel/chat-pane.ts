@@ -50,6 +50,18 @@ function prettyJson(raw: string): string {
 }
 
 /**
+ * Sanitizer for assistant chat messages.
+ * Start from default (XSS-safe) and allow markdown-rendered elements.
+ */
+const chatSanitizer = new Sanitizer();
+for (const el of ['ul', 'ol', 'li', 'blockquote', 'pre', 'code', 'table', 'thead', 'tbody', 'tr', 'th', 'td', 'img', 'hr']) {
+  chatSanitizer.allowElement(el);
+}
+for (const attr of ['class', 'href', 'target', 'rel', 'src', 'alt', 'colspan', 'rowspan']) {
+  chatSanitizer.allowAttribute(attr);
+}
+
+/**
  * Make all links in rendered HTML open in a new tab safely.
  */
 function makeLinksExternal(container: HTMLElement) {
@@ -112,7 +124,7 @@ function appendAssistantBubble(html: string): HTMLElement {
   bubble.className = 'chat-bubble chat-bubble-assistant';
   const content = document.createElement('div');
   content.className = 'chat-message-content';
-  content.setHTML(html);
+  content.setHTML(html, { sanitizer: chatSanitizer });
   makeLinksExternal(content);
   bubble.appendChild(content);
   messagesEl.appendChild(bubble);
