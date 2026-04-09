@@ -8,6 +8,12 @@ Experimental projects and tools for the [WebMCP](https://github.com/webmachinele
 |---------|-------------|
 | [webmcp-explorer](webmcp-explorer/) | Browser extension that lets you interact with web pages through WebMCP, autonomous agent loop with multi-provider LLM support |
 
+## Demos
+
+| Demo | Description |
+|------|-------------|
+| [event-search](demos/event-search/) | Interactive playground showing declarative WebMCP attributes (manual review, auto-submit, custom response) on a single form |
+
 ## Contributing
 
 See [CONTRIBUTING.md](CONTRIBUTING.md) for CLA and general guidelines. Each project has its own setup instructions in its README.
