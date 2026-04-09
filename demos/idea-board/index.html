@@ -320,6 +320,9 @@ function updateTools() {
   // Update badge
   toolCount = 2 + (editController ? 1 : 0) + (clearController ? 1 : 0) + (groupController ? 1 : 0);
   badgeEl.textContent = `${toolCount} tool${toolCount !== 1 ? 's' : ''}`;
+
+  // Update code pane highlights
+  updateCodePane();
 }
 
 // ============================================================
@@ -359,59 +362,90 @@ if (navigator.modelContext) {
 // Code pane display
 // ============================================================
 
-function hl(text) {
-  return '<span class="hl">' + text + '</span>';
+function line(text, section) {
+  return `<span class="code-line" data-section="${section}">${text}</span>`;
 }
 
-function dim(text) {
-  return '<span class="dim">' + text + '</span>';
+function buildCodePane() {
+  const lines = [
+    line('<span class="token comment">// Board state &amp; helpers</span>', 'context'),
+    line('<span class="token keyword">const</span> stickies <span class="token operator">=</span> <span class="token punctuation">[</span><span class="token punctuation">]</span><span class="token punctuation">;</span>', 'context'),
+    line('<span class="token keyword">function</span> <span class="token function">addSticky</span><span class="token punctuation">(</span>text<span class="token punctuation">,</span> color<span class="token punctuation">)</span> <span class="token punctuation">{</span> <span class="token comment">/* ... */</span> <span class="token punctuation">}</span>', 'context'),
+    line('<span class="token keyword">function</span> <span class="token function">editSticky</span><span class="token punctuation">(</span>id<span class="token punctuation">,</span> text<span class="token punctuation">,</span> color<span class="token punctuation">)</span> <span class="token punctuation">{</span> <span class="token comment">/* ... */</span> <span class="token punctuation">}</span>', 'context'),
+    line('', 'spacer'),
+    line('<span class="token comment">// 1. Register permanent tools</span>', 'permanent'),
+    line('navigator<span class="token punctuation">.</span>modelContext<span class="token punctuation">.</span><span class="token function">registerTool</span><span class="token punctuation">(</span><span class="token punctuation">{</span>', 'permanent'),
+    line('  name<span class="token operator">:</span> <span class="token string">"add-sticky"</span><span class="token punctuation">,</span>', 'permanent'),
+    line('  description<span class="token operator">:</span> <span class="token string">"Add a new sticky note to the IdeaBoard."</span><span class="token punctuation">,</span>', 'permanent'),
+    line('  inputSchema<span class="token operator">:</span> <span class="token punctuation">{</span> type<span class="token operator">:</span> <span class="token string">"object"</span><span class="token punctuation">,</span> properties<span class="token operator">:</span> <span class="token punctuation">{</span> text<span class="token punctuation">,</span> color <span class="token punctuation">}</span><span class="token punctuation">,</span> required<span class="token operator">:</span> <span class="token punctuation">[</span><span class="token string">"text"</span><span class="token punctuation">]</span> <span class="token punctuation">}</span><span class="token punctuation">,</span>', 'permanent'),
+    line('  execute<span class="token operator">:</span> <span class="token punctuation">(</span><span class="token punctuation">{</span> text<span class="token punctuation">,</span> color <span class="token punctuation">}</span><span class="token punctuation">)</span> <span class="token operator">=&gt;</span> <span class="token function">addSticky</span><span class="token punctuation">(</span>text<span class="token punctuation">,</span> color<span class="token punctuation">)</span>', 'permanent'),
+    line('<span class="token punctuation">}</span><span class="token punctuation">)</span><span class="token punctuation">;</span>', 'permanent'),
+    line('', 'spacer'),
+    line('navigator<span class="token punctuation">.</span>modelContext<span class="token punctuation">.</span><span class="token function">registerTool</span><span class="token punctuation">(</span><span class="token punctuation">{</span>', 'permanent'),
+    line('  name<span class="token operator">:</span> <span class="token string">"list-stickies"</span><span class="token punctuation">,</span>', 'permanent'),
+    line('  description<span class="token operator">:</span> <span class="token string">"List all sticky notes on the board."</span><span class="token punctuation">,</span>', 'permanent'),
+    line('  inputSchema<span class="token operator">:</span> <span class="token punctuation">{</span> type<span class="token operator">:</span> <span class="token string">"object"</span><span class="token punctuation">,</span> properties<span class="token operator">:</span> <span class="token punctuation">{</span><span class="token punctuation">}</span> <span class="token punctuation">}</span><span class="token punctuation">,</span>', 'permanent'),
+    line('  execute<span class="token operator">:</span> <span class="token punctuation">(</span><span class="token punctuation">)</span> <span class="token operator">=&gt;</span> <span class="token function">listStickies</span><span class="token punctuation">(</span><span class="token punctuation">)</span>', 'permanent'),
+    line('<span class="token punctuation">}</span><span class="token punctuation">)</span><span class="token punctuation">;</span>', 'permanent'),
+    line('', 'spacer'),
+    line('<span class="token comment">// 2. Register a tool that appears/disappears with state</span>', 'register'),
+    line('<span class="token keyword">let</span> editCtrl <span class="token operator">=</span> <span class="token keyword">null</span><span class="token punctuation">;</span>', 'register'),
+    line('', 'spacer'),
+    line('<span class="token keyword">function</span> <span class="token function">updateTools</span><span class="token punctuation">(</span><span class="token punctuation">)</span> <span class="token punctuation">{</span>', 'register'),
+    line('  <span class="token keyword">if</span> <span class="token punctuation">(</span>stickies<span class="token punctuation">.</span>length <span class="token operator">&gt;=</span> <span class="token number">1</span> <span class="token operator">&amp;&amp;</span> <span class="token operator">!</span>editCtrl<span class="token punctuation">)</span> <span class="token punctuation">{</span>', 'register'),
+    line('    editCtrl <span class="token operator">=</span> <span class="token keyword">new</span> <span class="token class-name">AbortController</span><span class="token punctuation">(</span><span class="token punctuation">)</span><span class="token punctuation">;</span>', 'register'),
+    line('    navigator<span class="token punctuation">.</span>modelContext<span class="token punctuation">.</span><span class="token function">registerTool</span><span class="token punctuation">(</span><span class="token punctuation">{</span>', 'register'),
+    line('      name<span class="token operator">:</span> <span class="token string">"edit-sticky"</span><span class="token punctuation">,</span>', 'register'),
+    line('      description<span class="token operator">:</span> <span class="token string">"Edit text or color of a sticky."</span><span class="token punctuation">,</span>', 'register'),
+    line('      inputSchema<span class="token operator">:</span> <span class="token punctuation">{</span> <span class="token operator">...</span> <span class="token punctuation">}</span><span class="token punctuation">,</span>', 'register'),
+    line('      execute<span class="token operator">:</span> <span class="token punctuation">(</span><span class="token punctuation">{</span> id<span class="token punctuation">,</span> text<span class="token punctuation">,</span> color <span class="token punctuation">}</span><span class="token punctuation">)</span> <span class="token operator">=&gt;</span> <span class="token function">editSticky</span><span class="token punctuation">(</span>id<span class="token punctuation">,</span> text<span class="token punctuation">,</span> color<span class="token punctuation">)</span><span class="token punctuation">,</span>', 'register'),
+    line('      signal<span class="token operator">:</span> editCtrl<span class="token punctuation">.</span>signal          <span class="token comment">// ← ties lifetime to controller</span>', 'register'),
+    line('    <span class="token punctuation">}</span><span class="token punctuation">)</span><span class="token punctuation">;</span>', 'register'),
+    line('  <span class="token punctuation">}</span> <span class="token keyword">else</span> <span class="token keyword">if</span> <span class="token punctuation">(</span>stickies<span class="token punctuation">.</span>length <span class="token operator">===</span> <span class="token number">0</span> <span class="token operator">&amp;&amp;</span> editCtrl<span class="token punctuation">)</span> <span class="token punctuation">{</span>', 'unregister'),
+    line('    editCtrl<span class="token punctuation">.</span><span class="token function">abort</span><span class="token punctuation">(</span><span class="token punctuation">)</span><span class="token punctuation">;</span>                  <span class="token comment">// ← unregisters the tool</span>', 'unregister'),
+    line('    editCtrl <span class="token operator">=</span> <span class="token keyword">null</span><span class="token punctuation">;</span>', 'unregister'),
+    line('  <span class="token punctuation">}</span>', 'unregister'),
+    line('<span class="token punctuation">}</span>', 'register'),
+    line('', 'spacer'),
+    line('<span class="token comment">// Same pattern for clear-board (1+ stickies) and group-stickies (3+)</span>', 'summary'),
+  ];
+
+  document.getElementById('code-display').innerHTML = lines.join('\n');
 }
 
-const codeDisplay = [
-  dim('// Board state &amp; helpers'),
-  dim('const stickies = [];'),
-  dim('function addSticky(text, color) { /* ... */ }'),
-  dim('function editSticky(id, text, color) { /* ... */ }'),
-  '',
-  hl('// 1. Register permanent tools'),
-  hl('navigator.modelContext.registerTool({'),
-  hl('  name: "add-sticky",'),
-  hl('  description: "Add a new sticky note to the IdeaBoard.",'),
-  hl('  inputSchema: { type: "object", properties: { text, color }, required: ["text"] },'),
-  hl('  execute: ({ text, color }) =&gt; addSticky(text, color)'),
-  hl('});'),
-  '',
-  hl('navigator.modelContext.registerTool({'),
-  hl('  name: "list-stickies",'),
-  hl('  description: "List all sticky notes on the board.",'),
-  hl('  inputSchema: { type: "object", properties: {} },'),
-  hl('  execute: () =&gt; listStickies()'),
-  hl('});'),
-  '',
-  hl('// 2. Register a tool that appears/disappears with state'),
-  hl('let editCtrl = null;'),
-  '',
-  hl('function updateTools() {'),
-  hl('  if (stickies.length &gt;= 1 &amp;&amp; !editCtrl) {'),
-  hl('    editCtrl = new AbortController();'),
-  hl('    navigator.modelContext.registerTool({'),
-  hl('      name: "edit-sticky",'),
-  hl('      description: "Edit text or color of a sticky.",'),
-  hl('      inputSchema: { ... },'),
-  hl('      execute: ({ id, text, color }) =&gt; editSticky(id, text, color),'),
-  hl('      signal: editCtrl.signal          // ← ties lifetime to controller'),
-  hl('    });'),
-  hl('  } else if (stickies.length === 0 &amp;&amp; editCtrl) {'),
-  hl('    editCtrl.abort();                  // ← unregisters the tool'),
-  hl('    editCtrl = null;'),
-  hl('  }'),
-  hl('}'),
-  '',
-  dim('// Same pattern for clear-board (1+ stickies) and group-stickies (3+)'),
-].join('\n');
+// Reactive: highlight code sections based on board state
+function updateCodePane() {
+  const codeEl = document.getElementById('code-display');
+  const count = stickies.length;
 
-document.getElementById('code-display').innerHTML = codeDisplay;
-Prism.highlightAll();
+  // Determine which sections are "active"
+  const active = new Set(['permanent']); // always-on tools are always active
+  if (count === 0) {
+    active.add('unregister');
+  } else {
+    active.add('register');
+  }
+
+  codeEl.querySelectorAll('.code-line').forEach(el => {
+    const section = el.dataset.section;
+    if (section === 'spacer' || section === 'context') {
+      el.classList.remove('live', 'dimmed');
+      if (section === 'context') el.classList.add('dimmed');
+    } else if (section === 'summary') {
+      el.classList.remove('live');
+      el.classList.add('dimmed');
+    } else if (active.has(section)) {
+      el.classList.add('live');
+      el.classList.remove('dimmed');
+    } else {
+      el.classList.remove('live');
+      el.classList.add('dimmed');
+    }
+  });
+}
+
+buildCodePane();
+updateCodePane();
 </script>
 
 </body>
