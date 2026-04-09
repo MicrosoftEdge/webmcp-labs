@@ -1,5 +1,5 @@
 /* ============================================================
-   Declarative WebMCP Demo - Fluent-inspired styles
+   Declarative WebMCP Demo
    ============================================================ */
 
 *,
@@ -14,14 +14,14 @@ body {
   font-size: 15px;
   line-height: 1.5;
   color: #242424;
-  background: #fff;
+  background: #f9f9f9;
   -webkit-font-smoothing: antialiased;
 }
 
 /* ---- Layout ---- */
 
 .container {
-  max-width: 1200px;
+  max-width: 1280px;
   margin: 0 auto;
   padding: 1.5rem 2rem 3rem;
 }
@@ -29,7 +29,7 @@ body {
 /* ---- Page header ---- */
 
 .page-header {
-  margin-bottom: 1rem;
+  margin-bottom: 1.25rem;
 }
 
 .page-header h1 {
@@ -92,21 +92,113 @@ body {
 .panel-description {
   margin: 0 0 1rem;
   color: #616161;
-  font-size: 0.875rem;
+  font-size: 0.8125rem;
   line-height: 1.55;
 }
 
-/* ---- Form card ---- */
-
-.form-card {
-  background: #fff;
-  border: 1px solid #e0e0e0;
-  border-radius: 8px;
-  padding: 1.25rem;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+.panel-description code {
+  background: #f0f0f0;
+  padding: 1px 5px;
+  border-radius: 3px;
+  font-size: 0.75rem;
 }
 
-.form-card .form-grid {
+/* ---- Split layout ---- */
+
+.split-layout {
+  display: grid;
+  grid-template-columns: 3fr 2fr;
+  gap: 1.25rem;
+  align-items: start;
+}
+
+/* ---- Browser chrome (around form) ---- */
+
+.browser-chrome {
+  border-radius: 8px;
+  overflow: hidden;
+  border: 1px solid #d0d0d0;
+  background: #fff;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+}
+
+.browser-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 0.625rem;
+  padding: 0.5rem 0.75rem;
+  background: #f0f0f0;
+  border-bottom: 1px solid #d0d0d0;
+  user-select: none;
+}
+
+.browser-dots {
+  display: flex;
+  gap: 5px;
+  flex-shrink: 0;
+}
+
+.browser-dots i {
+  display: block;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+}
+
+.browser-dots i:nth-child(1) { background: #ff5f57; }
+.browser-dots i:nth-child(2) { background: #febc2e; }
+.browser-dots i:nth-child(3) { background: #28c840; }
+
+.browser-url {
+  flex: 1;
+  background: #fff;
+  border: 1px solid #d0d0d0;
+  border-radius: 4px;
+  padding: 4px 10px;
+  font-family: "Segoe UI", system-ui, sans-serif;
+  font-size: 11px;
+  color: #616161;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Inner site header inside browser chrome */
+
+.site-header {
+  padding: 1rem 1.25rem 0;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.site-logo {
+  width: 20px;
+  height: 20px;
+  border-radius: 4px;
+  background: #0078d4;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 11px;
+  font-weight: 700;
+  color: #fff;
+  flex-shrink: 0;
+}
+
+.site-name {
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: #242424;
+}
+
+/* Form area inside browser chrome */
+
+.browser-body {
+  padding: 0.75rem 1.25rem 1.25rem;
+}
+
+.form-grid {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 0.75rem 1.25rem;
@@ -119,18 +211,18 @@ body {
 }
 
 .form-group label {
-  font-size: 0.8125rem;
+  font-size: 0.75rem;
   font-weight: 600;
-  color: #242424;
+  color: #424242;
 }
 
 .form-group input,
 .form-group select {
-  padding: 8px 12px;
+  padding: 7px 10px;
   border: 1px solid #d1d1d1;
   border-radius: 4px;
   font-family: inherit;
-  font-size: 0.875rem;
+  font-size: 0.8125rem;
   color: #242424;
   background: #fff;
   transition: border-color 0.15s, box-shadow 0.15s;
@@ -143,44 +235,6 @@ body {
   box-shadow: 0 0 0 1px #0078d4;
 }
 
-/* Radio / fieldset */
-
-.form-group fieldset {
-  border: none;
-  margin: 0;
-  padding: 0;
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.75rem;
-}
-
-.form-group fieldset legend {
-  font-size: 0.8125rem;
-  font-weight: 600;
-  color: #242424;
-  margin-bottom: 0.25rem;
-}
-
-.radio-option {
-  display: flex;
-  align-items: center;
-  gap: 0.375rem;
-  font-size: 0.875rem;
-  color: #424242;
-  cursor: pointer;
-}
-
-.radio-option input[type="radio"] {
-  accent-color: #0078d4;
-  margin: 0;
-}
-
-/* Full-width group (spans both columns) */
-
-.form-group.full-width {
-  grid-column: 1 / -1;
-}
-
 /* Submit row */
 
 .form-actions {
@@ -188,7 +242,7 @@ body {
   display: flex;
   align-items: center;
   gap: 1rem;
-  margin-top: 0.5rem;
+  margin-top: 0.375rem;
 }
 
 .btn-submit {
@@ -196,9 +250,9 @@ body {
   color: #fff;
   border: none;
   border-radius: 4px;
-  padding: 10px 24px;
+  padding: 8px 20px;
   font-family: inherit;
-  font-size: 0.875rem;
+  font-size: 0.8125rem;
   font-weight: 600;
   cursor: pointer;
   transition: background 0.15s;
@@ -215,7 +269,7 @@ body {
 /* Toast message */
 
 .toast {
-  font-size: 0.8125rem;
+  font-size: 0.75rem;
   color: #0e7a0d;
   font-weight: 600;
   opacity: 0;
@@ -226,81 +280,25 @@ body {
   opacity: 1;
 }
 
-/* ---- Split layout: form left, code right ---- */
+/* ---- Code block (no chrome, just dark box) ---- */
 
-.split-layout {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 1.5rem;
-  align-items: start;
-}
-
-/* Fixed heights so layout doesn't shift between tabs */
-
-.split-layout .form-card {
-  min-height: 420px;
-}
-
-.split-layout .code-editor {
-  height: 520px;
-  display: flex;
-  flex-direction: column;
-}
-
-/* ---- Code editor chrome ---- */
-
-.code-editor {
+.code-pane {
+  background: #1e1e1e;
   border-radius: 8px;
   overflow: hidden;
-  background: #1e1e1e;
   border: 1px solid #333;
 }
-
-.editor-titlebar {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  padding: 0.5rem 0.75rem;
-  background: #2d2d2d;
-  border-bottom: 1px solid #3c3c3c;
-  user-select: none;
-}
-
-.editor-dots {
-  display: flex;
-  gap: 6px;
-}
-
-.editor-dots i {
-  display: block;
-  width: 10px;
-  height: 10px;
-  border-radius: 50%;
-}
-
-.editor-dots i:nth-child(1) { background: #ff5f57; }
-.editor-dots i:nth-child(2) { background: #febc2e; }
-.editor-dots i:nth-child(3) { background: #28c840; }
-
-.editor-filename {
-  font-family: "Cascadia Code", "Consolas", "Courier New", monospace;
-  font-size: 11px;
-  color: #9d9d9d;
-  margin-left: 0.25rem;
-}
-
-/* ---- Code block ---- */
 
 .code-block {
   background: #1e1e1e;
   color: #d4d4d4;
   border-radius: 0;
-  padding: 0.75rem 1rem;
+  padding: 0.875rem 1rem;
   overflow: auto;
-  flex: 1;
+  max-height: 520px;
   font-family: "Cascadia Code", "Consolas", "Courier New", monospace;
-  font-size: 9.5px;
-  line-height: 1.55;
+  font-size: 10px;
+  line-height: 1.6;
   margin: 0;
   tab-size: 2;
   scrollbar-color: #555 #1e1e1e;
@@ -331,7 +329,7 @@ body {
   padding: 0;
 }
 
-/* Highlighted lines inside code blocks */
+/* Highlighted lines */
 
 .hl {
   display: inline-block;
@@ -343,15 +341,19 @@ body {
   border-left: 3px solid #0078d4;
 }
 
-/* ---- Prism overrides (keep dark bg, strip built-in bg) ---- */
+/* Dimmed lines (context, not the focus) */
+
+.dim {
+  opacity: 0.4;
+}
+
+/* ---- Prism overrides ---- */
 
 pre[class*="language-"],
 code[class*="language-"] {
   background: none !important;
   text-shadow: none !important;
 }
-
-/* Token colors - VS Code One Dark inspired, but blue-accented */
 
 .token.tag { color: #569cd6; }
 .token.attr-name { color: #9cdcfe; }
@@ -366,16 +368,73 @@ code[class*="language-"] {
 .token.operator { color: #d4d4d4; }
 .token.property { color: #9cdcfe; }
 
+/* ---- API Reference section ---- */
+
+.api-reference {
+  margin-top: 2.5rem;
+  border-top: 1px solid #e0e0e0;
+  padding-top: 1.5rem;
+}
+
+.api-reference h2 {
+  font-size: 1rem;
+  font-weight: 600;
+  margin: 0 0 1rem;
+  color: #242424;
+}
+
+.api-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.8125rem;
+}
+
+.api-table th,
+.api-table td {
+  text-align: left;
+  padding: 0.5rem 0.75rem;
+  border-bottom: 1px solid #e8e8e8;
+  vertical-align: top;
+}
+
+.api-table th {
+  font-weight: 600;
+  color: #424242;
+  background: #f5f5f5;
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.api-table td {
+  color: #424242;
+}
+
+.api-table code {
+  background: #f0f0f0;
+  padding: 1px 5px;
+  border-radius: 3px;
+  font-size: 0.75rem;
+}
+
+.api-table tr:last-child td {
+  border-bottom: none;
+}
+
+.api-group-label {
+  font-weight: 600;
+  color: #242424;
+  background: #fafafa;
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+}
+
 /* ---- Responsive ---- */
 
 @media (max-width: 900px) {
   .split-layout {
     grid-template-columns: 1fr;
-  }
-
-  .split-layout .form-card,
-  .split-layout .code-editor {
-    min-height: auto;
   }
 }
 
@@ -384,7 +443,7 @@ code[class*="language-"] {
     padding: 1rem 1rem 2rem;
   }
 
-  .form-card .form-grid {
+  .form-grid {
     grid-template-columns: 1fr;
   }
 
