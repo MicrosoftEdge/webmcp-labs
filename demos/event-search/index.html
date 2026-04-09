@@ -1,0 +1,485 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Declarative WebMCP - API Playground</title>
+  <link rel="stylesheet" href="styles.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/themes/prism-tomorrow.min.css">
+</head>
+<body>
+
+<div class="container">
+
+  <!-- Page header -->
+  <header class="page-header">
+    <h1>Declarative WebMCP API Playground</h1>
+    <p>Same form, three levels of AI integration. Each tab builds on the last by adding a single attribute.</p>
+  </header>
+
+  <!-- Tab bar -->
+  <nav class="tab-bar" role="tablist">
+    <button class="tab-button active" role="tab" aria-selected="true"  aria-controls="panel-manual" data-tab="manual">Manual Review</button>
+    <button class="tab-button"        role="tab" aria-selected="false" aria-controls="panel-auto"   data-tab="auto">Auto Submit</button>
+    <button class="tab-button"        role="tab" aria-selected="false" aria-controls="panel-custom" data-tab="custom">Custom Response</button>
+  </nav>
+
+  <!-- ================================================================
+       TAB 1 - Manual Review
+       ================================================================ -->
+  <section id="panel-manual" class="tab-panel active" role="tabpanel">
+    <p class="panel-description">
+      The agent fills in the form fields, but the user must review and click
+      <strong>Search</strong> to submit. Only <code>toolname</code> and
+      <code>tooldescription</code> are required.
+    </p>
+
+    <div class="split-layout">
+    <div class="browser-chrome">
+      <div class="browser-toolbar">
+        <span class="browser-dots"><i></i><i></i><i></i></span>
+        <span class="browser-url">https://eventfinder.com/search</span>
+      </div>
+      <div class="site-header">
+        <span class="site-logo">E</span>
+        <span class="site-name">EventFinder</span>
+      </div>
+      <div class="browser-body">
+        <h3 class="form-title">Find Events</h3>
+        <div class="form-card">
+        <form toolname="search-events-manual"
+              tooldescription="Search for event tickets (manual review)"
+              action="#"
+              id="form-manual">
+          <div class="form-grid">
+            <div class="form-group">
+              <label for="manual-date">Date</label>
+              <input type="date" id="manual-date" name="date" required
+                     toolparamdescription="Event date in YYYY-MM-DD format">
+            </div>
+            <div class="form-group">
+              <label for="manual-category">Category</label>
+              <select id="manual-category" name="category" required
+                      toolparamdescription="Type of event: Concert, Sports, Theater, or Comedy">
+                <option value="">Select...</option>
+                <option value="concert">Concert</option>
+                <option value="sports">Sports</option>
+                <option value="theater">Theater</option>
+                <option value="comedy">Comedy</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label for="manual-artist">Artist / Venue</label>
+              <input type="text" id="manual-artist" name="artist" required
+                     placeholder="Artist, team, or venue"
+                     toolparamdescription="Name of the artist, team, or venue">
+            </div>
+            <div class="form-group">
+              <label for="manual-location">Location</label>
+              <input type="text" id="manual-location" name="location" required
+                     placeholder="e.g. Seattle, WA"
+                     toolparamdescription="City or region to search in">
+            </div>
+            <div class="form-actions">
+              <button type="submit" class="btn-submit">Search</button>
+              <span class="toast" id="toast-manual"></span>
+            </div>
+          </div>
+        </form>
+        </div>
+      </div>
+    </div>
+
+    <div class="code-pane">
+      <pre class="code-block"><code class="language-html" id="code-manual"></code></pre>
+    </div>
+    </div>
+  </section>
+
+  <!-- ================================================================
+       TAB 2 - Auto Submit
+       ================================================================ -->
+  <section id="panel-auto" class="tab-panel" role="tabpanel">
+    <p class="panel-description">
+      Adding <code>toolautosubmit</code> lets the agent fill <em>and</em> submit
+      the form automatically, no manual click required.
+    </p>
+
+    <div class="split-layout">
+    <div class="browser-chrome">
+      <div class="browser-toolbar">
+        <span class="browser-dots"><i></i><i></i><i></i></span>
+        <span class="browser-url">https://eventfinder.com/search</span>
+      </div>
+      <div class="site-header">
+        <span class="site-logo">E</span>
+        <span class="site-name">EventFinder</span>
+      </div>
+      <div class="browser-body">
+        <h3 class="form-title">Find Events</h3>
+        <div class="form-card">
+        <form toolname="search-events-auto"
+              tooldescription="Search for event tickets (auto-submitted by agent)"
+              toolautosubmit
+              action="#"
+              id="form-auto">
+          <div class="form-grid">
+            <div class="form-group">
+              <label for="auto-date">Date</label>
+              <input type="date" id="auto-date" name="date" required
+                     toolparamdescription="Event date in YYYY-MM-DD format">
+            </div>
+            <div class="form-group">
+              <label for="auto-category">Category</label>
+              <select id="auto-category" name="category" required
+                      toolparamdescription="Type of event: Concert, Sports, Theater, or Comedy">
+                <option value="">Select...</option>
+                <option value="concert">Concert</option>
+                <option value="sports">Sports</option>
+                <option value="theater">Theater</option>
+                <option value="comedy">Comedy</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label for="auto-artist">Artist / Venue</label>
+              <input type="text" id="auto-artist" name="artist" required
+                     placeholder="Artist, team, or venue"
+                     toolparamdescription="Name of the artist, team, or venue">
+            </div>
+            <div class="form-group">
+              <label for="auto-location">Location</label>
+              <input type="text" id="auto-location" name="location" required
+                     placeholder="e.g. Seattle, WA"
+                     toolparamdescription="City or region to search in">
+            </div>
+            <div class="form-actions">
+              <button type="submit" class="btn-submit">Search</button>
+              <span class="toast" id="toast-auto"></span>
+            </div>
+          </div>
+        </form>
+        </div>
+      </div>
+    </div>
+
+    <div class="code-pane">
+      <pre class="code-block"><code class="language-html" id="code-auto"></code></pre>
+    </div>
+    </div>
+  </section>
+
+  <!-- ================================================================
+       TAB 3 - Custom Response
+       ================================================================ -->
+  <section id="panel-custom" class="tab-panel" role="tabpanel">
+    <p class="panel-description">
+      With a <code>submit</code> event listener you can intercept agent
+      submissions, run your own logic, and return a custom value to the
+      agent via <code>event.respondWith()</code>.
+    </p>
+
+    <div class="split-layout">
+    <div class="browser-chrome">
+      <div class="browser-toolbar">
+        <span class="browser-dots"><i></i><i></i><i></i></span>
+        <span class="browser-url">https://eventfinder.com/search</span>
+      </div>
+      <div class="site-header">
+        <span class="site-logo">E</span>
+        <span class="site-name">EventFinder</span>
+      </div>
+      <div class="browser-body">
+        <h3 class="form-title">Find Events</h3>
+        <div class="form-card">
+        <form toolname="search-events-custom"
+              tooldescription="Search for event tickets (custom agent response)"
+              toolautosubmit
+              action="#"
+              id="form-custom">
+          <div class="form-grid">
+            <div class="form-group">
+              <label for="custom-date">Date</label>
+              <input type="date" id="custom-date" name="date" required
+                     toolparamdescription="Event date in YYYY-MM-DD format">
+            </div>
+            <div class="form-group">
+              <label for="custom-category">Category</label>
+              <select id="custom-category" name="category" required
+                      toolparamdescription="Type of event: Concert, Sports, Theater, or Comedy">
+                <option value="">Select...</option>
+                <option value="concert">Concert</option>
+                <option value="sports">Sports</option>
+                <option value="theater">Theater</option>
+                <option value="comedy">Comedy</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label for="custom-artist">Artist / Venue</label>
+              <input type="text" id="custom-artist" name="artist" required
+                     placeholder="Artist, team, or venue"
+                     toolparamdescription="Name of the artist, team, or venue">
+            </div>
+            <div class="form-group">
+              <label for="custom-location">Location</label>
+              <input type="text" id="custom-location" name="location" required
+                     placeholder="e.g. Seattle, WA"
+                     toolparamdescription="City or region to search in">
+            </div>
+            <div class="form-actions">
+              <button type="submit" class="btn-submit">Search</button>
+              <span class="toast" id="toast-custom"></span>
+            </div>
+          </div>
+        </form>
+        </div>
+      </div>
+    </div>
+
+    <div class="code-pane">
+      <pre class="code-block"><code class="language-html" id="code-custom"></code></pre>
+    </div>
+    </div>
+  </section>
+
+  <!-- ================================================================
+       API Reference
+       ================================================================ -->
+  <section class="api-reference">
+    <h2>Declarative WebMCP API Reference</h2>
+    <table class="api-table">
+      <thead>
+        <tr>
+          <th>Attribute</th>
+          <th>Applies to</th>
+          <th>Description</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr class="api-group-label"><td colspan="3">Form attributes</td></tr>
+        <tr>
+          <td><code>toolname</code></td>
+          <td><code>&lt;form&gt;</code></td>
+          <td>Registers the form as a WebMCP tool. Must be unique on the page. Letters, digits, hyphens, underscores, and dots only.</td>
+        </tr>
+        <tr>
+          <td><code>tooldescription</code></td>
+          <td><code>&lt;form&gt;</code></td>
+          <td>Human-readable description of what the tool does. Helps the AI agent decide when and how to use this tool.</td>
+        </tr>
+        <tr>
+          <td><code>toolautosubmit</code></td>
+          <td><code>&lt;form&gt;</code></td>
+          <td>When present, the form is submitted automatically after the agent fills it in. Without this, the user must submit manually.</td>
+        </tr>
+        <tr class="api-group-label"><td colspan="3">Input attributes</td></tr>
+        <tr>
+          <td><code>toolparamdescription</code></td>
+          <td><code>&lt;input&gt;</code>, <code>&lt;select&gt;</code>, <code>&lt;textarea&gt;</code></td>
+          <td>Describes the parameter so the agent knows what value to provide. For example: "Event date in YYYY-MM-DD format".</td>
+        </tr>
+        <tr class="api-group-label"><td colspan="3">SubmitEvent properties</td></tr>
+        <tr>
+          <td><code>event.agentInvoked</code></td>
+          <td>SubmitEvent</td>
+          <td>Boolean. <code>true</code> when the form submission was triggered by an AI agent, <code>false</code> when submitted by the user.</td>
+        </tr>
+        <tr>
+          <td><code>event.respondWith(promise)</code></td>
+          <td>SubmitEvent</td>
+          <td>Pass a Promise that resolves to the tool's return value. This lets you customize what the AI agent receives after form submission.</td>
+        </tr>
+      </tbody>
+    </table>
+  </section>
+
+</div>
+
+<!-- Prism.js for syntax highlighting -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/prism.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-markup.min.js"></script>
+
+<script>
+// ============================================================
+// Code strings
+// ============================================================
+
+function hl(text) {
+  return '<span class="hl">' + text + '</span>';
+}
+
+function dim(text) {
+  return '<span class="dim">' + text + '</span>';
+}
+
+// Tab 1 - Full form (baseline)
+const codeManual = [
+  '&lt;form ' + hl('toolname="search-events-manual"'),
+  '      ' + hl('tooldescription="Search for event tickets (manual review)"'),
+  '      action="/search"&gt;',
+  '',
+  '  &lt;label for="date"&gt;Date&lt;/label&gt;',
+  '  &lt;input type="date" id="date" name="date" required',
+  '         ' + hl('toolparamdescription="Event date in YYYY-MM-DD format"') + '&gt;',
+  '',
+  '  &lt;label for="category"&gt;Category&lt;/label&gt;',
+  '  &lt;select id="category" name="category" required',
+  '          ' + hl('toolparamdescription="Type of event"') + '&gt;',
+  '    &lt;option value="concert"&gt;Concert&lt;/option&gt;',
+  '    &lt;option value="sports"&gt;Sports&lt;/option&gt;',
+  '    &lt;option value="theater"&gt;Theater&lt;/option&gt;',
+  '    &lt;option value="comedy"&gt;Comedy&lt;/option&gt;',
+  '  &lt;/select&gt;',
+  '',
+  '  &lt;label for="artist"&gt;Artist / Venue&lt;/label&gt;',
+  '  &lt;input type="text" id="artist" name="artist" required',
+  '         ' + hl('toolparamdescription="Name of the artist, team, or venue"') + '&gt;',
+  '',
+  '  &lt;label for="location"&gt;Location&lt;/label&gt;',
+  '  &lt;input type="text" id="location" name="location" required',
+  '         ' + hl('toolparamdescription="City or region to search in"') + '&gt;',
+  '',
+  '  &lt;button type="submit"&gt;Search&lt;/button&gt;',
+  '&lt;/form&gt;',
+].join('\n');
+
+// Tab 2 - Only show the <form> tag diff (toolautosubmit)
+const codeAuto = [
+  dim('&lt;form toolname="search-events-auto"'),
+  dim('      tooldescription="Search for event tickets (auto-submitted by agent)"'),
+  '      ' + hl('toolautosubmit'),
+  dim('      action="/search"&gt;'),
+  '',
+  dim('  &lt;!-- same form fields as Manual Review --&gt;'),
+  '',
+  dim('  &lt;button type="submit"&gt;Search&lt;/button&gt;'),
+  dim('&lt;/form&gt;'),
+].join('\n');
+
+// Tab 3 - Show form tag + script block
+const codeCustom = [
+  dim('&lt;form toolname="search-events-custom"'),
+  dim('      tooldescription="Search for event tickets (custom agent response)"'),
+  dim('      toolautosubmit'),
+  dim('      action="/search"&gt;'),
+  '',
+  dim('  &lt;!-- same form fields --&gt;'),
+  '',
+  dim('  &lt;button type="submit"&gt;Search&lt;/button&gt;'),
+  dim('&lt;/form&gt;'),
+  '',
+  hl('&lt;script&gt;'),
+  hl('  const form = document.querySelector(\'form[toolname="search-events-custom"]\');'),
+  hl(''),
+  hl('  form.addEventListener("submit", event =&gt; {'),
+  hl('    if (!event.agentInvoked) return;'),
+  hl('    event.preventDefault();'),
+  hl(''),
+  hl('    const data = new FormData(form);'),
+  hl('    event.respondWith(Promise.resolve('),
+  hl('      `Found 3 events for "${data.get("artist")}" ` +'),
+  hl('      `on ${data.get("date")} in ${data.get("location")}.`'),
+  hl('    ));'),
+  hl('  });'),
+  hl('&lt;/script&gt;'),
+].join('\n');
+
+// ============================================================
+// Inject code
+// ============================================================
+
+document.getElementById('code-manual').innerHTML = codeManual;
+document.getElementById('code-auto').innerHTML   = codeAuto;
+document.getElementById('code-custom').innerHTML = codeCustom;
+
+Prism.highlightAll();
+
+// ============================================================
+// Tab switching - swap forms in/out of DOM
+// ============================================================
+
+const formTemplates = {};
+document.querySelectorAll('.tab-panel').forEach(panel => {
+  const card = panel.querySelector('.form-card');
+  if (card) formTemplates[panel.id] = card.innerHTML;
+});
+
+function activatePanel(tabId) {
+  document.querySelectorAll('.tab-panel').forEach(panel => {
+    const card = panel.querySelector('.form-card');
+    if (panel.id === 'panel-' + tabId) {
+      panel.classList.add('active');
+      if (card && !card.querySelector('form')) {
+        card.innerHTML = formTemplates[panel.id];
+        attachFormHandler(tabId);
+      }
+    } else {
+      panel.classList.remove('active');
+      if (card) card.innerHTML = '';
+    }
+  });
+}
+
+document.querySelectorAll('.tab-button').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.tab-button').forEach(b => {
+      b.classList.remove('active');
+      b.setAttribute('aria-selected', 'false');
+    });
+    btn.classList.add('active');
+    btn.setAttribute('aria-selected', 'true');
+    activatePanel(btn.dataset.tab);
+  });
+});
+
+activatePanel('manual');
+
+// ============================================================
+// Form submit handlers
+// ============================================================
+
+function showToast(id, message) {
+  const el = document.getElementById(id);
+  el.textContent = message;
+  el.classList.add('visible');
+  setTimeout(() => el.classList.remove('visible'), 3000);
+}
+
+function attachFormHandler(tabId) {
+  if (tabId === 'manual') {
+    const form = document.getElementById('form-manual');
+    if (form) form.addEventListener('submit', e => {
+      e.preventDefault();
+      showToast('toast-manual', 'Form submitted! In a real app this would navigate to results.');
+    });
+  } else if (tabId === 'auto') {
+    const form = document.getElementById('form-auto');
+    if (form) form.addEventListener('submit', e => {
+      e.preventDefault();
+      showToast('toast-auto', 'Auto-submitted! The agent triggered this form automatically.');
+    });
+  } else if (tabId === 'custom') {
+    const form = document.getElementById('form-custom');
+    if (form) form.addEventListener('submit', e => {
+      if (!e.agentInvoked) {
+        e.preventDefault();
+        showToast('toast-custom', 'Submitted by user. Agent submissions return a custom response.');
+        return;
+      }
+
+      e.preventDefault();
+
+      const data = new FormData(e.target);
+      e.respondWith(Promise.resolve(
+        `Found 3 events for "${data.get("artist")}" ` +
+        `on ${data.get("date")} in ${data.get("location")}.`
+      ));
+      showToast('toast-custom', 'Agent request intercepted - returning custom response...');
+    });
+  }
+}
+
+attachFormHandler('manual');
+</script>
+
+</body>
+</html>
