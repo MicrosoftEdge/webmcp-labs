@@ -120,7 +120,8 @@ function updateControls() {
   runBtn.disabled = s === 'running' || s === 'waiting';
   stepBtn.disabled = s === 'running' || s === 'waiting';
   stopBtn.disabled = s !== 'running';
-  resetBtn.disabled = s === 'idle';
+  const hasContent = steps.length > 0 || goalInput.value.trim() !== '';
+  resetBtn.disabled = s === 'idle' && !hasContent;
   goalInput.disabled = s !== 'idle';
 
   runBtn.textContent = s === 'paused' ? 'Resume' : 'Run';
@@ -360,6 +361,7 @@ async function runAgentLoop(startMode: 'run' | 'step') {
       setState('paused');
       setStatus('Paused. Step to call model.', 'info');
       await new Promise<void>((resolve) => { stepResolver = resolve; });
+      if (abortController.signal.aborted) break;
       setState(mode === 'step' ? 'stepping' : 'running');
       setStatus('Calling model…', 'info');
     }
@@ -417,6 +419,7 @@ async function runAgentLoop(startMode: 'run' | 'step') {
         setStatus('Waiting for your reply…', 'info');
 
         const answer = await new Promise<string>((resolve) => { askResolver = resolve; });
+        if (abortController.signal.aborted) break;
 
         updateStep(stepIdx, { status: 'success', result: answer });
         messages.push({ role: 'tool', toolCallId: tc.id, content: answer });
@@ -432,6 +435,7 @@ async function runAgentLoop(startMode: 'run' | 'step') {
         setState('paused');
         setStatus('Paused. Execute step or resume.', 'info');
         await new Promise<void>((resolve) => { stepResolver = resolve; });
+        if (abortController.signal.aborted) break;
         // User may have switched to run mode via "Resume" button
         setState(mode === 'step' ? 'stepping' : 'running');
         setStatus('Running…', 'info');
@@ -493,6 +497,9 @@ stopBtn.addEventListener('click', () => {
 
 resetBtn.addEventListener('click', () => {
   abortController?.abort();
+  // Resolve any pending promises so the old loop can exit cleanly
+  if (stepResolver) { stepResolver(); stepResolver = null; }
+  if (askResolver) { askResolver(''); askResolver = null; }
   steps = [];
   messages = [];
   selectedIndex = null;
