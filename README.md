@@ -13,6 +13,7 @@ Experimental projects and tools for the [WebMCP](https://github.com/webmachinele
 | Demo | Description |
 |------|-------------|
 | [event-search](demos/event-search/) | Interactive playground showing declarative WebMCP attributes (manual review, auto-submit, custom response) on a single form |
+| [idea-board](demos/idea-board/) | Sticky board playground showing imperative WebMCP tool registration, with tools that dynamically appear and disappear based on board state |
 
 ## Contributing
 
