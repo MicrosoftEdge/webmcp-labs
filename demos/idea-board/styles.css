@@ -330,6 +330,12 @@ body {
   display: block;
 }
 
+pre.code-block,
+pre.code-block code {
+  font-family: "Cascadia Code", "Consolas", "Courier New", monospace;
+  font-size: 12px;
+}
+
 .code-block {
   background: #1e1e1e;
   color: #d4d4d4;
@@ -337,8 +343,6 @@ body {
   padding: 0.875rem 1rem;
   overflow: auto;
   max-height: 680px;
-  font-family: "Cascadia Code", "Consolas", "Courier New", monospace;
-  font-size: 10px;
   line-height: 1.6;
   margin: 0;
   tab-size: 2;
@@ -364,8 +368,6 @@ body {
 }
 
 .code-block code {
-  font-family: inherit;
-  font-size: inherit;
   background: none;
   padding: 0;
 }
