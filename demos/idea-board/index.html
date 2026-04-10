@@ -1,0 +1,455 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>IdeaBoard - Imperative WebMCP Playground</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+<div class="container">
+
+  <!-- Page header -->
+  <header class="page-header">
+    <h1>Imperative WebMCP API Playground</h1>
+    <p>A sticky board powered by AI. Tools register and unregister dynamically based on what's on the board.</p>
+  </header>
+
+  <!-- Main content -->
+  <div class="split-layout">
+
+    <!-- Left: browser chrome with IdeaBoard app -->
+    <div class="browser-chrome">
+      <div class="browser-toolbar">
+        <span class="browser-dots"><i></i><i></i><i></i></span>
+        <span class="browser-url">https://ideaboard.app/workspace</span>
+      </div>
+      <div class="site-header">
+        <span class="site-logo">💡</span>
+        <span class="site-name">IdeaBoard</span>
+      </div>
+      <div class="board" id="board">
+        <div class="board-empty" id="board-empty">No stickies yet. Ask an agent that can call webmcp tool, to "brainstorm and add ideas about &lt;&gt; to board"</div>
+        <div class="board-grid" id="board-grid"></div>
+        <div class="tool-badge" id="tool-badge">1 tool</div>
+      </div>
+    </div>
+
+    <!-- Right: code pane -->
+    <div class="code-pane">
+      <nav class="code-tab-bar" role="tablist">
+        <button class="code-tab active" role="tab" aria-selected="true" data-tab="register">Register</button>
+        <button class="code-tab" role="tab" aria-selected="false" data-tab="dynamic">Unregister</button>
+      </nav>
+      <div class="code-panel active" id="code-register">
+        <pre class="code-block"><code id="code-register-display"></code></pre>
+      </div>
+      <div class="code-panel" id="code-dynamic">
+        <pre class="code-block"><code id="code-dynamic-display"></code></pre>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- API Reference -->
+  <section class="api-reference">
+    <h2>Imperative WebMCP API Reference</h2>
+    <table class="api-table">
+      <thead>
+        <tr>
+          <th>Option</th>
+          <th>Type</th>
+          <th>Description</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr class="api-group-label"><td colspan="3">registerTool() options</td></tr>
+        <tr>
+          <td><code>name</code></td>
+          <td>String</td>
+          <td>Unique identifier for the tool. Letters, digits, hyphens, underscores, and dots. Max 128 characters.</td>
+        </tr>
+        <tr>
+          <td><code>description</code></td>
+          <td>String</td>
+          <td>Human-readable description of what the tool does. Helps the agent decide when and how to use it.</td>
+        </tr>
+        <tr>
+          <td><code>inputSchema</code></td>
+          <td>Object</td>
+          <td>JSON Schema describing the input parameters the tool accepts. See <a href="https://json-schema.org/understanding-json-schema/about" target="_blank" rel="noopener">json-schema.org</a>.</td>
+        </tr>
+        <tr>
+          <td><code>execute</code></td>
+          <td>Function</td>
+          <td>Called when the agent invokes the tool. Receives an object matching <code>inputSchema</code>. Can be sync or async. Return value is sent back to the agent.</td>
+        </tr>
+        <tr>
+          <td><code>signal</code></td>
+          <td>AbortSignal</td>
+          <td>Optional. Pass an <code>AbortController.signal</code> to later unregister the tool by calling <code>controller.abort()</code>.</td>
+        </tr>
+        <tr class="api-group-label"><td colspan="3">Unregistering tools</td></tr>
+        <tr>
+          <td><code>AbortController</code></td>
+          <td>Object</td>
+          <td>Create a controller, pass <code>controller.signal</code> to <code>registerTool()</code>. Call <code>controller.abort()</code> to unregister the tool at any time.</td>
+        </tr>
+      </tbody>
+    </table>
+  </section>
+
+</div>
+
+
+
+<script>
+// ============================================================
+// Board state
+// ============================================================
+
+const stickies = [];
+let nextId = 1;
+
+const boardEl = document.getElementById('board-grid');
+const emptyEl = document.getElementById('board-empty');
+const badgeEl = document.getElementById('tool-badge');
+
+// ============================================================
+// Rendering
+// ============================================================
+
+function renderBoard() {
+  if (stickies.length === 0) {
+    emptyEl.style.display = '';
+    boardEl.innerHTML = '';
+    return;
+  }
+  emptyEl.style.display = 'none';
+
+  // Organize: ungrouped stickies first, then grouped clusters
+  const ungrouped = stickies.filter(s => !s.group);
+  const groups = {};
+  stickies.forEach(s => {
+    if (s.group) {
+      if (!groups[s.group]) groups[s.group] = [];
+      groups[s.group].push(s);
+    }
+  });
+
+  // Rebuild the board
+  boardEl.innerHTML = '';
+
+  // Render ungrouped stickies
+  ungrouped.forEach((s, i) => {
+    boardEl.appendChild(createStickyEl(s, i));
+  });
+
+  // Render grouped clusters
+  const offset = ungrouped.length;
+  Object.entries(groups).forEach(([label, items], gi) => {
+    const cluster = document.createElement('div');
+    cluster.className = 'sticky-cluster';
+
+    const header = document.createElement('div');
+    header.className = 'cluster-label';
+    header.textContent = label;
+    cluster.appendChild(header);
+
+    const clusterGrid = document.createElement('div');
+    clusterGrid.className = 'cluster-grid';
+    items.forEach((s, i) => {
+      clusterGrid.appendChild(createStickyEl(s, offset + gi * 4 + i));
+    });
+    cluster.appendChild(clusterGrid);
+
+    boardEl.appendChild(cluster);
+  });
+}
+
+function createStickyEl(s, animIndex) {
+  const el = document.createElement('div');
+  el.className = `sticky ${s.color}`;
+  el.dataset.id = String(s.id);
+  el.style.animationDelay = `${animIndex * 0.08}s`;
+
+  let html = `<div class="sticky-id">#${s.id}</div>`;
+  html += `<div class="sticky-text">${escapeHtml(s.text)}</div>`;
+  el.innerHTML = html;
+  return el;
+}
+
+function escapeHtml(str) {
+  const div = document.createElement('div');
+  div.textContent = str;
+  return div.innerHTML;
+}
+
+// ============================================================
+// Board operations (the "existing app code")
+// ============================================================
+
+function addSticky(text, color = 'yellow') {
+  const valid = ['yellow', 'blue', 'green', 'pink'];
+  if (!valid.includes(color)) color = 'yellow';
+  const id = nextId++;
+  stickies.push({ id, text, color, group: null });
+  renderBoard();
+  updateTools();
+  return `Created ${color} sticky #${id}: "${text}"`;
+}
+
+function editSticky(id, text, color) {
+  const s = stickies.find(s => s.id === Number(id));
+  if (!s) return `Error: sticky #${id} not found.`;
+  if (text !== undefined && text !== null) s.text = text;
+  if (color !== undefined && color !== null) {
+    const valid = ['yellow', 'blue', 'green', 'pink'];
+    if (valid.includes(color)) s.color = color;
+  }
+  renderBoard();
+  return `Updated sticky #${s.id}: "${s.text}" (${s.color})`;
+}
+
+function clearBoard() {
+  const count = stickies.length;
+  stickies.length = 0;
+  nextId = 1;
+  renderBoard();
+  updateTools();
+  return `Cleared ${count} sticky${count !== 1 ? 's' : ''} from the board.`;
+}
+
+function groupStickies(label, stickyIds) {
+  const ids = stickyIds.map(Number);
+  const found = [];
+  for (const id of ids) {
+    const s = stickies.find(s => s.id === id);
+    if (s) { s.group = label; found.push(`#${id}`); }
+  }
+  renderBoard();
+  return found.length > 0
+    ? `Grouped ${found.join(', ')} under "${label}".`
+    : `Error: no matching stickies found.`;
+}
+
+function listStickies() {
+  if (stickies.length === 0) return 'The board is empty.';
+  const lines = stickies.map(s => {
+    let desc = `#${s.id}: "${s.text}" (${s.color})`;
+    if (s.group) desc += ` [group: ${s.group}]`;
+    return desc;
+  });
+  return `${stickies.length} sticky${stickies.length !== 1 ? 's' : ''} on the board:\n${lines.join('\n')}`;
+}
+
+// ============================================================
+// Dynamic tool registration
+// ============================================================
+
+let editController = null;
+let clearController = null;
+let groupController = null;
+let toolCount = 2;
+
+function updateTools() {
+  const ctx = navigator.modelContext;
+  if (!ctx) return;
+
+  const count = stickies.length;
+
+  // edit-sticky: register when 1+ stickies exist
+  if (count >= 1 && !editController) {
+    editController = new AbortController();
+    ctx.registerTool({
+      name: 'edit-sticky',
+      description: 'Edit the text or color of an existing sticky note.',
+      inputSchema: {
+        type: 'object',
+        properties: {
+          id: { type: 'string', description: 'The sticky ID (number shown on the note).' },
+          text: { type: 'string', description: 'New text content. Omit to keep current text.' },
+          color: { type: 'string', enum: ['yellow', 'blue', 'green', 'pink'], description: 'New color. Omit to keep current color.' }
+        },
+        required: ['id']
+      },
+      execute: ({ id, text, color }) => editSticky(id, text, color),
+      signal: editController.signal
+    });
+  } else if (count === 0 && editController) {
+    editController.abort();
+    editController = null;
+  }
+
+  // clear-board: register when 1+ stickies exist
+  if (count >= 1 && !clearController) {
+    clearController = new AbortController();
+    ctx.registerTool({
+      name: 'clear-board',
+      description: 'Remove all sticky notes from the board.',
+      inputSchema: { type: 'object', properties: {} },
+      execute: () => clearBoard(),
+      signal: clearController.signal
+    });
+  } else if (count === 0 && clearController) {
+    clearController.abort();
+    clearController = null;
+  }
+
+  // group-stickies: register when 3+ stickies exist
+  if (count >= 3 && !groupController) {
+    groupController = new AbortController();
+    ctx.registerTool({
+      name: 'group-stickies',
+      description: 'Assign a shared label to a set of stickies to visually group them.',
+      inputSchema: {
+        type: 'object',
+        properties: {
+          label: { type: 'string', description: 'Group label (e.g. "User Research", "MVP Features").' },
+          stickyIds: {
+            type: 'array',
+            items: { type: 'string' },
+            description: 'Array of sticky IDs to group together.'
+          }
+        },
+        required: ['label', 'stickyIds']
+      },
+      execute: ({ label, stickyIds }) => groupStickies(label, stickyIds),
+      signal: groupController.signal
+    });
+  } else if (count < 3 && groupController) {
+    groupController.abort();
+    groupController = null;
+  }
+
+  // Update badge
+  toolCount = 2 + (editController ? 1 : 0) + (clearController ? 1 : 0) + (groupController ? 1 : 0);
+  badgeEl.textContent = `${toolCount} tool${toolCount !== 1 ? 's' : ''}`;
+}
+
+// ============================================================
+// Register the always-on tool
+// ============================================================
+
+if (navigator.modelContext) {
+  navigator.modelContext.registerTool({
+    name: 'add-sticky',
+    description: 'Add a new sticky note to the IdeaBoard.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        text: { type: 'string', description: 'The text content of the sticky note.' },
+        color: {
+          type: 'string',
+          enum: ['yellow', 'blue', 'green', 'pink'],
+          description: 'Sticky color. Defaults to yellow.'
+        }
+      },
+      required: ['text']
+    },
+    execute: ({ text, color }) => addSticky(text, color)
+  });
+
+  navigator.modelContext.registerTool({
+    name: 'list-stickies',
+    description: 'List all sticky notes currently on the board, including their IDs, text, color, and group.',
+    inputSchema: { type: 'object', properties: {} },
+    execute: () => listStickies()
+  });
+
+  updateTools();
+}
+
+// ============================================================
+// Code pane display
+// ============================================================
+
+// Syntax coloring helpers (VS Code dark theme)
+const K = s => `<span class="t-kw">${s}</span>`;      // keyword
+const F = s => `<span class="t-fn">${s}</span>`;      // function
+const S = s => `<span class="t-str">${s}</span>`;     // string
+const N = s => `<span class="t-num">${s}</span>`;     // number
+const C = s => `<span class="t-cmt">${s}</span>`;     // comment
+const P = s => `<span class="t-prop">${s}</span>`;    // property
+const O = s => `<span class="t-op">${s}</span>`;      // operator
+
+// Tab 1: Register — permanent tools
+const registerCode = [
+  `${C('// Your app already has these functions')}`,
+  `${K('function')} ${F('addSticky')}(text, color) { ${C('/* ... */')} }`,
+  `${K('function')} ${F('listStickies')}() { ${C('/* ... */')} }`,
+  '',
+  `${C('// Register tools the agent can always use')}`,
+  `navigator.modelContext.${F('registerTool')}({`,
+  `  ${P('name')}: ${S('"add-sticky"')},`,
+  `  ${P('description')}: ${S('"Add a new sticky note to the IdeaBoard."')},`,
+  `  ${P('inputSchema')}: {`,
+  `    ${P('type')}: ${S('"object"')},`,
+  `    ${P('properties')}: {`,
+  `      ${P('text')}: { ${P('type')}: ${S('"string"')}, ${P('description')}: ${S('"Text content."')} },`,
+  `      ${P('color')}: { ${P('type')}: ${S('"string"')}, ${P('enum')}: [${S('"yellow"')},${S('"blue"')},${S('"green"')},${S('"pink"')}] }`,
+  '    },',
+  `    ${P('required')}: [${S('"text"')}]`,
+  '  },',
+  `  ${P('execute')}: ({ text, color }) ${O('=>')} ${F('addSticky')}(text, color)`,
+  '});',
+  '',
+  `navigator.modelContext.${F('registerTool')}({`,
+  `  ${P('name')}: ${S('"list-stickies"')},`,
+  `  ${P('description')}: ${S('"List all sticky notes on the board."')},`,
+  `  ${P('inputSchema')}: { ${P('type')}: ${S('"object"')}, ${P('properties')}: {} },`,
+  `  ${P('execute')}: () ${O('=>')} ${F('listStickies')}()`,
+  '});',
+].join('\n');
+
+// Tab 2: Dynamic — register/unregister based on state
+const dynamicCode = [
+  `${C('// edit-sticky only makes sense when there are stickies.')}`,
+  `${C('// Register it when stickies appear, unregister when gone.')}`,
+  '',
+  `${K('let')} editCtrl ${O('=')} ${K('null')};`,
+  '',
+  `${K('function')} ${F('updateTools')}() {`,
+  `  ${K('if')} (stickies.length ${O('>=')} ${N('1')} ${O('&&')} ${O('!')}editCtrl) {`,
+  `    ${C('// Board has stickies \u2014 register the tool')}`,
+  `    editCtrl ${O('=')} ${K('new')} AbortController();`,
+  `    navigator.modelContext.${F('registerTool')}({`,
+  `      ${P('name')}: ${S('"edit-sticky"')},`,
+  `      ${P('description')}: ${S('"Edit text or color of a sticky."')},`,
+  `      ${P('inputSchema')}: { ... },`,
+  `      ${P('execute')}: ({ id, text, color }) ${O('=>')} ${F('editSticky')}(id, text, color),`,
+  `      ${P('signal')}: editCtrl.signal    ${C('// \u2190 pass the signal')}`,
+  '    });',
+  '',
+  `  } ${K('else')} ${K('if')} (stickies.length ${O('===')} ${N('0')} ${O('&&')} editCtrl) {`,
+  `    ${C('// Board is empty \u2014 unregister the tool')}`,
+  `    editCtrl.${F('abort')}();            ${C('// \u2190 tool disappears from agent')}`,
+  `    editCtrl ${O('=')} ${K('null')};`,
+  '  }',
+  '}',
+  '',
+  `${C('// Same pattern for clear-board (1+) and group-stickies (3+)')}`,
+].join('\n');
+
+document.getElementById('code-register-display').innerHTML = registerCode;
+document.getElementById('code-dynamic-display').innerHTML = dynamicCode;
+
+// Tab switching
+document.querySelectorAll('.code-tab').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.code-tab').forEach(b => {
+      b.classList.remove('active');
+      b.setAttribute('aria-selected', 'false');
+    });
+    btn.classList.add('active');
+    btn.setAttribute('aria-selected', 'true');
+
+    document.querySelectorAll('.code-panel').forEach(p => p.classList.remove('active'));
+    document.getElementById('code-' + btn.dataset.tab).classList.add('active');
+  });
+});
+</script>
+
+</body>
+</html>
