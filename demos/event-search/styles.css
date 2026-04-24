@@ -406,8 +406,8 @@ pre.code-block code {
   padding: 1px 3px;
   border-radius: 3px;
   background: rgba(0, 120, 212, 0.18);
-  box-decoration-break: clone;
   -webkit-box-decoration-break: clone;
+  box-decoration-break: clone;
 }
 
 /* Dimmed lines (context, not the focus) */
