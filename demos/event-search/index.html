@@ -5,7 +5,6 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Declarative WebMCP - API Playground</title>
   <link rel="stylesheet" href="styles.css">
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/themes/prism-tomorrow.min.css">
 </head>
 <body>
 
@@ -91,7 +90,7 @@
     </div>
 
     <div class="code-pane">
-      <pre class="code-block"><code class="language-html" id="code-manual"></code></pre>
+      <pre class="code-block"><code id="code-manual"></code></pre>
     </div>
     </div>
   </section>
@@ -163,7 +162,7 @@
     </div>
 
     <div class="code-pane">
-      <pre class="code-block"><code class="language-html" id="code-auto"></code></pre>
+      <pre class="code-block"><code id="code-auto"></code></pre>
     </div>
     </div>
   </section>
@@ -236,7 +235,7 @@
     </div>
 
     <div class="code-pane">
-      <pre class="code-block"><code class="language-html" id="code-custom"></code></pre>
+      <pre class="code-block"><code id="code-custom"></code></pre>
     </div>
     </div>
   </section>
@@ -294,52 +293,90 @@
 
 </div>
 
-<!-- Prism.js for syntax highlighting -->
-<script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/prism.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-markup.min.js"></script>
-
 <script>
 // ============================================================
 // Code strings
 // ============================================================
 
+function token(className, text) {
+  return `<span class="${className}">${text}</span>`;
+}
+
+function html(text) {
+  if (!text) return '';
+  if (text.trim().startsWith('&lt;!--')) return token('t-cmt', text);
+  if (/^\s*[a-zA-Z_:][\w:.-]*\s*$/.test(text)) {
+    return text.replace(/([a-zA-Z_:][\w:.-]*)/, match => token('t-attr', match));
+  }
+
+  const tokens = [];
+  const stash = value => {
+    const key = `@@${tokens.length}@@`;
+    tokens.push(value);
+    return key;
+  };
+
+  const output = text
+    .replace(/"[^"]*"/g, match => stash(token('t-str', match)))
+    .replace(/(&lt;\/?)([a-z][\w-]*)/gi, (_, open, name) => stash(token('t-punc', open)) + stash(token('t-tag', name)))
+    .replace(/(^|\s)([a-zA-Z_:][\w:.-]*)(?==)/g, (_, prefix, name) => prefix + stash(token('t-attr', name)))
+    .replace(/=/g, match => stash(token('t-punc', match)))
+    .replace(/(&gt;)/g, match => stash(token('t-punc', match)));
+
+  return output.replace(/@@(\d+)@@/g, (_, index) => tokens[Number(index)]);
+}
+
 function hl(text) {
-  return '<span class="hl">' + text + '</span>';
+  return '<span class="hl">' + html(text) + '</span>';
 }
 
 function dim(text) {
-  return '<span class="dim">' + text + '</span>';
+  return '<span class="dim">' + html(text) + '</span>';
+}
+
+function code(text) {
+  return html(text);
+}
+
+const K = text => token('t-kw', text);
+const F = text => token('t-fn', text);
+const S = text => token('t-str', text);
+const P = text => token('t-prop', text);
+const O = text => token('t-op', text);
+
+function jsLine(text) {
+  return text;
 }
 
 // Tab 1 - Full form (baseline)
 const codeManual = [
-  '&lt;form ' + hl('toolname="search-events-manual"'),
+  code('&lt;form ') + hl('toolname="search-events-manual"'),
   '      ' + hl('tooldescription="Search for event tickets (manual review)"'),
-  '      action="/search"&gt;',
+  code('      action="/search"&gt;'),
   '',
-  '  &lt;label for="date"&gt;Date&lt;/label&gt;',
-  '  &lt;input type="date" id="date" name="date" required',
-  '         ' + hl('toolparamdescription="Event date in YYYY-MM-DD format"') + '&gt;',
+  code('  &lt;label for="date"&gt;Date&lt;/label&gt;'),
+  code('  &lt;input type="date" id="date" name="date" required'),
+  '         ' + hl('toolparamdescription="Event date in YYYY-MM-DD format"') + code('&gt;'),
   '',
-  '  &lt;label for="category"&gt;Category&lt;/label&gt;',
-  '  &lt;select id="category" name="category" required',
-  '          ' + hl('toolparamdescription="Type of event"') + '&gt;',
-  '    &lt;option value="concert"&gt;Concert&lt;/option&gt;',
-  '    &lt;option value="sports"&gt;Sports&lt;/option&gt;',
-  '    &lt;option value="theater"&gt;Theater&lt;/option&gt;',
-  '    &lt;option value="comedy"&gt;Comedy&lt;/option&gt;',
-  '  &lt;/select&gt;',
+  code('  &lt;label for="category"&gt;Category&lt;/label&gt;'),
+  code('  &lt;select id="category" name="category" required'),
+  '          ' + hl('toolparamdescription="Type of event"') + code('&gt;'),
+  code('    &lt;option value="concert"&gt;Concert&lt;/option&gt;'),
+  code('    &lt;option value="sports"&gt;Sports&lt;/option&gt;'),
+  code('    &lt;option value="theater"&gt;Theater&lt;/option&gt;'),
+  code('    &lt;option value="comedy"&gt;Comedy&lt;/option&gt;'),
+  code('  &lt;/select&gt;'),
   '',
-  '  &lt;label for="artist"&gt;Artist / Venue&lt;/label&gt;',
-  '  &lt;input type="text" id="artist" name="artist" required',
-  '         ' + hl('toolparamdescription="Name of the artist, team, or venue"') + '&gt;',
+  code('  &lt;label for="artist"&gt;Artist / Venue&lt;/label&gt;'),
+  code('  &lt;input type="text" id="artist" name="artist" required'),
+  '         ' + hl('toolparamdescription="Name of the artist, team, or venue"') + code('&gt;'),
   '',
-  '  &lt;label for="location"&gt;Location&lt;/label&gt;',
-  '  &lt;input type="text" id="location" name="location" required',
-  '         ' + hl('toolparamdescription="City or region to search in"') + '&gt;',
+  code('  &lt;label for="location"&gt;Location&lt;/label&gt;'),
+  code('  &lt;input type="text" id="location" name="location" required'),
+  '         ' + hl('toolparamdescription="City or region to search in"') + code('&gt;'),
   '',
-  '  &lt;button type="submit"&gt;Search&lt;/button&gt;',
-  '&lt;/form&gt;',
+  code('  &lt;button type="submit"&gt;Search&lt;/button&gt;'),
+  code('&lt;/form&gt;'),
 ].join('\n');
 
 // Tab 2 - Only show the <form> tag diff (toolautosubmit)
@@ -367,20 +404,20 @@ const codeCustom = [
   dim('  &lt;button type="submit"&gt;Search&lt;/button&gt;'),
   dim('&lt;/form&gt;'),
   '',
-  hl('&lt;script&gt;'),
-  hl('  const form = document.querySelector(\'form[toolname="search-events-custom"]\');'),
-  hl(''),
-  hl('  form.addEventListener("submit", event =&gt; {'),
-  hl('    if (!event.agentInvoked) return;'),
-  hl('    event.preventDefault();'),
-  hl(''),
-  hl('    const data = new FormData(form);'),
-  hl('    event.respondWith(Promise.resolve('),
-  hl('      `Found 3 events for "${data.get("artist")}" ` +'),
-  hl('      `on ${data.get("date")} in ${data.get("location")}.`'),
-  hl('    ));'),
-  hl('  });'),
-  hl('&lt;/script&gt;'),
+  code('&lt;script&gt;'),
+  jsLine('  ' + K('const') + ' form ' + O('=') + ' document.' + F('querySelector') + '(' + S('\'form[toolname="search-events-custom"]\'') + ');'),
+  jsLine(''),
+  jsLine('  form.' + F('addEventListener') + '(' + S('"submit"') + ', event ' + O('=&gt;') + ' {'),
+  jsLine('    ' + K('if') + ' (!event.' + P('agentInvoked') + ') ' + K('return') + ';'),
+  jsLine('    event.' + F('preventDefault') + '();'),
+  jsLine(''),
+  jsLine('    ' + K('const') + ' data ' + O('=') + ' ' + K('new') + ' ' + F('FormData') + '(form);'),
+  jsLine('    event.' + F('respondWith') + '(Promise.' + F('resolve') + '('),
+  jsLine('      ' + S('`Found 3 events for "${data.get("artist")}" `') + ' +'),
+  jsLine('      ' + S('`on ${data.get("date")} in ${data.get("location")}.`')),
+  jsLine('    ));'),
+  jsLine('  });'),
+  code('&lt;/script&gt;'),
 ].join('\n');
 
 // ============================================================
@@ -390,8 +427,6 @@ const codeCustom = [
 document.getElementById('code-manual').innerHTML = codeManual;
 document.getElementById('code-auto').innerHTML   = codeAuto;
 document.getElementById('code-custom').innerHTML = codeCustom;
-
-Prism.highlightAll();
 
 // ============================================================
 // Tab switching - swap forms in/out of DOM

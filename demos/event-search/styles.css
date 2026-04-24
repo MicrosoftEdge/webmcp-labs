@@ -345,6 +345,12 @@ body {
   border: 1px solid #333;
 }
 
+pre.code-block,
+pre.code-block code {
+  font-family: "Cascadia Code", "Consolas", "Courier New", monospace;
+  font-size: 12px;
+}
+
 .code-block {
   background: #1e1e1e;
   color: #d4d4d4;
@@ -352,8 +358,6 @@ body {
   padding: 0.875rem 1rem;
   overflow: auto;
   max-height: 520px;
-  font-family: "Cascadia Code", "Consolas", "Courier New", monospace;
-  font-size: 10px;
   line-height: 1.6;
   margin: 0;
   tab-size: 2;
@@ -379,50 +383,38 @@ body {
 }
 
 .code-block code {
-  font-family: inherit;
-  font-size: inherit;
   background: none;
   padding: 0;
 }
 
+/* ---- Syntax coloring (VS Code dark theme) ---- */
+
+.t-tag { color: #569cd6; }
+.t-attr,
+.t-prop { color: #9cdcfe; }
+.t-str { color: #ce9178; }
+.t-punc { color: #808080; }
+.t-cmt { color: #6a9955; font-style: italic; }
+.t-kw { color: #569cd6; }
+.t-fn { color: #dcdcaa; }
+.t-num { color: #b5cea8; }
+.t-op { color: #d4d4d4; }
+
 /* Highlighted lines */
 
 .hl {
-  display: inline-block;
-  width: calc(100% + 2rem);
-  margin-left: -1rem;
-  padding-left: 1rem;
-  padding-right: 1rem;
-  background: rgba(0, 120, 212, 0.15);
-  border-left: 3px solid #0078d4;
+  padding: 1px 3px;
+  border-radius: 3px;
+  background: rgba(0, 120, 212, 0.18);
+  box-decoration-break: clone;
+  -webkit-box-decoration-break: clone;
 }
 
 /* Dimmed lines (context, not the focus) */
 
 .dim {
-  opacity: 0.4;
+  opacity: 0.58;
 }
-
-/* ---- Prism overrides ---- */
-
-pre[class*="language-"],
-code[class*="language-"] {
-  background: none !important;
-  text-shadow: none !important;
-}
-
-.token.tag { color: #569cd6; }
-.token.attr-name { color: #9cdcfe; }
-.token.attr-value,
-.token.string { color: #ce9178; }
-.token.punctuation { color: #808080; }
-.token.comment { color: #6a9955; font-style: italic; }
-.token.keyword { color: #569cd6; }
-.token.function { color: #dcdcaa; }
-.token.boolean,
-.token.number { color: #b5cea8; }
-.token.operator { color: #d4d4d4; }
-.token.property { color: #9cdcfe; }
 
 /* ---- API Reference section ---- */
 
