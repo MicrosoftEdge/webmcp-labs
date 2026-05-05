@@ -59,6 +59,13 @@
       <!-- Agent Pane -->
       <section id="pane-agent" class="pane" role="tabpanel">
         <div class="stack gap-md agent-layout">
+          <details class="disclaimer-note">
+            <summary>
+              <svg class="disclaimer-note-icon" viewBox="0 0 16 16" aria-hidden="true" focusable="false"><path fill="currentColor" d="M8 1.5a6.5 6.5 0 1 1 0 13 6.5 6.5 0 0 1 0-13zm0 1a5.5 5.5 0 1 0 0 11 5.5 5.5 0 0 0 0-11zM8 7a.5.5 0 0 1 .5.5v3.5a.5.5 0 0 1-1 0V7.5A.5.5 0 0 1 8 7zm0-2.25a.75.75 0 1 1 0 1.5.75.75 0 0 1 0-1.5z"/></svg>
+              <span>Use only on sites you trust.</span>
+            </summary>
+            <p>This is a developer tool for exploring WebMCP, with no prompt-injection mitigations: a hostile page can manipulate the LLM through its tools. <a href="https://github.com/MicrosoftEdge/webmcp-labs/tree/main/webmcp-explorer#disclaimer" target="_blank" rel="noopener noreferrer">Learn&nbsp;more</a>.</p>
+          </details>
           <div class="form-group">
             <label class="label" for="agent-goal">Goal</label>
             <textarea class="textarea" id="agent-goal" rows="2" placeholder="Describe what you want the agent to do…"></textarea>
@@ -82,7 +89,14 @@
       <!-- Chat Pane -->
       <section id="pane-chat" class="pane" role="tabpanel">
         <div class="chat-layout">
-          <div id="chat-empty" class="chat-empty">Send a message to start chatting. Use available page tools to explore what WebMCP can do.</div>
+          <details class="disclaimer-note chat-disclaimer">
+            <summary>
+              <svg class="disclaimer-note-icon" viewBox="0 0 16 16" aria-hidden="true" focusable="false"><path fill="currentColor" d="M8 1.5a6.5 6.5 0 1 1 0 13 6.5 6.5 0 0 1 0-13zm0 1a5.5 5.5 0 1 0 0 11 5.5 5.5 0 0 0 0-11zM8 7a.5.5 0 0 1 .5.5v3.5a.5.5 0 0 1-1 0V7.5A.5.5 0 0 1 8 7zm0-2.25a.75.75 0 1 1 0 1.5.75.75 0 0 1 0-1.5z"/></svg>
+              <span>Use only on sites you trust.</span>
+            </summary>
+            <p>This is a developer tool for exploring WebMCP, with no prompt-injection mitigations: a hostile page can manipulate the LLM through its tools. <a href="https://github.com/MicrosoftEdge/webmcp-labs/tree/main/webmcp-explorer#disclaimer" target="_blank" rel="noopener noreferrer">Learn&nbsp;more</a>.</p>
+          </details>
+          <div id="chat-empty" class="chat-empty">Send a message to start chatting. Use available page tools to explore what WebMCP can do.</div>
           <div id="chat-messages" class="chat-messages" hidden></div>
           <div class="chat-input-bar">
             <textarea class="textarea chat-input" id="chat-input" rows="2" placeholder="Type a message…"></textarea>

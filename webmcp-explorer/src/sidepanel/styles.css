@@ -512,6 +512,77 @@ html, body {
 }
 
 /* ============================================================
+   Disclaimer Note (subtle, collapsible in-pane notice)
+   ============================================================ */
+.disclaimer-note {
+  margin: 0;
+  padding: 0;
+  font-size: var(--smtc-text-global-caption1-font-size);
+  line-height: var(--smtc-text-global-caption1-line-height);
+  color: var(--smtc-foreground-ctrl-neutral-secondary-rest);
+  background: var(--smtc-background-ctrl-subtle-hover);
+  border: 1px solid var(--smtc-stroke-divider-subtle);
+  border-radius: var(--smtc-corner-ctrl-rest);
+}
+
+.disclaimer-note > summary {
+  display: flex;
+  align-items: center;
+  gap: var(--smtc-gap-between-content-x-small);
+  padding: var(--smtc-gap-between-content-x-small) var(--smtc-padding-content-small);
+  cursor: pointer;
+  list-style: none;
+  user-select: none;
+  border-radius: var(--smtc-corner-ctrl-rest);
+}
+
+.disclaimer-note > summary::-webkit-details-marker {
+  display: none;
+}
+
+.disclaimer-note > summary::after {
+  content: "▾";
+  margin-left: auto;
+  font-size: 10px;
+  opacity: 0.6;
+  transition: transform 0.15s;
+}
+
+.disclaimer-note[open] > summary::after {
+  transform: rotate(180deg);
+}
+
+.disclaimer-note > summary:hover {
+  color: var(--smtc-foreground-ctrl-neutral-primary-rest);
+}
+
+.disclaimer-note > summary:focus-visible {
+  outline: 2px solid var(--smtc-ctrl-focus-outer-stroke);
+  outline-offset: -2px;
+}
+
+.disclaimer-note-icon {
+  flex-shrink: 0;
+  width: 14px;
+  height: 14px;
+  opacity: 0.75;
+}
+
+.disclaimer-note > p {
+  margin: 0;
+  padding: 0 var(--smtc-padding-content-small) var(--smtc-gap-between-content-x-small);
+}
+
+.disclaimer-note a {
+  color: inherit;
+  text-decoration: underline;
+}
+
+.disclaimer-note a:hover {
+  color: var(--smtc-foreground-ctrl-neutral-primary-rest);
+}
+
+/* ============================================================
    Spinner
    ============================================================ */
 .spinner {
@@ -823,6 +894,14 @@ html, body {
 #pane-chat.pane.active {
   display: flex;
   flex-direction: column;
+}
+
+/* Disclaimer banner pinned at top of chat layout. Margin matches the
+   .stack.gap-md spacing used in the agent pane so the disclaimer has the
+   same visual rhythm in both panes. */
+.chat-disclaimer {
+  flex-shrink: 0;
+  margin-bottom: var(--smtc-gap-between-content-medium);
 }
 
 /* Empty state */

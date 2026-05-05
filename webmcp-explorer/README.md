@@ -2,8 +2,6 @@
 
 A browser extension for inspecting, debugging, and interacting with WebMCP-enabled web pages.
 
-> **⚠️ Use on trusted sites only.** This extension sends tool names, descriptions, input schemas, and execution results to your configured LLM provider. Only use it on sites you own or trust — a malicious page could register tools designed to exfiltrate data or manipulate the LLM through crafted descriptions and return values.
-
 ## Prerequisites
 
 - A Chromium-based browser (Edge or Chrome)
@@ -55,12 +53,12 @@ Go to the **Config** tab in the side panel. Select a provider, fill in the field
 
 ### Chat Completions API (Ollama, LM Studio, etc.)
 
-Use any OpenAI-compatible endpoint — local or remote. Works with Ollama, LM Studio, llama.cpp, vLLM, and other servers that expose the `/v1/chat/completions` route.
+Use any OpenAI-compatible endpoint, local or remote. Works with Ollama, LM Studio, llama.cpp, vLLM, and other servers that expose the `/v1/chat/completions` route.
 
 | Field | Description |
 |---|---|
 | **Base URL** | Server URL (e.g. `http://localhost:11434/v1` for Ollama) |
-| **API Key** | Optional — leave blank if the server doesn't require authentication |
+| **API Key** | Optional. Leave blank if the server doesn't require authentication |
 | **Model** | Model name served by the endpoint (e.g. `llama3`, `mistral`) |
 
 > **Note:** The model must support tool calling. When you click **Test Connection**, the extension sends a probe request with a dummy tool. If the model doesn't return a tool call, you'll see a warning that tool-based features may not work.
@@ -71,9 +69,15 @@ Use any OpenAI-compatible endpoint — local or remote. Works with Ollama, LM St
 |---|---|
 | **Tools** | Lists WebMCP tools exposed by the current page. Execute them manually with custom JSON args. |
 | **Agent** | Run or step through an autonomous agent loop that uses page tools to accomplish a goal. |
-| **Chat** | Conversational interface with tool calling — useful for demoing WebMCP to stakeholders. |
+| **Chat** | Conversational interface with tool calling. Useful for demoing WebMCP to stakeholders. |
 | **Config** | Set up LLM provider credentials and tune settings (max iterations, max chat messages). |
 
 ## Contributing
 
 See [CONTRIBUTING.md](CONTRIBUTING.md) for build instructions and development workflow.
+
+## Disclaimer
+
+WebMCP Explorer is a developer tool for exploring and demoing the WebMCP API. It is intentionally a thin harness: tool metadata and execution results from the page are passed to the LLM as-is. That makes it useful for seeing how WebMCP behaves end to end, but it also means a hostile page can manipulate the model through the tools it registers. Use it on sites you own, control, or otherwise trust.
+
+Hardening agents against the realities of the open web is an active area of discussion for the WebMCP community. See the WebMCP community group's [Security and Privacy Considerations](https://github.com/webmachinelearning/webmcp/blob/main/docs/security-privacy-considerations.md) for the current state of that conversation.
