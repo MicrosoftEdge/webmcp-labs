@@ -13,16 +13,14 @@ import type {
   ProviderMetadata,
 } from './provider';
 
-/**
- * AzureOpenAIProvider — uses the Azure OpenAI Responses API internally.
- */
+/** AzureOpenAIProvider — calls the Azure OpenAI v1 Responses API. */
 export class AzureOpenAIProvider implements LLMProvider {
   private client: AzureOpenAI;
   private deployment: string;
 
   constructor(config: ProviderConfig) {
     this.client = new AzureOpenAI({
-      endpoint: config.endpoint,
+      endpoint: validateAzureEndpoint(config.endpoint),
       apiKey: config.apiKey,
       deployment: config.deployment,
       apiVersion: config.apiVersion,
@@ -60,6 +58,28 @@ export class AzureOpenAIProvider implements LLMProvider {
 
     return parseResponse(response);
   }
+}
+
+/**
+ * Validate that the endpoint is just the Azure resource root
+ * (e.g. `https://your-resource.openai.azure.com/`). Throws otherwise — users
+ * sometimes paste a full sample URL like `.../openai/v1/responses`, which
+ * would cause a doubled path when the SDK appends its own.
+ */
+function validateAzureEndpoint(endpoint: string): string {
+  const trimmed = endpoint.trim();
+  let url: URL;
+  try {
+    url = new URL(trimmed);
+  } catch {
+    throw new Error(`Azure endpoint must be a full URL like https://your-resource.openai.azure.com/. Got: ${endpoint}`);
+  }
+  if (url.pathname !== '/' && url.pathname !== '') {
+    throw new Error(
+      `Azure endpoint must be just the resource root (no path). Remove "${url.pathname}" from: ${endpoint}`
+    );
+  }
+  return url.origin;
 }
 
 /** Map generic Message[] to Responses API input items. */
