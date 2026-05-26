@@ -140,6 +140,18 @@ document.getElementById('config-save')!.addEventListener('click', async () => {
   const providerConfig = getProviderConfig();
   if (!providerConfig) return;
 
+  // Run provider-specific validation by constructing it; surfaces errors
+  // thrown from the provider constructor (e.g. malformed Azure endpoint).
+  const meta = getProviderDef();
+  if (meta) {
+    try {
+      await meta.createProvider(providerConfig);
+    } catch (e) {
+      showMessage(e instanceof Error ? e.message : String(e), 'error');
+      return;
+    }
+  }
+
   const maxIterations = parseInt((document.getElementById('max-iterations') as HTMLInputElement).value, 10) || 10;
   const maxChatMessages = parseInt((document.getElementById('max-chat-messages') as HTMLInputElement).value, 10) || 50;
   // Update the active provider in the cache, then persist everything
