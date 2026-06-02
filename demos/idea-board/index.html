@@ -64,7 +64,7 @@
         </tr>
       </thead>
       <tbody>
-        <tr class="api-group-label"><td colspan="3">registerTool() options</td></tr>
+        <tr class="api-group-label"><td colspan="3">registerTool(tool, options) &mdash; <code>tool</code> properties</td></tr>
         <tr>
           <td><code>name</code></td>
           <td>String</td>
@@ -85,6 +85,7 @@
           <td>Function</td>
           <td>Called when the agent invokes the tool. Receives an object matching <code>inputSchema</code>. Can be sync or async. Return value is sent back to the agent.</td>
         </tr>
+        <tr class="api-group-label"><td colspan="3">registerTool(tool, options) &mdash; <code>options</code> properties</td></tr>
         <tr>
           <td><code>signal</code></td>
           <td>AbortSignal</td>
@@ -274,9 +275,8 @@ function updateTools() {
         },
         required: ['id']
       },
-      execute: ({ id, text, color }) => editSticky(id, text, color),
-      signal: editController.signal
-    });
+      execute: ({ id, text, color }) => editSticky(id, text, color)
+    }, { signal: editController.signal });
   } else if (count === 0 && editController) {
     editController.abort();
     editController = null;
@@ -289,9 +289,8 @@ function updateTools() {
       name: 'clear-board',
       description: 'Remove all sticky notes from the board.',
       inputSchema: { type: 'object', properties: {} },
-      execute: () => clearBoard(),
-      signal: clearController.signal
-    });
+      execute: () => clearBoard()
+    }, { signal: clearController.signal });
   } else if (count === 0 && clearController) {
     clearController.abort();
     clearController = null;
@@ -315,9 +314,8 @@ function updateTools() {
         },
         required: ['label', 'stickyIds']
       },
-      execute: ({ label, stickyIds }) => groupStickies(label, stickyIds),
-      signal: groupController.signal
-    });
+      execute: ({ label, stickyIds }) => groupStickies(label, stickyIds)
+    }, { signal: groupController.signal });
   } else if (count < 3 && groupController) {
     groupController.abort();
     groupController = null;
@@ -418,9 +416,8 @@ const dynamicCode = [
   `      ${P('name')}: ${S('"edit-sticky"')},`,
   `      ${P('description')}: ${S('"Edit text or color of a sticky."')},`,
   `      ${P('inputSchema')}: { ... },`,
-  `      ${P('execute')}: ({ id, text, color }) ${O('=>')} ${F('editSticky')}(id, text, color),`,
-  `      ${P('signal')}: editCtrl.signal    ${C('// \u2190 pass the signal')}`,
-  '    });',
+  `      ${P('execute')}: ({ id, text, color }) ${O('=>')} ${F('editSticky')}(id, text, color)`,
+  `    }, { ${P('signal')}: editCtrl.signal });    ${C('// \u2190 pass the signal in options')}`,
   '',
   `  } ${K('else')} ${K('if')} (stickies.length ${O('===')} ${N('0')} ${O('&&')} editCtrl) {`,
   `    ${C('// Board is empty \u2014 unregister the tool')}`,
