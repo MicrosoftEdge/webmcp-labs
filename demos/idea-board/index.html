@@ -55,6 +55,11 @@
   <!-- API Reference -->
   <section class="api-reference">
     <h2>Imperative WebMCP API Reference</h2>
+    <p style="margin: 0 0 1em 0; font-size: 0.95em; color: #555;">
+      The imperative WebMCP API lives on <code>document.modelContext</code>. (You may also see
+      <code>navigator.modelContext</code> in older examples &mdash; it&rsquo;s being removed in favor of
+      <code>document.modelContext</code>.)
+    </p>
     <table class="api-table">
       <thead>
         <tr>
@@ -76,9 +81,19 @@
           <td>Human-readable description of what the tool does. Helps the agent decide when and how to use it.</td>
         </tr>
         <tr>
+          <td><code>title</code></td>
+          <td>String</td>
+          <td>Optional. Friendly display name shown in UIs (the agent uses <code>name</code> for invocation).</td>
+        </tr>
+        <tr>
           <td><code>inputSchema</code></td>
           <td>Object</td>
           <td>JSON Schema describing the input parameters the tool accepts. See <a href="https://json-schema.org/understanding-json-schema/about" target="_blank" rel="noopener">json-schema.org</a>.</td>
+        </tr>
+        <tr>
+          <td><code>annotations</code></td>
+          <td>Object</td>
+          <td>Optional hints for the agent. <code>readOnlyHint: true</code> means the tool doesn&rsquo;t mutate state. <code>untrustedContentHint: true</code> means the tool&rsquo;s output may contain untrusted content.</td>
         </tr>
         <tr>
           <td><code>execute</code></td>
@@ -90,6 +105,17 @@
           <td><code>signal</code></td>
           <td>AbortSignal</td>
           <td>Optional. Pass an <code>AbortController.signal</code> to later unregister the tool by calling <code>controller.abort()</code>.</td>
+        </tr>
+        <tr>
+          <td><code>exposedTo</code></td>
+          <td>Array&lt;String&gt;</td>
+          <td>Optional. Origins (e.g. <code>"https://example.com"</code>) that an iframe wants to share this tool with. Use to bubble a tool up from a cross-origin iframe to its parent document.</td>
+        </tr>
+        <tr class="api-group-label"><td colspan="3">Discovering tools &mdash; <code>document.modelContext.getTools(options?)</code></td></tr>
+        <tr>
+          <td><code>fromOrigins</code></td>
+          <td>Array&lt;String&gt;</td>
+          <td>Optional. Restrict the returned tools to those registered by (or exposed from) the listed origins. Returns a <code>Promise&lt;RegisteredTool[]&gt;</code>.</td>
         </tr>
         <tr class="api-group-label"><td colspan="3">Unregistering tools</td></tr>
         <tr>
@@ -255,7 +281,7 @@ let groupController = null;
 let toolCount = 2;
 
 function updateTools() {
-  const ctx = navigator.modelContext;
+  const ctx = document.modelContext;
   if (!ctx) return;
 
   const count = stickies.length;
@@ -330,8 +356,8 @@ function updateTools() {
 // Register the always-on tool
 // ============================================================
 
-if (navigator.modelContext) {
-  navigator.modelContext.registerTool({
+if (document.modelContext) {
+  document.modelContext.registerTool({
     name: 'add-sticky',
     description: 'Add a new sticky note to the IdeaBoard.',
     inputSchema: {
@@ -349,7 +375,7 @@ if (navigator.modelContext) {
     execute: ({ text, color }) => addSticky(text, color)
   });
 
-  navigator.modelContext.registerTool({
+  document.modelContext.registerTool({
     name: 'list-stickies',
     description: 'List all sticky notes currently on the board, including their IDs, text, color, and group.',
     inputSchema: { type: 'object', properties: {} },
@@ -379,7 +405,7 @@ const registerCode = [
   `${K('function')} ${F('listStickies')}() { ${C('/* ... */')} }`,
   '',
   `${C('// Register tools the agent can always use')}`,
-  `navigator.modelContext.${F('registerTool')}({`,
+  `document.modelContext.${F('registerTool')}({`,
   `  ${P('name')}: ${S('"add-sticky"')},`,
   `  ${P('description')}: ${S('"Add a new sticky note to the IdeaBoard."')},`,
   `  ${P('inputSchema')}: {`,
@@ -393,7 +419,7 @@ const registerCode = [
   `  ${P('execute')}: ({ text, color }) ${O('=>')} ${F('addSticky')}(text, color)`,
   '});',
   '',
-  `navigator.modelContext.${F('registerTool')}({`,
+  `document.modelContext.${F('registerTool')}({`,
   `  ${P('name')}: ${S('"list-stickies"')},`,
   `  ${P('description')}: ${S('"List all sticky notes on the board."')},`,
   `  ${P('inputSchema')}: { ${P('type')}: ${S('"object"')}, ${P('properties')}: {} },`,
@@ -412,7 +438,7 @@ const dynamicCode = [
   `  ${K('if')} (stickies.length ${O('>=')} ${N('1')} ${O('&&')} ${O('!')}editCtrl) {`,
   `    ${C('// Board has stickies \u2014 register the tool')}`,
   `    editCtrl ${O('=')} ${K('new')} AbortController();`,
-  `    navigator.modelContext.${F('registerTool')}({`,
+  `    document.modelContext.${F('registerTool')}({`,
   `      ${P('name')}: ${S('"edit-sticky"')},`,
   `      ${P('description')}: ${S('"Edit text or color of a sticky."')},`,
   `      ${P('inputSchema')}: { ... },`,
