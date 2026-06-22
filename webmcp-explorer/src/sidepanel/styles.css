@@ -670,6 +670,22 @@ html, body {
   text-align: right;
 }
 
+.tool-list-item-rawname {
+  font-weight: normal;
+  font-size: var(--smtc-text-global-caption1-font-size);
+  color: var(--smtc-foreground-ctrl-neutral-secondary-rest);
+  margin-left: 0.4em;
+}
+
+.tool-list-item-origin {
+  font-size: var(--smtc-text-global-caption1-font-size);
+  color: var(--smtc-foreground-ctrl-neutral-secondary-rest);
+  margin-top: 0.25em;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 /* JSON / code display */
 .code-block {
   font-family: var(--smtc-text-style-code-regular-font-family);

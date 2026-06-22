@@ -3,31 +3,101 @@
 
 /**
  * Content script — injected into web pages.
- * Bridges the ModelContextTesting API to the extension side panel
- * via chrome.runtime messaging.
+ * Bridges document.modelContext to the extension side panel via
+ * chrome.runtime messaging.
+ *
+ * Why we keep a local Map of tools:
+ *   document.modelContext.executeTool(tool, args) requires the *full* tool
+ *   object, including its live `window` reference. That object can't be
+ *   structured-cloned across chrome.runtime, so the side panel can never
+ *   hold it. Instead, the side panel dispatches by name and we look the
+ *   tool up here just before invoking executeTool.
+ *
+ * Name collisions:
+ *   When two tools share a name (e.g. one from the top frame and one from a
+ *   cross-origin iframe via `exposedTo`), we log a console.warn and let
+ *   last-write-wins. Acceptable for a dev/debug surface; a real agent would
+ *   disambiguate by origin.
  */
 
-import type { BridgeRequest, BridgeResponse, RegisteredTool } from './types/webmcp.d';
+import type {
+  BridgeRequest,
+  BridgeResponse,
+  RegisteredTool,
+  ToolAnnotations,
+} from './types/webmcp.d';
 
-// ModelContextTesting is exposed on navigator by Chromium
+// document.modelContext is exposed on Document by Chromium when the
+// WebMCP feature is enabled (chrome://flags/#enable-webmcp-testing).
 declare global {
-  interface Navigator {
-    modelContextTesting?: ModelContextTesting;
+  interface Document {
+    modelContext?: ModelContext;
   }
 
-  interface ModelContextTesting extends EventTarget {
-    listTools(): RegisteredTool[];
+  /** Live tool object returned by document.modelContext.getTools(). */
+  interface ModelContextRegisteredTool {
+    readonly name: string;
+    readonly origin: string;
+    readonly description?: string;
+    readonly inputSchema?: unknown;
+    readonly title?: string;
+    readonly window: Window;
+    readonly annotations?: ToolAnnotations;
+  }
+
+  interface ModelContextGetToolsOptions {
+    fromOrigins?: string[];
+  }
+
+  interface ModelContextExecuteToolOptions {
+    signal?: AbortSignal;
+  }
+
+  interface ModelContext extends EventTarget {
+    getTools(options?: ModelContextGetToolsOptions): Promise<ModelContextRegisteredTool[]>;
     executeTool(
-      toolName: string,
+      tool: ModelContextRegisteredTool,
       inputArguments: string,
-      options?: { signal?: AbortSignal }
+      options?: ModelContextExecuteToolOptions
     ): Promise<string | null>;
-    ontoolchange: ((this: ModelContextTesting, ev: Event) => void) | null;
+    ontoolchange: ((this: ModelContext, ev: Event) => void) | null;
   }
 }
 
-function getModelContext(): ModelContextTesting | null {
-  return navigator.modelContextTesting ?? null;
+function getModelContext(): ModelContext | null {
+  return document.modelContext ?? null;
+}
+
+/**
+ * Project a live tool into the structured-cloneable shape we send to the
+ * side panel. Drops `window` (non-serializable) and any extension-private
+ * fields. Keeps `origin` so the UI can show provenance.
+ */
+function projectTool(t: ModelContextRegisteredTool): RegisteredTool {
+  const out: RegisteredTool = { name: t.name, origin: t.origin };
+  if (t.description !== undefined) out.description = t.description;
+  if (t.inputSchema !== undefined) out.inputSchema = t.inputSchema;
+  if (t.title !== undefined) out.title = t.title;
+  if (t.annotations !== undefined) out.annotations = t.annotations;
+  return out;
+}
+
+/** Cache of the most recent snapshot, keyed by name. Rebuilt on every fetch. */
+const toolsByName = new Map<string, ModelContextRegisteredTool>();
+
+async function refreshToolsByName(ctx: ModelContext): Promise<ModelContextRegisteredTool[]> {
+  const tools = await ctx.getTools();
+  toolsByName.clear();
+  for (const t of tools) {
+    if (toolsByName.has(t.name)) {
+      const prev = toolsByName.get(t.name)!;
+      console.warn(
+        `[WebMCP] Duplicate tool name "${t.name}" from origins ${prev.origin} and ${t.origin}; last one wins.`
+      );
+    }
+    toolsByName.set(t.name, t);
+  }
+  return tools;
 }
 
 // Listen for messages from the side panel
@@ -46,26 +116,40 @@ chrome.runtime.onMessage.addListener(
     const ctx = getModelContext();
 
     if (!ctx) {
-      sendResponse({ type: 'error', message: 'ModelContextTesting not available on this page' });
+      sendResponse({
+        type: 'error',
+        message:
+          'document.modelContext not available on this page. Enable chrome://flags/#enable-webmcp-testing and reload.',
+      });
       return true;
     }
 
     if (message.type === 'listTools') {
-      try {
-        const tools = ctx.listTools();
-        sendResponse({ type: 'listTools', tools });
-      } catch (e) {
-        sendResponse({ type: 'error', message: String(e) });
-      }
-      return true;
+      refreshToolsByName(ctx)
+        .then((tools) => {
+          sendResponse({ type: 'listTools', tools: tools.map(projectTool) });
+        })
+        .catch((e) => {
+          sendResponse({ type: 'error', message: String(e) });
+        });
+      return true; // async response
     }
 
     if (message.type === 'executeTool') {
+      const tool = toolsByName.get(message.name);
+      if (!tool) {
+        sendResponse({
+          type: 'error',
+          message: `Tool "${message.name}" not found in the current snapshot. Refresh the tool list and try again.`,
+        });
+        return true;
+      }
+
       const abortController = new AbortController();
       const options = message.signal ? { signal: abortController.signal } : {};
 
       ctx
-        .executeTool(message.name, message.args, options)
+        .executeTool(tool, message.args, options)
         .then((result) => {
           sendResponse({ type: 'executeTool', result });
         })
@@ -80,7 +164,8 @@ chrome.runtime.onMessage.addListener(
   }
 );
 
-// Forward toolchange events to the side panel
+// Forward toolchange events to the side panel. The page may not have
+// installed document.modelContext yet at document_start, so check.
 const ctx = getModelContext();
 if (ctx) {
   ctx.addEventListener('toolchange', () => {
@@ -89,3 +174,4 @@ if (ctx) {
 }
 
 export {};
+

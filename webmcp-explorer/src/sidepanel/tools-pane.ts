@@ -37,10 +37,6 @@ function escapeHtml(str: string): string {
   return div.innerHTML;
 }
 
-function tryParseJSON(str: string): Record<string, unknown> | null {
-  try { return JSON.parse(str); } catch { return null; }
-}
-
 /** Generate a stub JSON object from a JSON Schema's properties. */
 function generateStubFromSchema(schema: Record<string, unknown>): Record<string, unknown> | null {
   if (schema.type !== 'object' || !schema.properties) return null;
@@ -67,10 +63,11 @@ function generateStubFromSchema(schema: Record<string, unknown>): Record<string,
 /** Pre-fill the args textarea with a stub from the selected tool's inputSchema. */
 function prefillArgs(toolName: string) {
   const tool = currentTools.find(t => t.name === toolName);
-  if (!tool?.inputSchema) { toolArgs.value = ''; return; }
-  const schema = tryParseJSON(tool.inputSchema);
-  if (!schema) { toolArgs.value = ''; return; }
-  const stub = generateStubFromSchema(schema);
+  if (!tool?.inputSchema || typeof tool.inputSchema !== 'object') {
+    toolArgs.value = '';
+    return;
+  }
+  const stub = generateStubFromSchema(tool.inputSchema as Record<string, unknown>);
   if (stub) {
     toolArgs.value = JSON.stringify(stub, null, 2);
   } else {
@@ -95,13 +92,19 @@ function renderTools(tools: RegisteredTool[]) {
   for (const tool of tools) {
     const item = document.createElement('div');
     item.className = 'tool-list-item card';
-    item.title = tool.description;
+    item.title = tool.description ?? '';
+
+    const displayLabel = tool.title && tool.title !== tool.name ? tool.title : tool.name;
+    const nameSuffix = tool.title && tool.title !== tool.name
+      ? ` <span class="tool-list-item-rawname">${escapeHtml(tool.name)}</span>`
+      : '';
 
     item.innerHTML = `
       <div class="row" style="justify-content: space-between; gap: var(--smtc-gap-between-content-small);">
-        <strong class="tool-list-item-name">${escapeHtml(tool.name)}</strong>
-        <span class="tool-list-item-desc">${escapeHtml(tool.description)}</span>
+        <strong class="tool-list-item-name">${escapeHtml(displayLabel)}${nameSuffix}</strong>
+        <span class="tool-list-item-desc">${escapeHtml(tool.description ?? '')}</span>
       </div>
+      <div class="tool-list-item-origin">${escapeHtml(tool.origin)}</div>
     `;
 
     // Clicking a list item selects it in the dropdown
@@ -119,7 +122,10 @@ function renderTools(tools: RegisteredTool[]) {
   for (const tool of tools) {
     const opt = document.createElement('option');
     opt.value = tool.name;
-    opt.textContent = tool.name;
+    const label = tool.title && tool.title !== tool.name
+      ? `${tool.title} (${tool.name})`
+      : tool.name;
+    opt.textContent = `${label} \u2014 ${tool.origin}`;
     toolSelect.appendChild(opt);
   }
 
