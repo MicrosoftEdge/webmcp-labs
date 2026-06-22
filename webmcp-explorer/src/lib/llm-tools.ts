@@ -44,10 +44,20 @@ export interface BuiltLlmTools {
   aliasToName: Map<string, string>;
 }
 
-export function buildLlmTools(rawTools: RegisteredTool[]): BuiltLlmTools {
+/**
+ * Build the LLM-facing tool list. Pass `reservedNames` to keep certain
+ * sanitized names off-limits for page tools — useful when the caller
+ * appends built-in tools (e.g. `task_complete`, `ask_user`) after the
+ * page tools, so a page registering one of those names is forced to an
+ * `_2` suffix instead of shadowing the built-in.
+ */
+export function buildLlmTools(
+  rawTools: RegisteredTool[],
+  reservedNames: Iterable<string> = []
+): BuiltLlmTools {
   const tools: ToolDefinition[] = [];
   const aliasToName = new Map<string, string>();
-  const used = new Set<string>();
+  const used = new Set<string>(reservedNames);
 
   for (const t of rawTools) {
     let safe = VALID_NAME.test(t.name) && t.name.length <= MAX_NAME_LEN

@@ -322,7 +322,9 @@ async function runAgentLoop(startMode: 'run' | 'step') {
   async function fetchPageTools(): Promise<{ tools: ToolDefinition[]; aliasToName: Map<string, string> }> {
     const response = await chrome.tabs.sendMessage(tabId!, { type: 'listTools' });
     if (response.type === 'listTools') {
-      return buildLlmTools(response.tools);
+      // Reserve built-in tool names so a page tool with the same name gets _2
+      // suffixed instead of shadowing the built-in in the LLM tool list.
+      return buildLlmTools(response.tools, SYSTEM_TOOL_NAMES);
     }
     return { tools: [], aliasToName: new Map() };
   }

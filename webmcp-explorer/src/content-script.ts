@@ -82,22 +82,41 @@ function projectTool(t: ModelContextRegisteredTool): RegisteredTool {
   return out;
 }
 
-/** Cache of the most recent snapshot, keyed by name. Rebuilt on every fetch. */
-const toolsByName = new Map<string, ModelContextRegisteredTool>();
-
-async function refreshToolsByName(ctx: ModelContext): Promise<ModelContextRegisteredTool[]> {
+/**
+ * Fetch the current tool snapshot and deduplicate by name. On collision
+ * we keep the last one (matches dispatch behavior) and log a console
+ * warning so the developer notices.
+ */
+async function getDedupedTools(ctx: ModelContext): Promise<ModelContextRegisteredTool[]> {
   const tools = await ctx.getTools();
-  toolsByName.clear();
+  const byName = new Map<string, ModelContextRegisteredTool>();
   for (const t of tools) {
-    if (toolsByName.has(t.name)) {
-      const prev = toolsByName.get(t.name)!;
+    if (byName.has(t.name)) {
+      const prev = byName.get(t.name)!;
       console.warn(
         `[WebMCP] Duplicate tool name "${t.name}" from origins ${prev.origin} and ${t.origin}; last one wins.`
       );
     }
-    toolsByName.set(t.name, t);
+    byName.set(t.name, t);
   }
-  return tools;
+  return Array.from(byName.values());
+}
+
+/**
+ * Bind the toolchange listener lazily and idempotently. document.modelContext
+ * may not exist at document_start, so we re-check on every side-panel
+ * request and rebind if the ctx instance was swapped (e.g. SPA navigation
+ * that reseats the supplement).
+ */
+let listenedCtx: ModelContext | null = null;
+function ensureToolchangeListener(ctx: ModelContext): void {
+  if (listenedCtx === ctx) return;
+  listenedCtx = ctx;
+  ctx.addEventListener('toolchange', () => {
+    chrome.runtime.sendMessage({ type: 'toolchange' } satisfies BridgeResponse).catch(() => {
+      // Side panel may not be open — ignore.
+    });
+  });
 }
 
 // Listen for messages from the side panel
@@ -124,8 +143,10 @@ chrome.runtime.onMessage.addListener(
       return true;
     }
 
+    ensureToolchangeListener(ctx);
+
     if (message.type === 'listTools') {
-      refreshToolsByName(ctx)
+      getDedupedTools(ctx)
         .then((tools) => {
           sendResponse({ type: 'listTools', tools: tools.map(projectTool) });
         })
@@ -136,27 +157,29 @@ chrome.runtime.onMessage.addListener(
     }
 
     if (message.type === 'executeTool') {
-      const tool = toolsByName.get(message.name);
-      if (!tool) {
-        sendResponse({
-          type: 'error',
-          message: `Tool "${message.name}" not found in the current snapshot. Refresh the tool list and try again.`,
-        });
-        return true;
-      }
-
-      const abortController = new AbortController();
-      const options = message.signal ? { signal: abortController.signal } : {};
-
-      ctx
-        .executeTool(tool, message.args, options)
-        .then((result) => {
+      // Re-fetch on every dispatch so we never hold a stale tool object after
+      // the page unregistered/re-registered the same name. getTools() is a
+      // cheap local DOM call; correctness beats caching here.
+      (async () => {
+        try {
+          const tools = await getDedupedTools(ctx);
+          const tool = tools.find((t) => t.name === message.name);
+          if (!tool) {
+            sendResponse({
+              type: 'error',
+              message: `Tool "${message.name}" not found on this page.`,
+            });
+            return;
+          }
+          const abortController = new AbortController();
+          const options = message.signal ? { signal: abortController.signal } : {};
+          const result = await ctx.executeTool(tool, message.args, options);
           sendResponse({ type: 'executeTool', result });
-        })
-        .catch((e: DOMException) => {
-          sendResponse({ type: 'error', message: e.message });
-        });
-
+        } catch (e) {
+          const msg = e instanceof Error ? e.message : String(e);
+          sendResponse({ type: 'error', message: msg });
+        }
+      })();
       return true; // keep message channel open for async response
     }
 
@@ -164,14 +187,11 @@ chrome.runtime.onMessage.addListener(
   }
 );
 
-// Forward toolchange events to the side panel. The page may not have
-// installed document.modelContext yet at document_start, so check.
-const ctx = getModelContext();
-if (ctx) {
-  ctx.addEventListener('toolchange', () => {
-    chrome.runtime.sendMessage({ type: 'toolchange' } satisfies BridgeResponse);
-  });
-}
+// Eagerly attach the toolchange listener if the context is already there at
+// document_start. If not, ensureToolchangeListener will pick it up on the
+// first side-panel request.
+const initialCtx = getModelContext();
+if (initialCtx) ensureToolchangeListener(initialCtx);
 
 export {};
 
