@@ -665,6 +665,11 @@ html, body {
   font-size: var(--smtc-text-global-caption1-font-size);
   line-height: var(--smtc-text-global-caption1-line-height);
   color: var(--smtc-foreground-ctrl-neutral-secondary-rest);
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  word-break: break-word;
 }
 
 .tool-list-item-rawname {

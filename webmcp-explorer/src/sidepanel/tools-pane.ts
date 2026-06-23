@@ -128,7 +128,12 @@ toolSelect.addEventListener('change', () => {
 function buildToolCard(tool: RegisteredTool): HTMLDivElement {
   const item = document.createElement('div');
   item.className = 'tool-list-item card';
-  item.title = `From ${formatOrigin(tool.origin)}`;
+  // Hover tooltip carries the full description (the visible text is clamped
+  // to a few lines via CSS) plus origin as a secondary provenance hint.
+  const titleParts: string[] = [];
+  if (tool.description) titleParts.push(tool.description);
+  titleParts.push(`From ${formatOrigin(tool.origin)}`);
+  item.title = titleParts.join('\n\n');
 
   const displayLabel = tool.title && tool.title !== tool.name ? tool.title : tool.name;
   const nameSuffix = tool.title && tool.title !== tool.name
