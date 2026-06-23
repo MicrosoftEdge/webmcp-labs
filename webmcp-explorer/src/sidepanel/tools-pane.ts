@@ -5,6 +5,12 @@ import type { RegisteredTool } from '../types/webmcp.d';
 
 /**
  * Tools Pane — available tools list + execute tool form with dropdown.
+ *
+ * Tools are grouped by origin. The "From <origin>" header is shown when
+ * either (a) there are multiple origins, or (b) there is a single origin
+ * that doesn't match the top frame (e.g. only an iframe registered tools).
+ * In the common case where the page you're looking at registered every
+ * tool itself, no headers are shown — they'd be noise.
  */
 
 const listEl = document.getElementById('tools-list')!;
@@ -35,6 +41,42 @@ function escapeHtml(str: string): string {
   const div = document.createElement('div');
   div.textContent = str;
   return div.innerHTML;
+}
+
+/** Strip http(s):// from an origin for display. Other schemes pass through. */
+function formatOrigin(origin: string): string {
+  return origin.replace(/^https?:\/\//, '');
+}
+
+/**
+ * Group tools by their origin, preserving first-seen order both for groups
+ * and for tools within a group.
+ */
+function groupToolsByOrigin(tools: RegisteredTool[]): Map<string, RegisteredTool[]> {
+  const groups = new Map<string, RegisteredTool[]>();
+  for (const tool of tools) {
+    const existing = groups.get(tool.origin);
+    if (existing) existing.push(tool);
+    else groups.set(tool.origin, [tool]);
+  }
+  return groups;
+}
+
+/**
+ * Decide whether to show "From <origin>" headers. We hide them only when
+ * every tool comes from the top frame's own origin — anything else
+ * (cross-origin iframe, mixed origins) is worth surfacing visually.
+ */
+function shouldShowGroupHeaders(
+  groups: Map<string, RegisteredTool[]>,
+  topOrigin: string,
+): boolean {
+  if (groups.size > 1) return true;
+  if (groups.size === 1) {
+    const [onlyOrigin] = groups.keys();
+    return onlyOrigin !== topOrigin;
+  }
+  return false;
 }
 
 /** Generate a stub JSON object from a JSON Schema's properties. */
@@ -82,51 +124,84 @@ toolSelect.addEventListener('change', () => {
   prefillArgs(toolSelect.value);
 });
 
-function renderTools(tools: RegisteredTool[]) {
+/** Build a single card element for a tool. */
+function buildToolCard(tool: RegisteredTool): HTMLDivElement {
+  const item = document.createElement('div');
+  item.className = 'tool-list-item card';
+  item.title = `From ${formatOrigin(tool.origin)}`;
+
+  const displayLabel = tool.title && tool.title !== tool.name ? tool.title : tool.name;
+  const nameSuffix = tool.title && tool.title !== tool.name
+    ? ` <span class="tool-list-item-rawname">${escapeHtml(tool.name)}</span>`
+    : '';
+
+  item.innerHTML = `
+    <strong class="tool-list-item-name">${escapeHtml(displayLabel)}${nameSuffix}</strong>
+    <span class="tool-list-item-desc">${escapeHtml(tool.description ?? '')}</span>
+  `;
+
+  // Clicking a list item selects it in the dropdown
+  item.addEventListener('click', () => {
+    toolSelect.value = tool.name;
+    toolSelect.dispatchEvent(new Event('change'));
+  });
+
+  return item;
+}
+
+function renderTools(tools: RegisteredTool[], topOrigin: string) {
   currentTools = tools;
   listEl.innerHTML = '';
   emptyEl.hidden = tools.length > 0;
   updateBadge(tools.length);
 
-  // Populate list cards
-  for (const tool of tools) {
-    const item = document.createElement('div');
-    item.className = 'tool-list-item card';
-    item.title = tool.description ?? '';
+  const groups = groupToolsByOrigin(tools);
+  const showHeaders = shouldShowGroupHeaders(groups, topOrigin);
 
-    const displayLabel = tool.title && tool.title !== tool.name ? tool.title : tool.name;
-    const nameSuffix = tool.title && tool.title !== tool.name
-      ? ` <span class="tool-list-item-rawname">${escapeHtml(tool.name)}</span>`
-      : '';
+  // Populate list — either flat (when single-origin matches top) or grouped.
+  for (const [origin, originTools] of groups) {
+    if (showHeaders) {
+      const groupEl = document.createElement('div');
+      groupEl.className = 'tool-group';
 
-    item.innerHTML = `
-      <div class="row" style="justify-content: space-between; gap: var(--smtc-gap-between-content-small);">
-        <strong class="tool-list-item-name">${escapeHtml(displayLabel)}${nameSuffix}</strong>
-        <span class="tool-list-item-desc">${escapeHtml(tool.description ?? '')}</span>
-      </div>
-      <div class="tool-list-item-origin">${escapeHtml(tool.origin)}</div>
-    `;
+      const headerEl = document.createElement('div');
+      headerEl.className = 'tool-group-header';
+      headerEl.textContent = formatOrigin(origin);
+      headerEl.title = origin;
+      groupEl.appendChild(headerEl);
 
-    // Clicking a list item selects it in the dropdown
-    item.addEventListener('click', () => {
-      toolSelect.value = tool.name;
-      toolSelect.dispatchEvent(new Event('change'));
-    });
+      const cardsEl = document.createElement('div');
+      cardsEl.className = 'stack gap-xs';
+      for (const tool of originTools) cardsEl.appendChild(buildToolCard(tool));
+      groupEl.appendChild(cardsEl);
 
-    listEl.appendChild(item);
+      listEl.appendChild(groupEl);
+    } else {
+      for (const tool of originTools) listEl.appendChild(buildToolCard(tool));
+    }
   }
 
-  // Populate dropdown
+  // Populate dropdown — mirror the same grouping rule with <optgroup>.
   const prevSelected = toolSelect.value;
   toolSelect.innerHTML = '';
-  for (const tool of tools) {
-    const opt = document.createElement('option');
-    opt.value = tool.name;
-    const label = tool.title && tool.title !== tool.name
-      ? `${tool.title} (${tool.name})`
-      : tool.name;
-    opt.textContent = `${label} \u2014 ${tool.origin}`;
-    toolSelect.appendChild(opt);
+  for (const [origin, originTools] of groups) {
+    const optionParent: HTMLSelectElement | HTMLOptGroupElement = showHeaders
+      ? (() => {
+          const og = document.createElement('optgroup');
+          og.label = formatOrigin(origin);
+          toolSelect.appendChild(og);
+          return og;
+        })()
+      : toolSelect;
+
+    for (const tool of originTools) {
+      const opt = document.createElement('option');
+      opt.value = tool.name;
+      opt.textContent = tool.title && tool.title !== tool.name
+        ? `${tool.title} (${tool.name})`
+        : tool.name;
+      optionParent.appendChild(opt);
+    }
   }
 
   // Restore previous selection or default to first
@@ -199,7 +274,7 @@ async function fetchTools() {
       emptyEl.textContent = 'No tools available.';
       updateBadge(0);
     } else {
-      renderTools(response.tools);
+      renderTools(response.tools, response.topOrigin);
     }
   } catch {
     listEl.innerHTML = '';
@@ -222,3 +297,4 @@ chrome.tabs.onActivated.addListener(() => fetchTools());
 
 // Initial fetch
 fetchTools();
+

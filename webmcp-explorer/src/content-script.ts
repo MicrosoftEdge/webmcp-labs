@@ -148,7 +148,11 @@ chrome.runtime.onMessage.addListener(
     if (message.type === 'listTools') {
       getDedupedTools(ctx)
         .then((tools) => {
-          sendResponse({ type: 'listTools', tools: tools.map(projectTool) });
+          sendResponse({
+            type: 'listTools',
+            tools: tools.map(projectTool),
+            topOrigin: location.origin,
+          });
         })
         .catch((e) => {
           sendResponse({ type: 'error', message: String(e) });

@@ -642,6 +642,9 @@ html, body {
   cursor: pointer;
   padding: var(--smtc-padding-content-x-small) var(--smtc-padding-content-small);
   border-radius: var(--smtc-corner-ctrl-rest);
+  display: flex;
+  flex-direction: column;
+  gap: 0.15em;
 }
 
 .tool-list-item.card {
@@ -656,34 +659,35 @@ html, body {
 .tool-list-item-name {
   font-weight: var(--smtc-text-style-default-header-weight);
   font-size: var(--smtc-text-global-body3-font-size);
-  white-space: nowrap;
-  flex-shrink: 0;
 }
 
 .tool-list-item-desc {
   font-size: var(--smtc-text-global-caption1-font-size);
   line-height: var(--smtc-text-global-caption1-line-height);
   color: var(--smtc-foreground-ctrl-neutral-secondary-rest);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  text-align: right;
 }
 
 .tool-list-item-rawname {
   font-weight: normal;
+  font-family: var(--smtc-text-style-code-regular-font-family);
   font-size: var(--smtc-text-global-caption1-font-size);
   color: var(--smtc-foreground-ctrl-neutral-secondary-rest);
   margin-left: 0.4em;
 }
 
-.tool-list-item-origin {
+/* Origin grouping */
+.tool-group + .tool-group {
+  margin-top: var(--smtc-gap-between-content-small);
+}
+
+.tool-group-header {
   font-size: var(--smtc-text-global-caption1-font-size);
+  font-weight: var(--smtc-text-style-default-header-weight);
   color: var(--smtc-foreground-ctrl-neutral-secondary-rest);
-  margin-top: 0.25em;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  text-transform: lowercase;
+  letter-spacing: 0.02em;
+  padding: 0 var(--smtc-padding-content-x-small);
+  margin-bottom: 0.25em;
 }
 
 /* JSON / code display */

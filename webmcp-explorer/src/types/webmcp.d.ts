@@ -49,7 +49,7 @@ export type BridgeRequest =
  */
 export type BridgeResponse =
   | { type: 'pong' }
-  | { type: 'listTools'; tools: RegisteredTool[] }
+  | { type: 'listTools'; tools: RegisteredTool[]; topOrigin: string }
   | { type: 'executeTool'; result: string | null }
   | { type: 'error'; message: string }
   | { type: 'toolchange' };
