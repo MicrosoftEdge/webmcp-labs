@@ -662,14 +662,14 @@ html, body {
 }
 
 .tool-list-item-desc {
+  display: block;
   font-size: var(--smtc-text-global-caption1-font-size);
   line-height: var(--smtc-text-global-caption1-line-height);
   color: var(--smtc-foreground-ctrl-neutral-secondary-rest);
-  display: -webkit-box;
-  -webkit-line-clamp: 3;
-  -webkit-box-orient: vertical;
+  white-space: nowrap;
   overflow: hidden;
-  word-break: break-word;
+  text-overflow: ellipsis;
+  min-width: 0;
 }
 
 .tool-list-item-rawname {
