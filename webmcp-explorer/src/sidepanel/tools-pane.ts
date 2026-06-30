@@ -2,6 +2,7 @@
 // Licensed under the MIT License.
 
 import type { RegisteredTool } from '../types/webmcp.d';
+import { coerceSchemaObject } from '../lib/schema';
 
 /**
  * Tools Pane — available tools list + execute tool form with dropdown.
@@ -79,42 +80,47 @@ function shouldShowGroupHeaders(
   return false;
 }
 
-/** Generate a stub JSON object from a JSON Schema's properties. */
-function generateStubFromSchema(schema: Record<string, unknown>): Record<string, unknown> | null {
-  if (schema.type !== 'object' || !schema.properties) return null;
-  const props = schema.properties as Record<string, Record<string, unknown>>;
+/**
+ * Generate a stub JSON object from a tool's raw input schema, where each value
+ * is a typed placeholder token (e.g. `<string>`) the user replaces with a real
+ * value. Enum fields list their options as `<one of: a | b | c>`.
+ *
+ * Accepts the schema as an object or a JSON string (via coerceSchemaObject),
+ * and tolerates schemas that omit a top-level `type: 'object'` as long as they
+ * declare `properties`.
+ */
+function generateStubFromSchema(rawSchema: unknown): Record<string, unknown> | null {
+  const schema = coerceSchemaObject(rawSchema);
+  if (!schema) return null;
+
+  const props = schema.properties;
+  if (!props || typeof props !== 'object') {
+    // An object schema with no declared properties — give the user a valid
+    // empty-object starting point rather than a blank box.
+    return schema.type === 'object' ? {} : null;
+  }
+
   const stub: Record<string, unknown> = {};
-  for (const [key, prop] of Object.entries(props)) {
+  for (const [key, prop] of Object.entries(props as Record<string, Record<string, unknown>>)) {
     if (Array.isArray(prop.enum) && prop.enum.length > 0) {
-      stub[key] = prop.enum[0];
+      stub[key] = `<one of: ${prop.enum.join(' | ')}>`;
     } else {
-      switch (prop.type) {
-        case 'string':  stub[key] = ''; break;
-        case 'number':
-        case 'integer': stub[key] = 0; break;
-        case 'boolean': stub[key] = false; break;
-        case 'array':   stub[key] = []; break;
-        case 'object':  stub[key] = {}; break;
-        default:        stub[key] = null; break;
-      }
+      const type = Array.isArray(prop.type)
+        ? prop.type.join('|')
+        : typeof prop.type === 'string'
+          ? prop.type
+          : 'any';
+      stub[key] = `<${type}>`;
     }
   }
   return stub;
 }
 
-/** Pre-fill the args textarea with a stub from the selected tool's inputSchema. */
+/** Pre-fill the args textarea with a typed stub from the selected tool's inputSchema. */
 function prefillArgs(toolName: string) {
   const tool = currentTools.find(t => t.name === toolName);
-  if (!tool?.inputSchema || typeof tool.inputSchema !== 'object') {
-    toolArgs.value = '';
-    return;
-  }
-  const stub = generateStubFromSchema(tool.inputSchema as Record<string, unknown>);
-  if (stub) {
-    toolArgs.value = JSON.stringify(stub, null, 2);
-  } else {
-    toolArgs.value = '';
-  }
+  const stub = tool ? generateStubFromSchema(tool.inputSchema) : null;
+  toolArgs.value = stub ? JSON.stringify(stub, null, 2) : '';
 }
 
 // When tool selection changes, prefill args

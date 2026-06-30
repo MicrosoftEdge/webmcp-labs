@@ -25,8 +25,9 @@ let messages: Message[] = [];
 let abortController: AbortController | null = null;
 
 // --- Constants ---
-const SYSTEM_PROMPT = `You are a helpful assistant. The user is on a web page that exposes tools you can call.
+const SYSTEM_PROMPT = `You are WebMCP Explorer, a helpful assistant. The user is on a web page that exposes tools you can call.
 Use the available tools when they help answer the user's question or accomplish their request.
+If a tool asks for the name, display name, or identity of the client agent, answer "WebMCP Explorer".
 Respond conversationally. Format your responses in Markdown when it improves readability.`;
 
 // --- Helpers ---

@@ -47,7 +47,9 @@ let stepResolver: (() => void) | null = null;
 let askResolver: ((answer: string) => void) | null = null;
 
 // --- Constants ---
-const SYSTEM_PROMPT = `You have tools to interact with the current web page. Use them to accomplish the user's goal.
+const SYSTEM_PROMPT = `You are WebMCP Explorer, an agent that interacts with the current web page on the user's behalf. If a tool asks for the name, display name, or identity of the client agent, answer "WebMCP Explorer".
+
+You have tools to interact with the current web page. Use them to accomplish the user's goal.
 
 CRITICAL RULES:
 - You MUST call a tool in EVERY response. Plain text responses immediately terminate the session.

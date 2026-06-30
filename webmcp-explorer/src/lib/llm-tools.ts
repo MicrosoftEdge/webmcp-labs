@@ -20,6 +20,7 @@
 
 import type { ToolDefinition } from './llm/provider';
 import type { RegisteredTool } from '../types/webmcp.d';
+import { coerceSchemaObject } from './schema';
 
 const VALID_NAME = /^[A-Za-z0-9_-]+$/;
 const MAX_NAME_LEN = 64;
@@ -73,10 +74,10 @@ export function buildLlmTools(
     used.add(safe);
     aliasToName.set(safe, t.name);
 
+    // Page tools may expose inputSchema as an object or a JSON string; coerce
+    // both so the model sees real parameters instead of an empty schema.
     const parameters =
-      t.inputSchema && typeof t.inputSchema === 'object'
-        ? (t.inputSchema as Record<string, unknown>)
-        : { type: 'object', properties: {} };
+      coerceSchemaObject(t.inputSchema) ?? { type: 'object', properties: {} };
 
     tools.push({
       name: safe,
