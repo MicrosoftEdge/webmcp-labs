@@ -77,12 +77,12 @@ function renderMarkdown(text: string): string {
   return marked.parse(text) as string;
 }
 
-async function fetchPageTools(tabId: number): Promise<{ tools: ToolDefinition[]; aliasToName: Map<string, string> }> {
+async function fetchPageTools(tabId: number): Promise<{ tools: ToolDefinition[]; aliasToTool: Map<string, { name: string; origin: string }> }> {
   const response = await chrome.tabs.sendMessage(tabId, { type: 'listTools' });
   if (response.type === 'listTools') {
     return buildLlmTools(response.tools);
   }
-  return { tools: [], aliasToName: new Map() };
+  return { tools: [], aliasToTool: new Map() };
 }
 
 // --- UI helpers ---
@@ -257,9 +257,9 @@ async function handleSend() {
 
     // Fetch page tools (build LLM-safe names + alias map)
     let pageTools: ToolDefinition[] = [];
-    let aliasToName = new Map<string, string>();
+    let aliasToTool = new Map<string, { name: string; origin: string }>();
     try {
-      ({ tools: pageTools, aliasToName } = await fetchPageTools(tabId));
+      ({ tools: pageTools, aliasToTool } = await fetchPageTools(tabId));
     } catch { /* page might not have tools — continue without */ }
 
     const typing = showTypingIndicator();
@@ -299,19 +299,19 @@ async function handleSend() {
 
       const { bodyEl } = appendToolCard(tc);
 
-      // Map LLM safeName back to the original WebMCP tool name.
-      const realName = aliasToName.get(tc.name) ?? tc.name;
+      // Map LLM safeName back to the original tool's (origin, name).
+      const ref = aliasToTool.get(tc.name) ?? { name: tc.name, origin: '' };
 
       try {
         const response = await chrome.tabs.sendMessage(tabId, {
-          type: 'executeTool', name: realName, args: tc.arguments,
+          type: 'executeTool', name: ref.name, origin: ref.origin, args: tc.arguments,
         });
         const toolResult = response.type === 'error' ? `Error: ${response.message}` : (response.result ?? '(null)');
         const isError = response.type === 'error';
         updateToolCardResult(bodyEl, toolResult, isError);
         messages.push({ role: 'tool', toolCallId: tc.id, content: toolResult });
       } catch (e) {
-        console.error(`[chat] tool "${realName}" threw:`, e);
+        console.error(`[chat] tool "${ref.name}" threw:`, e);
         const errMsg = e instanceof Error ? e.message : String(e);
         updateToolCardResult(bodyEl, errMsg, true);
         messages.push({ role: 'tool', toolCallId: tc.id, content: `Error: ${errMsg}` });

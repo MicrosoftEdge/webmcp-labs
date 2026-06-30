@@ -19,8 +19,8 @@ export interface ToolAnnotations {
  *
  * This is a *subset* of the real WebIDL RegisteredTool: the live `window`
  * reference and the `execute` callback can't be structured-cloned, so we drop
- * them. The content script keeps the full objects in a Map keyed by `name`
- * and looks one up when dispatching executeTool.
+ * them. The content script keeps the full objects and looks one up by its
+ * unique (origin, name) identity when dispatching executeTool.
  */
 export interface RegisteredTool {
   name: string;
@@ -42,7 +42,7 @@ export interface ExecuteToolOptions {
 export type BridgeRequest =
   | { type: 'ping' }
   | { type: 'listTools' }
-  | { type: 'executeTool'; name: string; args: string; signal?: boolean };
+  | { type: 'executeTool'; name: string; origin: string; args: string; signal?: boolean };
 
 /**
  * Messages sent from the content script back to the side panel.

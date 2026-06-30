@@ -26,6 +26,20 @@ const resultEl = document.getElementById('tool-result')!;
 
 let currentTools: RegisteredTool[] = [];
 
+/**
+ * Composite identity for a tool. Tools are unique by (origin, name), but the
+ * dropdown `<option>` value and selection lookups need a single string, so we
+ * join the two. Origins and tool names never contain a newline, so it is a
+ * safe separator.
+ */
+function toolKey(t: { origin: string; name: string }): string {
+  return `${t.origin}\n${t.name}`;
+}
+
+function findToolByKey(key: string): RegisteredTool | undefined {
+  return currentTools.find(t => toolKey(t) === key);
+}
+
 async function getActiveTabId(): Promise<number | null> {
   const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
   return tab?.id ?? null;
@@ -117,8 +131,8 @@ function generateStubFromSchema(rawSchema: unknown): Record<string, unknown> | n
 }
 
 /** Pre-fill the args textarea with a typed stub from the selected tool's inputSchema. */
-function prefillArgs(toolName: string) {
-  const tool = currentTools.find(t => t.name === toolName);
+function prefillArgs(toolKeyValue: string) {
+  const tool = findToolByKey(toolKeyValue);
   const stub = tool ? generateStubFromSchema(tool.inputSchema) : null;
   toolArgs.value = stub ? JSON.stringify(stub, null, 2) : '';
 }
@@ -153,7 +167,7 @@ function buildToolCard(tool: RegisteredTool): HTMLDivElement {
 
   // Clicking a list item selects it in the dropdown
   item.addEventListener('click', () => {
-    toolSelect.value = tool.name;
+    toolSelect.value = toolKey(tool);
     toolSelect.dispatchEvent(new Event('change'));
   });
 
@@ -207,7 +221,7 @@ function renderTools(tools: RegisteredTool[], topOrigin: string) {
 
     for (const tool of originTools) {
       const opt = document.createElement('option');
-      opt.value = tool.name;
+      opt.value = toolKey(tool);
       opt.textContent = tool.title && tool.title !== tool.name
         ? `${tool.title} (${tool.name})`
         : tool.name;
@@ -216,10 +230,10 @@ function renderTools(tools: RegisteredTool[], topOrigin: string) {
   }
 
   // Restore previous selection or default to first
-  if (tools.find(t => t.name === prevSelected)) {
+  if (currentTools.some(t => toolKey(t) === prevSelected)) {
     toolSelect.value = prevSelected;
   } else if (tools.length > 0) {
-    toolSelect.value = tools[0].name;
+    toolSelect.value = toolKey(tools[0]);
   }
 
   // Prefill args from schema and reset result
@@ -240,8 +254,11 @@ function showResult(text: string, isError: boolean) {
 
 // Execute button
 executeBtn.addEventListener('click', async () => {
-  const toolName = toolSelect.value;
-  if (!toolName) return;
+  const selectedKey = toolSelect.value;
+  if (!selectedKey) return;
+
+  const tool = findToolByKey(selectedKey);
+  if (!tool) { showResult('Selected tool is no longer available.', true); return; }
 
   const tabId = await getActiveTabId();
   if (tabId == null) { showResult('No active tab.', true); return; }
@@ -252,7 +269,7 @@ executeBtn.addEventListener('click', async () => {
 
   try {
     const response = await chrome.tabs.sendMessage(tabId, {
-      type: 'executeTool', name: toolName, args,
+      type: 'executeTool', name: tool.name, origin: tool.origin, args,
     });
     if (response.type === 'error') {
       showResult(response.message, true);

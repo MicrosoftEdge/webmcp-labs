@@ -43,8 +43,8 @@ function buildDescription(t: RegisteredTool): string {
 
 export interface BuiltLlmTools {
   tools: ToolDefinition[];
-  /** Maps sanitized name → original WebMCP tool name for dispatch. */
-  aliasToName: Map<string, string>;
+  /** Maps sanitized LLM name → the original tool's (origin, name) for dispatch. */
+  aliasToTool: Map<string, { name: string; origin: string }>;
 }
 
 /**
@@ -59,7 +59,7 @@ export function buildLlmTools(
   reservedNames: Iterable<string> = []
 ): BuiltLlmTools {
   const tools: ToolDefinition[] = [];
-  const aliasToName = new Map<string, string>();
+  const aliasToTool = new Map<string, { name: string; origin: string }>();
   const used = new Set<string>(reservedNames);
 
   for (const t of rawTools) {
@@ -74,7 +74,7 @@ export function buildLlmTools(
       safe = `${safe.slice(0, MAX_NAME_LEN - `_${i}`.length)}_${i}`;
     }
     used.add(safe);
-    aliasToName.set(safe, t.name);
+    aliasToTool.set(safe, { name: t.name, origin: t.origin });
 
     // Page tools may expose inputSchema as an object or a JSON string; coerce
     // both so the model sees real parameters instead of an empty schema.
@@ -88,5 +88,5 @@ export function buildLlmTools(
     });
   }
 
-  return { tools, aliasToName };
+  return { tools, aliasToTool };
 }

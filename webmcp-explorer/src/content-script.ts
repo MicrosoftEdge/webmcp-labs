@@ -6,18 +6,18 @@
  * Bridges document.modelContext to the extension side panel via
  * chrome.runtime messaging.
  *
- * Why we keep a local Map of tools:
+ * Why we keep tools locally:
  *   document.modelContext.executeTool(tool, args) requires the *full* tool
  *   object, including its live `window` reference. That object can't be
  *   structured-cloned across chrome.runtime, so the side panel can never
- *   hold it. Instead, the side panel dispatches by name and we look the
- *   tool up here just before invoking executeTool.
+ *   hold it. Instead, the side panel dispatches by (origin, name) and we
+ *   re-resolve the live tool here just before invoking executeTool.
  *
- * Name collisions:
- *   When two tools share a name (e.g. one from the top frame and one from a
- *   cross-origin iframe via `exposedTo`), we log a console.warn and let
- *   last-write-wins. Acceptable for a dev/debug surface; a real agent would
- *   disambiguate by origin.
+ * Tool identity:
+ *   Tools are unique by (origin, name): the same name can legitimately appear
+ *   from the top frame and from a cross-origin iframe (via `exposedTo`). We
+ *   keep both and dispatch by the (origin, name) pair the side panel sends
+ *   back, so neither shadows the other.
  */
 
 import type {
@@ -83,23 +83,12 @@ function projectTool(t: ModelContextRegisteredTool): RegisteredTool {
 }
 
 /**
- * Fetch the current tool snapshot and deduplicate by name. On collision
- * we keep the last one (matches dispatch behavior) and log a console
- * warning so the developer notices.
+ * Fetch the current tool snapshot. Tools are unique by (origin, name), so no
+ * deduplication is needed; same-name tools from different origins are kept
+ * distinct and resolved by their (origin, name) pair at dispatch time.
  */
-async function getDedupedTools(ctx: ModelContext): Promise<ModelContextRegisteredTool[]> {
-  const tools = await ctx.getTools();
-  const byName = new Map<string, ModelContextRegisteredTool>();
-  for (const t of tools) {
-    if (byName.has(t.name)) {
-      const prev = byName.get(t.name)!;
-      console.warn(
-        `[WebMCP] Duplicate tool name "${t.name}" from origins ${prev.origin} and ${t.origin}; last one wins.`
-      );
-    }
-    byName.set(t.name, t);
-  }
-  return Array.from(byName.values());
+async function getToolSnapshot(ctx: ModelContext): Promise<ModelContextRegisteredTool[]> {
+  return ctx.getTools();
 }
 
 /**
@@ -146,7 +135,7 @@ chrome.runtime.onMessage.addListener(
     ensureToolchangeListener(ctx);
 
     if (message.type === 'listTools') {
-      getDedupedTools(ctx)
+      getToolSnapshot(ctx)
         .then((tools) => {
           sendResponse({
             type: 'listTools',
@@ -166,12 +155,14 @@ chrome.runtime.onMessage.addListener(
       // cheap local DOM call; correctness beats caching here.
       (async () => {
         try {
-          const tools = await getDedupedTools(ctx);
-          const tool = tools.find((t) => t.name === message.name);
+          const tools = await getToolSnapshot(ctx);
+          const tool = tools.find(
+            (t) => t.name === message.name && t.origin === message.origin
+          );
           if (!tool) {
             sendResponse({
               type: 'error',
-              message: `Tool "${message.name}" not found on this page.`,
+              message: `Tool "${message.name}" from ${message.origin} not found on this page.`,
             });
             return;
           }

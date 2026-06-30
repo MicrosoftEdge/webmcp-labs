@@ -321,21 +321,21 @@ async function runAgentLoop(startMode: 'run' | 'step') {
   setState(startMode === 'run' ? 'running' : 'stepping');
   setStatus('Running…', 'info');
 
-  async function fetchPageTools(): Promise<{ tools: ToolDefinition[]; aliasToName: Map<string, string> }> {
+  async function fetchPageTools(): Promise<{ tools: ToolDefinition[]; aliasToTool: Map<string, { name: string; origin: string }> }> {
     const response = await chrome.tabs.sendMessage(tabId!, { type: 'listTools' });
     if (response.type === 'listTools') {
       // Reserve built-in tool names so a page tool with the same name gets _2
       // suffixed instead of shadowing the built-in in the LLM tool list.
       return buildLlmTools(response.tools, SYSTEM_TOOL_NAMES);
     }
-    return { tools: [], aliasToName: new Map() };
+    return { tools: [], aliasToTool: new Map() };
   }
 
   // Initial tool fetch — verify connectivity
   let pageTools: ToolDefinition[];
-  let aliasToName = new Map<string, string>();
+  let aliasToTool = new Map<string, { name: string; origin: string }>();
   try {
-    ({ tools: pageTools, aliasToName } = await fetchPageTools());
+    ({ tools: pageTools, aliasToTool } = await fetchPageTools());
   } catch {
     setStatus('Could not connect to page.', 'error');
     setState('idle');
@@ -350,7 +350,7 @@ async function runAgentLoop(startMode: 'run' | 'step') {
 
     // Refresh tools from page before each LLM call
     try {
-      ({ tools: pageTools, aliasToName } = await fetchPageTools());
+      ({ tools: pageTools, aliasToTool } = await fetchPageTools());
     } catch { /* keep previous tools if refresh fails */ }
     const allTools = [...pageTools, ...BUILT_IN_TOOLS];
     const builtInNames = new Set(BUILT_IN_TOOLS.map(t => t.name));
@@ -445,10 +445,10 @@ async function runAgentLoop(startMode: 'run' | 'step') {
 
       // Execute tool via content script
       try {
-        // Map LLM safeName back to the original WebMCP tool name.
-        const realName = aliasToName.get(tc.name) ?? tc.name;
+        // Map LLM safeName back to the original tool's (origin, name).
+        const ref = aliasToTool.get(tc.name) ?? { name: tc.name, origin: '' };
         const response = await chrome.tabs.sendMessage(tabId, {
-          type: 'executeTool', name: realName, args: tc.arguments,
+          type: 'executeTool', name: ref.name, origin: ref.origin, args: tc.arguments,
         });
         const toolResult = response.type === 'error' ? `Error: ${response.message}` : (response.result ?? '(null)');
         messages.push({ role: 'tool', toolCallId: tc.id, content: toolResult });
