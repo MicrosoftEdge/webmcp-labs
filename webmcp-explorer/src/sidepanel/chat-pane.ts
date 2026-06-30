@@ -5,6 +5,7 @@ import { marked } from 'marked';
 import { loadConfig } from '../lib/storage';
 import type { LLMProvider, Message, ToolDefinition, ToolCall } from '../lib/llm/provider';
 import { PROVIDERS } from '../lib/llm/registry';
+import { buildLlmTools } from '../lib/llm-tools';
 
 // --- Marked configuration ---
 marked.setOptions({ breaks: true, gfm: true });
@@ -24,8 +25,9 @@ let messages: Message[] = [];
 let abortController: AbortController | null = null;
 
 // --- Constants ---
-const SYSTEM_PROMPT = `You are a helpful assistant. The user is on a web page that exposes tools you can call.
+const SYSTEM_PROMPT = `You are WebMCP Explorer, a helpful assistant. The user is on a web page that exposes tools you can call.
 Use the available tools when they help answer the user's question or accomplish their request.
+If a tool asks for the name, display name, or identity of the client agent, answer "WebMCP Explorer".
 Respond conversationally. Format your responses in Markdown when it improves readability.`;
 
 // --- Helpers ---
@@ -75,16 +77,12 @@ function renderMarkdown(text: string): string {
   return marked.parse(text) as string;
 }
 
-async function fetchPageTools(tabId: number): Promise<ToolDefinition[]> {
+async function fetchPageTools(tabId: number): Promise<{ tools: ToolDefinition[]; aliasToTool: Map<string, { name: string; origin: string }> }> {
   const response = await chrome.tabs.sendMessage(tabId, { type: 'listTools' });
   if (response.type === 'listTools') {
-    return response.tools.map((t: { name: string; description: string; inputSchema?: string }) => ({
-      name: t.name,
-      description: t.description,
-      parameters: t.inputSchema ? JSON.parse(t.inputSchema) : { type: 'object', properties: {} },
-    }));
+    return buildLlmTools(response.tools);
   }
-  return [];
+  return { tools: [], aliasToTool: new Map() };
 }
 
 // --- UI helpers ---
@@ -257,10 +255,11 @@ async function handleSend() {
   for (let round = 0; round < MAX_TOOL_ROUNDS; round++) {
     if (abortController.signal.aborted) break;
 
-    // Fetch page tools
+    // Fetch page tools (build LLM-safe names + alias map)
     let pageTools: ToolDefinition[] = [];
+    let aliasToTool = new Map<string, { name: string; origin: string }>();
     try {
-      pageTools = await fetchPageTools(tabId);
+      ({ tools: pageTools, aliasToTool } = await fetchPageTools(tabId));
     } catch { /* page might not have tools — continue without */ }
 
     const typing = showTypingIndicator();
@@ -300,16 +299,19 @@ async function handleSend() {
 
       const { bodyEl } = appendToolCard(tc);
 
+      // Map LLM safeName back to the original tool's (origin, name).
+      const ref = aliasToTool.get(tc.name) ?? { name: tc.name, origin: '' };
+
       try {
         const response = await chrome.tabs.sendMessage(tabId, {
-          type: 'executeTool', name: tc.name, args: tc.arguments,
+          type: 'executeTool', name: ref.name, origin: ref.origin, args: tc.arguments,
         });
         const toolResult = response.type === 'error' ? `Error: ${response.message}` : (response.result ?? '(null)');
         const isError = response.type === 'error';
         updateToolCardResult(bodyEl, toolResult, isError);
         messages.push({ role: 'tool', toolCallId: tc.id, content: toolResult });
       } catch (e) {
-        console.error(`[chat] tool "${tc.name}" threw:`, e);
+        console.error(`[chat] tool "${ref.name}" threw:`, e);
         const errMsg = e instanceof Error ? e.message : String(e);
         updateToolCardResult(bodyEl, errMsg, true);
         messages.push({ role: 'tool', toolCallId: tc.id, content: `Error: ${errMsg}` });

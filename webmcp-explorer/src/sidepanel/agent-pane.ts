@@ -4,6 +4,7 @@
 import { loadConfig } from '../lib/storage';
 import type { LLMProvider, Message, ToolDefinition } from '../lib/llm/provider';
 import { PROVIDERS } from '../lib/llm/registry';
+import { buildLlmTools } from '../lib/llm-tools';
 
 // --- DOM references ---
 const goalInput = document.getElementById('agent-goal') as HTMLTextAreaElement;
@@ -46,7 +47,9 @@ let stepResolver: (() => void) | null = null;
 let askResolver: ((answer: string) => void) | null = null;
 
 // --- Constants ---
-const SYSTEM_PROMPT = `You have tools to interact with the current web page. Use them to accomplish the user's goal.
+const SYSTEM_PROMPT = `You are WebMCP Explorer, an agent that interacts with the current web page on the user's behalf. If a tool asks for the name, display name, or identity of the client agent, answer "WebMCP Explorer".
+
+You have tools to interact with the current web page. Use them to accomplish the user's goal.
 
 CRITICAL RULES:
 - You MUST call a tool in EVERY response. Plain text responses immediately terminate the session.
@@ -318,22 +321,21 @@ async function runAgentLoop(startMode: 'run' | 'step') {
   setState(startMode === 'run' ? 'running' : 'stepping');
   setStatus('Running…', 'info');
 
-  async function fetchPageTools(): Promise<ToolDefinition[]> {
+  async function fetchPageTools(): Promise<{ tools: ToolDefinition[]; aliasToTool: Map<string, { name: string; origin: string }> }> {
     const response = await chrome.tabs.sendMessage(tabId!, { type: 'listTools' });
     if (response.type === 'listTools') {
-      return response.tools.map((t: { name: string; description: string; inputSchema?: string }) => ({
-        name: t.name,
-        description: t.description,
-        parameters: t.inputSchema ? JSON.parse(t.inputSchema) : { type: 'object', properties: {} },
-      }));
+      // Reserve built-in tool names so a page tool with the same name gets _2
+      // suffixed instead of shadowing the built-in in the LLM tool list.
+      return buildLlmTools(response.tools, SYSTEM_TOOL_NAMES);
     }
-    return [];
+    return { tools: [], aliasToTool: new Map() };
   }
 
   // Initial tool fetch — verify connectivity
   let pageTools: ToolDefinition[];
+  let aliasToTool = new Map<string, { name: string; origin: string }>();
   try {
-    pageTools = await fetchPageTools();
+    ({ tools: pageTools, aliasToTool } = await fetchPageTools());
   } catch {
     setStatus('Could not connect to page.', 'error');
     setState('idle');
@@ -348,7 +350,7 @@ async function runAgentLoop(startMode: 'run' | 'step') {
 
     // Refresh tools from page before each LLM call
     try {
-      pageTools = await fetchPageTools();
+      ({ tools: pageTools, aliasToTool } = await fetchPageTools());
     } catch { /* keep previous tools if refresh fails */ }
     const allTools = [...pageTools, ...BUILT_IN_TOOLS];
     const builtInNames = new Set(BUILT_IN_TOOLS.map(t => t.name));
@@ -443,8 +445,10 @@ async function runAgentLoop(startMode: 'run' | 'step') {
 
       // Execute tool via content script
       try {
+        // Map LLM safeName back to the original tool's (origin, name).
+        const ref = aliasToTool.get(tc.name) ?? { name: tc.name, origin: '' };
         const response = await chrome.tabs.sendMessage(tabId, {
-          type: 'executeTool', name: tc.name, args: tc.arguments,
+          type: 'executeTool', name: ref.name, origin: ref.origin, args: tc.arguments,
         });
         const toolResult = response.type === 'error' ? `Error: ${response.message}` : (response.result ?? '(null)');
         messages.push({ role: 'tool', toolCallId: tc.id, content: toolResult });

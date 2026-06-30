@@ -6,8 +6,7 @@
   "permissions": [
     "activeTab",
     "sidePanel",
-    "storage",
-    "scripting"
+    "storage"
   ],
   "side_panel": {
     "default_path": "sidepanel/index.html"

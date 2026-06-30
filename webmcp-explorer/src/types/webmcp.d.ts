@@ -2,17 +2,34 @@
 // Licensed under the MIT License.
 
 /**
- * TypeScript types for the ModelContextTesting WebIDL interface.
+ * TypeScript types for the document.modelContext WebIDL interface
+ * and the wire protocol between content script and side panel.
  */
 
-export interface RegisteredTool {
-  name: string;
-  description: string;
-  inputSchema?: string;
+/**
+ * Optional hints the page can attach to a tool. Mirrors WebIDL ToolAnnotations.
+ */
+export interface ToolAnnotations {
+  readOnlyHint?: boolean;
+  untrustedContentHint?: boolean;
 }
 
-export interface ExecuteToolOptions {
-  signal?: AbortSignal;
+/**
+ * Tool projection sent over chrome.runtime messaging to the side panel.
+ *
+ * This is a *subset* of the real WebIDL RegisteredTool: the live `window`
+ * reference and the `execute` callback can't be structured-cloned, so we drop
+ * them. The content script re-resolves the full live tool by its unique
+ * (origin, name) identity when dispatching executeTool.
+ */
+export interface RegisteredTool {
+  name: string;
+  origin: string;
+  description?: string;
+  /** JSON Schema describing input parameters (object form, not stringified). */
+  inputSchema?: unknown;
+  title?: string;
+  annotations?: ToolAnnotations;
 }
 
 /**
@@ -21,14 +38,15 @@ export interface ExecuteToolOptions {
 export type BridgeRequest =
   | { type: 'ping' }
   | { type: 'listTools' }
-  | { type: 'executeTool'; name: string; args: string; signal?: boolean };
+  | { type: 'executeTool'; name: string; origin: string; args: string };
 
 /**
  * Messages sent from the content script back to the side panel.
  */
 export type BridgeResponse =
   | { type: 'pong' }
-  | { type: 'listTools'; tools: RegisteredTool[] }
+  | { type: 'listTools'; tools: RegisteredTool[]; topOrigin: string }
   | { type: 'executeTool'; result: string | null }
   | { type: 'error'; message: string }
   | { type: 'toolchange' };
+
