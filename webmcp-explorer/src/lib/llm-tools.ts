@@ -9,10 +9,12 @@
  * each name to a `safeName` and keep a small alias map so we can route the
  * LLM's tool_call back to the original WebMCP tool name.
  *
- * Collision handling: if two raw names sanitize to the same `safeName`, we
- * suffix `_2`, `_3`, ... in registration order. This preserves uniqueness
- * without any opaque-id system — a dev-tool simplification that matches the
- * rest of the explorer's last-write-wins approach to name conflicts.
+ * Registered tools are unique by (origin, name), but the LLM only sees a flat
+ * `name`, which introduces two collision sources that uniqueness doesn't cover:
+ * (1) sanitization can map two distinct raw names to the same `safeName`, and
+ * (2) a page tool can share a name with a reserved built-in passed in by the
+ * caller. In either case we suffix `_2`, `_3`, ... in registration order to
+ * keep the flattened names unique.
  *
  * Origin and title (when present) are folded into the description so the
  * model has provenance and a friendlier label without taking over the name.
