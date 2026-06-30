@@ -7,7 +7,7 @@
  * Real WebMCP tool names can contain characters that aren't valid in LLM
  * tool names (OpenAI / Anthropic require `[A-Za-z0-9_-]{1,64}`). We sanitize
  * each name to a `safeName` and keep a small alias map so we can route the
- * LLM's tool_call back to the original WebMCP tool name.
+ * LLM's tool_call back to the original tool's (origin, name).
  *
  * Registered tools are unique by (origin, name), but the LLM only sees a flat
  * `name`, which introduces two collision sources that uniqueness doesn't cover:

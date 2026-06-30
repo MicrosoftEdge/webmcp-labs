@@ -6,12 +6,13 @@
  * Bridges document.modelContext to the extension side panel via
  * chrome.runtime messaging.
  *
- * Why we keep tools locally:
+ * Why we re-resolve tools per dispatch:
  *   document.modelContext.executeTool(tool, args) requires the *full* tool
  *   object, including its live `window` reference. That object can't be
  *   structured-cloned across chrome.runtime, so the side panel can never
  *   hold it. Instead, the side panel dispatches by (origin, name) and we
- *   re-resolve the live tool here just before invoking executeTool.
+ *   re-resolve the live tool from document.modelContext here just before
+ *   invoking executeTool.
  *
  * Tool identity:
  *   Tools are unique by (origin, name): the same name can legitimately appear
@@ -71,7 +72,8 @@ function getModelContext(): ModelContext | null {
 /**
  * Project a live tool into the structured-cloneable shape we send to the
  * side panel. Drops `window` (non-serializable) and any extension-private
- * fields. Keeps `origin` so the UI can show provenance.
+ * fields. Keeps `origin`, which the side panel needs both to show provenance
+ * and to address the tool by its (origin, name) identity when dispatching.
  */
 function projectTool(t: ModelContextRegisteredTool): RegisteredTool {
   const out: RegisteredTool = { name: t.name, origin: t.origin };
@@ -80,15 +82,6 @@ function projectTool(t: ModelContextRegisteredTool): RegisteredTool {
   if (t.title !== undefined) out.title = t.title;
   if (t.annotations !== undefined) out.annotations = t.annotations;
   return out;
-}
-
-/**
- * Fetch the current tool snapshot. Tools are unique by (origin, name), so no
- * deduplication is needed; same-name tools from different origins are kept
- * distinct and resolved by their (origin, name) pair at dispatch time.
- */
-async function getToolSnapshot(ctx: ModelContext): Promise<ModelContextRegisteredTool[]> {
-  return ctx.getTools();
 }
 
 /**
@@ -135,7 +128,10 @@ chrome.runtime.onMessage.addListener(
     ensureToolchangeListener(ctx);
 
     if (message.type === 'listTools') {
-      getToolSnapshot(ctx)
+      // Tools are unique by (origin, name); the same name can legitimately
+      // appear from the top frame and a cross-origin iframe, so we send the
+      // full snapshot without collapsing by name.
+      ctx.getTools()
         .then((tools) => {
           sendResponse({
             type: 'listTools',
@@ -151,11 +147,11 @@ chrome.runtime.onMessage.addListener(
 
     if (message.type === 'executeTool') {
       // Re-fetch on every dispatch so we never hold a stale tool object after
-      // the page unregistered/re-registered the same name. getTools() is a
-      // cheap local DOM call; correctness beats caching here.
+      // the page unregistered/re-registered the tool. getTools() is a cheap
+      // local DOM call; correctness beats caching here.
       (async () => {
         try {
-          const tools = await getToolSnapshot(ctx);
+          const tools = await ctx.getTools();
           const tool = tools.find(
             (t) => t.name === message.name && t.origin === message.origin
           );
@@ -166,9 +162,7 @@ chrome.runtime.onMessage.addListener(
             });
             return;
           }
-          const abortController = new AbortController();
-          const options = message.signal ? { signal: abortController.signal } : {};
-          const result = await ctx.executeTool(tool, message.args, options);
+          const result = await ctx.executeTool(tool, message.args);
           sendResponse({ type: 'executeTool', result });
         } catch (e) {
           const msg = e instanceof Error ? e.message : String(e);
