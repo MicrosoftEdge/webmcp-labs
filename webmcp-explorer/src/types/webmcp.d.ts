@@ -7,11 +7,12 @@
  */
 
 /**
- * Optional hints the page can attach to a tool. Mirrors WebIDL ToolAnnotations.
+ * Hints returned for a registered tool. Edge fills omitted members with false
+ * when the page supplies an annotations object.
  */
 export interface ToolAnnotations {
-  readOnlyHint?: boolean;
-  untrustedContentHint?: boolean;
+  readOnlyHint: boolean;
+  untrustedContentHint: boolean;
 }
 
 /**
@@ -25,9 +26,9 @@ export interface ToolAnnotations {
 export interface RegisteredTool {
   name: string;
   origin: string;
-  description?: string;
-  /** JSON Schema describing input parameters (object form, not stringified). */
-  inputSchema?: unknown;
+  description: string;
+  /** JSON-encoded schema describing the tool's input parameters. */
+  inputSchema?: string;
   title?: string;
   annotations?: ToolAnnotations;
 }
@@ -49,4 +50,3 @@ export type BridgeResponse =
   | { type: 'executeTool'; result: string | null }
   | { type: 'error'; message: string }
   | { type: 'toolchange' };
-

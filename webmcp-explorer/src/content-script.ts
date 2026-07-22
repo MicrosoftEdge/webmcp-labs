@@ -39,8 +39,8 @@ declare global {
   interface ModelContextRegisteredTool {
     readonly name: string;
     readonly origin: string;
-    readonly description?: string;
-    readonly inputSchema?: unknown;
+    readonly description: string;
+    readonly inputSchema?: string;
     readonly title?: string;
     readonly window: Window;
     readonly annotations?: ToolAnnotations;
@@ -76,8 +76,11 @@ function getModelContext(): ModelContext | null {
  * and to address the tool by its (origin, name) identity when dispatching.
  */
 function projectTool(t: ModelContextRegisteredTool): RegisteredTool {
-  const out: RegisteredTool = { name: t.name, origin: t.origin };
-  if (t.description !== undefined) out.description = t.description;
+  const out: RegisteredTool = {
+    name: t.name,
+    origin: t.origin,
+    description: t.description,
+  };
   if (t.inputSchema !== undefined) out.inputSchema = t.inputSchema;
   if (t.title !== undefined) out.title = t.title;
   if (t.annotations !== undefined) out.annotations = t.annotations;
@@ -183,4 +186,3 @@ const initialCtx = getModelContext();
 if (initialCtx) ensureToolchangeListener(initialCtx);
 
 export {};
-
