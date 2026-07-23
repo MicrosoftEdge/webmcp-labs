@@ -7,7 +7,7 @@
  */
 
 /**
- * Hints returned for a registered tool. Edge fills omitted members with false
+ * Hints returned for a registered tool. Chromium fills omitted members with false
  * when the page supplies an annotations object.
  */
 export interface ToolAnnotations {
