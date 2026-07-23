@@ -5,10 +5,8 @@
  * Coerce a tool's raw `inputSchema` into a usable JSON Schema object.
  *
  * The production `document.modelContext` surface hands back `inputSchema` as a
- * live object, but third-party pages aren't always so tidy: some still provide
- * it as a JSON-encoded string (the common MCP pattern). We accept both so the
- * explorer can introspect any page's tools rather than silently treating a
- * stringified schema as "no schema".
+ * JSON-encoded string. We also accept an object so the explorer remains useful
+ * with pages or test fixtures that project the schema directly.
  *
  * Returns the schema object, or `null` when there's nothing usable.
  */
