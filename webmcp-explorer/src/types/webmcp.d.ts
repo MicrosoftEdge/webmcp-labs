@@ -50,3 +50,4 @@ export type BridgeResponse =
   | { type: 'executeTool'; result: string | null }
   | { type: 'error'; message: string }
   | { type: 'toolchange' };
+
