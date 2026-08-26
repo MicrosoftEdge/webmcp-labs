@@ -29,7 +29,8 @@ export interface RegisteredTool {
   description: string;
   /** JSON-encoded schema describing the tool's input parameters. */
   inputSchema?: string;
-  title?: string;
+  /** Friendly display name, or an empty string when registration omitted it. */
+  title: string;
   annotations?: ToolAnnotations;
 }
 
