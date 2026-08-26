@@ -41,7 +41,7 @@ declare global {
     readonly origin: string;
     readonly description: string;
     readonly inputSchema?: string;
-    readonly title?: string;
+    readonly title: string;
     readonly window: Window;
     readonly annotations?: ToolAnnotations;
   }
@@ -80,9 +80,9 @@ function projectTool(t: ModelContextRegisteredTool): RegisteredTool {
     name: t.name,
     origin: t.origin,
     description: t.description,
+    title: t.title,
   };
   if (t.inputSchema !== undefined) out.inputSchema = t.inputSchema;
-  if (t.title !== undefined) out.title = t.title;
   if (t.annotations !== undefined) out.annotations = t.annotations;
   return out;
 }

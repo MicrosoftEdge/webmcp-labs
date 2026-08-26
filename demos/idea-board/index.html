@@ -93,7 +93,7 @@
         <tr>
           <td><code>execute</code></td>
           <td>Function</td>
-          <td>Called when the agent invokes the tool. Receives an object matching <code>inputSchema</code>. Can be sync or async. Return value is sent back to the agent.</td>
+          <td>Called when the agent invokes the tool. Receives an object matching <code>inputSchema</code> and an options object whose <code>signal</code> is aborted if the invocation is canceled. Can be sync or async. Return value is sent back to the agent.</td>
         </tr>
         <tr class="api-group-label"><td colspan="3">registerTool(tool, options) &mdash; <code>options</code> properties</td></tr>
         <tr>
