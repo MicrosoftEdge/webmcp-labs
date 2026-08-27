@@ -946,7 +946,7 @@ function getStateSnapshot() {
 }
 
 // ============ URL STATE MANAGEMENT ============
-const BASE_PATH = '/pizza-order-demo';
+const BASE_PATH = '/webmcp-labs/demos/pizza-order';
 
 const STEP_PATHS = {
   1: BASE_PATH + '/',
