@@ -102,4 +102,4 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) for build instructions and development wo
 
 WebMCP Explorer is a developer tool for exploring and demoing WebMCP. It is intentionally a thin harness: tool metadata and execution results from the page are passed to the LLM as-is. That makes it useful for seeing how WebMCP behaves end-to-end, but it also means a page could manipulate the model through the tools it registers. Use WebMCP Explorer only on sites you own, control, or otherwise trust.
 
-Hardening agents against the realities of the open web is an active area of discussion for the WebMCP community. See the Web Machine Learning Community Group's [Security and Privacy Considerations](https://github.com/webmachinelearning/webmcp/blob/main/docs/security-privacy-considerations.md) for the current state of that conversation.
+Hardening agents against the realities of the open web is an active area of discussion for the WebMCP community. See the Web Machine Learning Community Group's [Security and Privacy Considerations](https://github.com/webmachinelearning/webmcp#security-and-privacy-considerations) for the current state of that conversation.
