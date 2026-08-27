@@ -35,7 +35,7 @@ Go to the **Config** tab in the side panel. Select a provider, fill in the field
 |---|---|
 | **Endpoint URL** | Your Azure OpenAI resource endpoint (e.g. `https://your-resource.openai.azure.com/`) |
 | **API Key** | Key from Azure Portal → your resource → Keys and Endpoint |
-| **Deployment Name** | The name of your model deployment |
+| **Deployment Name** | The name of your model deployment (e.g. `my-gpt-5.6-deployment`) |
 | **API Version** | API version string (default: `2025-03-01-preview`) |
 
 ### OpenAI
@@ -43,14 +43,14 @@ Go to the **Config** tab in the side panel. Select a provider, fill in the field
 | Field | Description |
 |---|---|
 | **API Key** | From [platform.openai.com/api-keys](https://platform.openai.com/api-keys) |
-| **Model** | e.g. `gpt-5`, `gpt-5.3-chat` |
+| **Model** | e.g. `gpt-5.6` |
 
 ### Anthropic
 
 | Field | Description |
 |---|---|
 | **API Key** | From [console.anthropic.com](https://console.anthropic.com/) |
-| **Model** | e.g. `claude-sonnet-4-6` |
+| **Model** | e.g. `claude-opus-5` |
 
 ### Chat Completions API (Ollama, LM Studio, etc.)
 
