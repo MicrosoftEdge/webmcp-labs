@@ -4,14 +4,14 @@ A browser extension for inspecting, debugging, and interacting with WebMCP-enabl
 
 ## Prerequisites
 
-- A Chromium-based browser (Edge or Chrome)
+- A Chromium-based browser (e.g. Edge or Chrome)
 - An LLM API key (see [Provider Setup](#provider-setup))
 
 ## Quick Start
 
 1. Enable the WebMCP for testing flag at `about://flags/#enable-webmcp-testing`
 1. Clone the repo:`git clone https://github.com/MicrosoftEdge/webmcp-labs.git`
-1. Open `edge://extensions` (or `chrome://extensions`)
+1. Open `about://extensions`
 1. Enable **Developer mode**
 1. Click **Load unpacked** and select the `webmcp-explorer/dist/` folder
 1. Click the extension icon in the toolbar to open the side panel

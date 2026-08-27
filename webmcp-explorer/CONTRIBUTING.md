@@ -23,10 +23,10 @@ cd webmcp-explorer
 npm run dev
 ```
 
-After each rebuild, go to `edge://extensions` (or `chrome://extensions`) and click the refresh icon on the WebMCP Explorer card to pick up changes.
+After each rebuild, go to `about://extensions` and click the refresh icon on the WebMCP Explorer card to pick up changes.
 
 ## Loading the extension
 
-1. Open `edge://extensions` (or `chrome://extensions`)
+1. Open `about://extensions`
 2. Enable **Developer mode**
 3. Click **Load unpacked** and select the `webmcp-explorer/dist/` folder
