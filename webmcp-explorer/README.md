@@ -7,27 +7,46 @@ A browser extension for inspecting, debugging, and interacting with WebMCP-enabl
 - A Chromium-based browser (e.g. Edge or Chrome)
 - An LLM API key (see [Provider Setup](#provider-setup))
 
-## Quick Start
+## Load the WebMCP Explorer extension
 
-1. Enable the WebMCP for testing flag at `about://flags/#enable-webmcp-testing`
-1. Clone the repo:`git clone https://github.com/MicrosoftEdge/webmcp-labs.git`
-1. Open `about://extensions`
-1. Enable **Developer mode**
-1. Click **Load unpacked** and select the `webmcp-explorer/dist/` folder
-1. Click the extension icon in the toolbar to open the side panel
-1. Go to the **Config** tab and set up your LLM provider
+To load the WebMCP Explorer extension:
 
-## Demo Page
+1. Clone this git repo: `git clone https://github.com/MicrosoftEdge/webmcp-labs.git`.
+1. Open a new browser window or tab.
+1. Go to `about://extensions`.
+1. Enable the **Developer mode** setting.
+1. Click the **Load unpacked** button.
+1. In the file explorer, navigate to where you cloned the webmcp-labs repository.
+1. Select the `/webmcp-explorer/dist/` folder to load the extension in your browser.
+1. Click the webmcp-explorer extension icon in the browser toolbar to open the extension side panel.
+1. In the side panel, click **Config**, and set up your LLM provider. See [Provider Setup](#provider-setup), below.
 
-Navigate to the pizza ordering demo to test tool calling:
+## Use the WebMCP Explorer extension
 
-**https://victorhuangwq.github.io/pizza-order-demo/**
+To use the WebMCP Explorer extension, first enable WebMCP in your browser:
 
-Open the WebMCP Explorer side panel, switch to the **Chat** or **Agent** tab, and try asking it to place an order.
+1. Open a new browser window or tab.
+1. Go to `about://flags/#enable-webmcp-testing`.
+1. In the **WebMCP for testing** section, select **Enabled**.
+1. Restart your browser.
 
-## Provider Setup
+To use the extension:
 
-Go to the **Config** tab in the side panel. Select a provider, fill in the fields, and click **Save**. Use **Test Connection** to verify.
+1. In your browser open a site that uses WebMCP. For example, go to the [Contoso Pizza demo](https://victorhuangwq.github.io/pizza-order-demo/).
+1. Open the WebMCP Explorer side panel.
+1. In the side panel, click **Chat** or **Agent**, and ask the agent to place an order. For example, click **Agent**, type "Order pepperoni pizza for a party of 10, deliver to 123 main road", and press **Enter**.
+
+## Provider setup
+
+The WebMCP Explorer extension requires an LLM provider to function. You can choose from multiple providers.
+
+To configure your LLM provider:
+
+1. In the WebMCP Extension side panel, click **Config**.
+1. Under **Provider**, select a provider.
+1. Fill the fields. The required information depends on the provider. See the sections below for more details.
+1. Click **Save**.
+1. Optionally, click **Test Connection** to verify your settings.
 
 ### Azure OpenAI
 
@@ -64,14 +83,16 @@ Use any OpenAI-compatible endpoint, local or remote. Works with Ollama, LM Studi
 
 > **Note:** The model must support tool calling. When you click **Test Connection**, the extension sends a probe request with a dummy tool. If the model doesn't return a tool call, you'll see a warning that tool-based features may not work.
 
-## Extension Tabs
+## Extension tabs
+
+Here is a description of each tab in the WebMCP Explorer side panel:
 
 | Tab | Purpose |
 |---|---|
-| **Tools** | Lists WebMCP tools exposed by the current page. Execute them manually with custom JSON args. |
-| **Agent** | Run or step through an autonomous agent loop that uses page tools to accomplish a goal. |
-| **Chat** | Conversational interface with tool calling. Useful for demoing WebMCP to stakeholders. |
-| **Config** | Set up LLM provider credentials and tune settings (max iterations, max chat messages). |
+| **Tools** | List of the WebMCP tools that are exposed by the currently loaded page. You can run each tool individually with custom JSON arguments. |
+| **Agent** | To run or step through an autonomous agent loop that uses page tools to accomplish a user goal. |
+| **Chat** | Conversational interface with tool calling. |
+| **Config** | To set up your LLM provider credentials and alter settings such as the maximum agent iterations and maximum chat messages. |
 
 ## Contributing
 
@@ -79,6 +100,6 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) for build instructions and development wo
 
 ## Disclaimer
 
-WebMCP Explorer is a developer tool for exploring and demoing the WebMCP API. It is intentionally a thin harness: tool metadata and execution results from the page are passed to the LLM as-is. That makes it useful for seeing how WebMCP behaves end to end, but it also means a hostile page can manipulate the model through the tools it registers. Use it on sites you own, control, or otherwise trust.
+WebMCP Explorer is a developer tool for exploring and demoing WebMCP. It is intentionally a thin harness: tool metadata and execution results from the page are passed to the LLM as-is. That makes it useful for seeing how WebMCP behaves end-to-end, but it also means a page could manipulate the model through the tools it registers. Use WebMCP Explorer only on sites you own, control, or otherwise trust.
 
-Hardening agents against the realities of the open web is an active area of discussion for the WebMCP community. See the WebMCP community group's [Security and Privacy Considerations](https://github.com/webmachinelearning/webmcp/blob/main/docs/security-privacy-considerations.md) for the current state of that conversation.
+Hardening agents against the realities of the open web is an active area of discussion for the WebMCP community. See the Web Machine Learning Community Group's [Security and Privacy Considerations](https://github.com/webmachinelearning/webmcp/blob/main/docs/security-privacy-considerations.md) for the current state of that conversation.

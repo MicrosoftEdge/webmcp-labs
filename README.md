@@ -1,6 +1,6 @@
 # WebMCP Labs
 
-Experimental projects and tools for the [WebMCP](https://github.com/webmachinelearning/webmcp).
+Experimental projects and tools for [WebMCP](https://github.com/webmachinelearning/webmcp).
 
 ## Projects
 
@@ -12,8 +12,8 @@ Experimental projects and tools for the [WebMCP](https://github.com/webmachinele
 
 | Demo | Description |
 |------|-------------|
-| [event-search](demos/event-search/) | Interactive playground showing declarative WebMCP attributes (manual review, auto-submit, custom response) on a single form |
-| [idea-board](demos/idea-board/) | Sticky board playground showing imperative WebMCP tool registration, with tools that dynamically appear and disappear based on board state |
+| [event-search](demos/event-search/) | Interactive playground showing declarative WebMCP HTML attributes (manual review, auto-submit, custom response) on a single form. |
+| [idea-board](demos/idea-board/) | Sticky board playground showing imperative WebMCP tool registration, with tools that dynamically appear and disappear based on the state of the board. |
 
 ## Contributing
 
