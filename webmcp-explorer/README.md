@@ -35,7 +35,7 @@ Go to the **Config** tab in the side panel. Select a provider, fill in the field
 |---|---|
 | **Endpoint URL** | Your Azure OpenAI resource endpoint (e.g. `https://your-resource.openai.azure.com/`) |
 | **API Key** | Key from Azure Portal → your resource → Keys and Endpoint |
-| **Deployment Name** | The name of your model deployment (e.g. `my-gpt-5.6-deployment`) |
+| **Deployment Name** | The name of your model deployment (e.g. `gpt-5.6-sol`) |
 | **API Version** | API version string (default: `2025-03-01-preview`) |
 
 ### OpenAI
@@ -43,7 +43,7 @@ Go to the **Config** tab in the side panel. Select a provider, fill in the field
 | Field | Description |
 |---|---|
 | **API Key** | From [platform.openai.com/api-keys](https://platform.openai.com/api-keys) |
-| **Model** | e.g. `gpt-5.6` |
+| **Model** | e.g. `gpt-5.6-sol` |
 
 ### Anthropic
 

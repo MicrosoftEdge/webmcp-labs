@@ -118,7 +118,7 @@ export const providerMetadata: ProviderMetadata = {
   label: 'OpenAI',
   fields: [
     { id: 'openai-api-key', configKey: 'apiKey', label: 'API Key', type: 'password', placeholder: 'sk-…' },
-    { id: 'openai-model', configKey: 'model', label: 'Model', type: 'text', placeholder: 'gpt-5.6' },
+    { id: 'openai-model', configKey: 'model', label: 'Model', type: 'text', placeholder: 'gpt-5.6-sol' },
   ],
   createProvider: async (config) => new OpenAIProvider(config),
 };
