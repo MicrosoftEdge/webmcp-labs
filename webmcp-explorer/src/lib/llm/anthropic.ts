@@ -136,7 +136,7 @@ export const providerMetadata: ProviderMetadata = {
   label: 'Anthropic',
   fields: [
     { id: 'anthropic-api-key', configKey: 'apiKey', label: 'API Key', type: 'password', placeholder: 'sk-ant-…' },
-    { id: 'anthropic-model', configKey: 'model', label: 'Model', type: 'text', placeholder: 'claude-sonnet-4-20250514' },
+    { id: 'anthropic-model', configKey: 'model', label: 'Model', type: 'text', placeholder: 'claude-opus-5' },
   ],
   createProvider: async (config) => new AnthropicProvider(config),
 };

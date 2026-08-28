@@ -141,7 +141,7 @@ export const providerMetadata: ProviderMetadata = {
   fields: [
     { id: 'azure-endpoint', configKey: 'endpoint', label: 'Endpoint URL', type: 'url', placeholder: 'https://your-resource.openai.azure.com/' },
     { id: 'azure-api-key', configKey: 'apiKey', label: 'API Key', type: 'password' },
-    { id: 'azure-deployment', configKey: 'deployment', label: 'Deployment Name', type: 'text', placeholder: 'gpt-5.3-chat' },
+    { id: 'azure-deployment', configKey: 'deployment', label: 'Deployment Name', type: 'text', placeholder: 'gpt-5.6-sol' },
     { id: 'azure-api-version', configKey: 'apiVersion', label: 'API Version', type: 'text', defaultValue: '2025-03-01-preview' },
   ],
   createProvider: async (config) => new AzureOpenAIProvider(config),
