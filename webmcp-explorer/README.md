@@ -32,7 +32,7 @@ To use the WebMCP Explorer extension, first enable WebMCP in your browser:
 
 To use the extension:
 
-1. In your browser open a site that uses WebMCP. For example, go to the [Contoso Pizza demo](https://victorhuangwq.github.io/pizza-order-demo/).
+1. In your browser open a site that uses WebMCP. For example, go to the [Contoso Pizza demo](https://microsoftedge.github.io/webmcp-labs/pizza-order/).
 1. Open the WebMCP Explorer side panel.
 1. In the side panel, click **Chat** or **Agent**, and ask the agent to place an order. For example, click **Agent**, type "Order pepperoni pizza for a party of 10, deliver to 123 main road", and press **Enter**.
 
