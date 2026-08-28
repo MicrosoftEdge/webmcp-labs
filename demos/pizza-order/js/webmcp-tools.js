@@ -173,7 +173,8 @@ Returns the cart state with unique IDs for each item. Use these IDs with update-
               },
               toppings: {
                 type: 'array',
-                items: { type: 'string' },
+                items: { type: 'string', enum: TOPPINGS.map(topping => topping.id) },
+                uniqueItems: true,
                 description: 'Topping IDs for customizable products. Replaces default toppings. Omit to keep defaults.'
               }
             },
@@ -184,6 +185,9 @@ Returns the cart state with unique IDs for each item. Use these IDs with update-
       required: ['orderType', 'items']
     },
     execute({ orderType, address, items }) {
+      if (!['delivery', 'carryout'].includes(orderType)) {
+        return 'Error: Order type must be either delivery or carryout.';
+      }
       // Validate order type
       if (orderType === 'delivery' && !address) {
         return 'Error: Delivery address is required for delivery orders.';
@@ -193,13 +197,11 @@ Returns the cart state with unique IDs for each item. Use these IDs with update-
         return 'Error: At least one item is required.';
       }
 
-      // Validate all products exist before mutating state
+      // Validate the complete order before mutating state
       const errors = [];
       for (let i = 0; i < items.length; i++) {
-        const product = getProductById(items[i].productId);
-        if (!product) {
-          errors.push(`Item ${i}: product "${items[i].productId}" not found.`);
-        }
+        const error = validateItemSpec(items[i]);
+        if (error) errors.push(`Item ${i}: ${error}`);
       }
 
       if (errors.length > 0) {
@@ -211,10 +213,14 @@ Returns the cart state with unique IDs for each item. Use these IDs with update-
 
       // Set order type and address
       selectOrderType(orderType);
-      if (address) {
+      if (orderType === 'delivery') {
         setDeliveryAddress(address);
+      } else {
+        orderState.address = address?.trim() || STORE.address;
+        orderState.store = STORE;
       }
-      confirmLocation('now');
+      const locationResult = confirmLocation('now');
+      if (locationResult.startsWith('Error:')) return locationResult;
 
       // Add each item to the cart
       for (const item of items) {
@@ -283,7 +289,8 @@ All fields are optional — include only the changes you need to make. Operation
               },
               toppings: {
                 type: 'array',
-                items: { type: 'string' },
+                items: { type: 'string', enum: TOPPINGS.map(topping => topping.id) },
+                uniqueItems: true,
                 description: 'Topping IDs for customizable products. Replaces default toppings. Omit to keep defaults.'
               }
             },
@@ -355,12 +362,11 @@ All fields are optional — include only the changes you need to make. Operation
 
       // 3. Add new items
       if (add && add.length > 0) {
-        // Validate all products first
+        // Validate all additions first
         const addErrors = [];
         for (let i = 0; i < add.length; i++) {
-          if (!getProductById(add[i].productId)) {
-            addErrors.push(`Product "${add[i].productId}" not found.`);
-          }
+          const error = validateItemSpec(add[i]);
+          if (error) addErrors.push(error);
         }
         if (addErrors.length > 0) {
           errors.push(...addErrors);
@@ -379,7 +385,7 @@ All fields are optional — include only the changes you need to make. Operation
       // Re-render current view
       if (currentStep === 6) renderCart();
       if (currentStep === 7) renderCheckout();
-      updateCartBadge();
+      handleCartChanged();
 
       const lines = [];
       lines.push('# Order Updated');
@@ -474,9 +480,6 @@ The system will prompt the user for confirmation via a browser dialog before fin
       if (typeof infoResult === 'string' && infoResult.startsWith('Validation')) {
         return infoResult;
       }
-
-      // Yield to let the browser repaint the filled-in form before the blocking confirm dialog
-      await new Promise(r => setTimeout(r, 50));
 
       return placeOrder();
     }

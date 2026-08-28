@@ -34,14 +34,19 @@ const orderState = {
 let currentStep = 1;
 
 // ============ AGENT MODAL ============
+let agentModalTimer;
+
 function showAgentModal(agentName) {
   const overlay = document.getElementById('agentModal');
   const text = document.getElementById('agentModalText');
   text.textContent = `${agentName} is creating your order`;
   overlay.style.display = 'flex';
+  clearTimeout(agentModalTimer);
+  agentModalTimer = setTimeout(hideAgentModal, 1500);
 }
 
 function hideAgentModal() {
+  clearTimeout(agentModalTimer);
   document.getElementById('agentModal').style.display = 'none';
 }
 
@@ -122,7 +127,9 @@ function renderLocation() {
     result.style.display = 'block';
     document.getElementById('storeAddressDisplay').textContent = orderState.address.toUpperCase();
     document.getElementById('storeCityDisplay').textContent = `${orderState.store.city}, ${orderState.store.state} ${orderState.store.zip}`;
-    document.getElementById('storeEstimateDisplay').textContent = `Delivery in ${orderState.store.deliveryEstimate}`;
+    document.getElementById('storeEstimateDisplay').textContent = orderState.orderType === 'delivery'
+      ? `Delivery in ${orderState.store.deliveryEstimate}`
+      : 'Available for carryout';
     document.getElementById('storePhoneDisplay').textContent = orderState.store.phone;
   } else {
     document.getElementById('addressEntry').style.display = 'block';
@@ -151,7 +158,9 @@ function setDeliveryAddress(address) {
   result.style.display = 'block';
   document.getElementById('storeAddressDisplay').textContent = address.toUpperCase();
   document.getElementById('storeCityDisplay').textContent = `${STORE.city}, ${STORE.state} ${STORE.zip}`;
-  document.getElementById('storeEstimateDisplay').textContent = `Delivery in ${STORE.deliveryEstimate}`;
+  document.getElementById('storeEstimateDisplay').textContent = orderState.orderType === 'delivery'
+    ? `Delivery in ${STORE.deliveryEstimate}`
+    : 'Available for carryout';
   document.getElementById('storePhoneDisplay').textContent = STORE.phone;
 
   return `Found nearest store: ${STORE.name} at ${STORE.address}, ${STORE.city}, ${STORE.state} ${STORE.zip}. Delivery estimate: ${STORE.deliveryEstimate}. Phone: ${STORE.phone}. Please confirm location to proceed.`;
@@ -176,7 +185,10 @@ function confirmLocation(timing) {
   goToStep(3);
 
   const categories = CATEGORIES.map(c => c.name).join(', ');
-  return `Location confirmed. Order will be ${orderState.orderType} to ${orderState.address}. Showing menu categories: ${categories}. Select a category to browse items.`;
+  const destination = orderState.orderType === 'delivery'
+    ? `delivered to ${orderState.address}`
+    : `picked up from ${orderState.store.name}`;
+  return `Location confirmed. Order will be ${destination}. Showing menu categories: ${categories}. Select a category to browse items.`;
 }
 
 // ============ STEP 3: MENU CATEGORIES ============
@@ -191,11 +203,11 @@ function renderHomeCategoryGrid() {
   const grid = document.getElementById('homeCategoryGrid');
   if (!grid) return;
   grid.innerHTML = CATEGORIES.map(cat => `
-    <div class="home-cat-card" onclick="startCategoryOrder('${cat.id}')">
+    <button type="button" class="home-cat-card" onclick="startCategoryOrder('${cat.id}')">
       ${cat.badge ? `<span class="home-cat-badge">${cat.badge}</span>` : ''}
       <div class="home-cat-img-placeholder">${CATEGORY_EMOJIS[cat.id] || '🍽️'}</div>
       <div class="home-cat-label">${cat.name}</div>
-    </div>
+    </button>
   `).join('');
 }
 
@@ -207,11 +219,11 @@ function startCategoryOrder(categoryId) {
 function renderCategories() {
   const grid = document.getElementById('categoryGrid');
   grid.innerHTML = CATEGORIES.map(cat => `
-    <div class="category-card" onclick="selectCategoryUI('${cat.id}')">
+    <button type="button" class="category-card" onclick="selectCategoryUI('${cat.id}')">
       ${cat.badge ? `<span class="category-card-badge">${cat.badge}</span>` : ''}
       <div class="category-card-img-placeholder">${CATEGORY_EMOJIS[cat.id] || '🍽️'}</div>
       <div class="category-card-label">${cat.name}</div>
-    </div>
+    </button>
   `).join('');
 }
 
@@ -318,7 +330,7 @@ function addSimpleProduct(product, quantity = 1) {
   if (currentStep === 6) {
     renderCart();
   }
-  updateCartBadge();
+  handleCartChanged();
   showCartToast(product.name);
 
   const subtotal = getCartSubtotal();
@@ -552,11 +564,13 @@ function updateCartItemQty(index, delta) {
 
   if (item.quantity === 0) orderState.cart.splice(index, 1);
   renderCart();
+  handleCartChanged();
 }
 
 function removeCartItem(index) {
   orderState.cart.splice(index, 1);
   renderCart();
+  handleCartChanged();
 }
 
 function editCartItem(index) {
@@ -599,6 +613,7 @@ function updateCartItem({ itemIndex, quantity }) {
   }
 
   renderCart();
+  handleCartChanged();
   const subtotal = getCartSubtotal();
   return `Cart updated. ${orderState.cart.length} item${orderState.cart.length !== 1 ? 's' : ''}, subtotal: $${subtotal.toFixed(2)}.`;
 }
@@ -628,7 +643,8 @@ function renderCheckout() {
   document.getElementById('deliveryInstructions').value = orderState.delivery.instructions;
 
   // Summary
-  document.getElementById('summaryItemCount').textContent = `${orderState.cart.length} Item${orderState.cart.length !== 1 ? 's' : ''}`;
+  const itemCount = orderState.cart.reduce((sum, item) => sum + item.quantity, 0);
+  document.getElementById('summaryItemCount').textContent = `${itemCount} Item${itemCount !== 1 ? 's' : ''}`;
   document.getElementById('summaryItems').innerHTML = orderState.cart.map(item => `
     <div class="summary-line" style="font-size:12px;color:#555;">
       <span>${item.quantity}x ${item.name}</span>
@@ -652,59 +668,60 @@ function updateCheckoutState() {
 }
 
 function setCheckoutInfo({ firstName, lastName, phone, email, leaveAtDoor, deliveryInstructions } = {}) {
-  // Validate
-  const errors = [];
-  if (!firstName) errors.push('First name is required');
-  if (!lastName) errors.push('Last name is required');
-  if (!phone || phone.replace(/\D/g, '').length < 10) errors.push('Please enter a valid phone number');
-  if (!email || !email.includes('@')) errors.push('Please enter a valid email address');
+  const contact = {
+    firstName: firstName?.trim() || '',
+    lastName: lastName?.trim() || '',
+    phone: phone?.trim() || '',
+    email: email?.trim() || ''
+  };
+  const validationErrors = validateCheckoutInfo(contact);
 
+  for (const [field, message] of Object.entries(validationErrors)) {
+    const errorId = `${field}Error`;
+    if (message) {
+      showError(errorId, message);
+    } else {
+      hideError(errorId);
+    }
+    document.getElementById(field).setAttribute('aria-invalid', String(Boolean(message)));
+  }
+
+  const errors = Object.values(validationErrors).filter(Boolean);
   if (errors.length > 0) {
-    // Show individual field errors
-    showError('firstNameError', !firstName ? 'First name is required' : '');
-    showError('lastNameError', !lastName ? 'Last name is required' : '');
-    showError('phoneError', !phone || phone.replace(/\D/g, '').length < 10 ? 'Please enter a valid phone number' : '');
-    showError('emailError', !email || !email.includes('@') ? 'Please enter a valid email address' : '');
     return `Validation errors: ${errors.join('. ')}.`;
   }
 
-  // Clear errors
-  ['firstNameError', 'lastNameError', 'phoneError', 'emailError'].forEach(id => hideError(id));
-
-  orderState.contact = { firstName, lastName, phone, email };
+  orderState.contact = contact;
   if (leaveAtDoor !== undefined) orderState.delivery.leaveAtDoor = leaveAtDoor;
   if (deliveryInstructions !== undefined) orderState.delivery.instructions = deliveryInstructions;
 
   // Update form
-  document.getElementById('firstName').value = firstName;
-  document.getElementById('lastName').value = lastName;
-  document.getElementById('phone').value = phone;
-  document.getElementById('email').value = email;
+  document.getElementById('firstName').value = contact.firstName;
+  document.getElementById('lastName').value = contact.lastName;
+  document.getElementById('phone').value = contact.phone;
+  document.getElementById('email').value = contact.email;
   document.getElementById('leaveAtDoor').checked = orderState.delivery.leaveAtDoor;
   document.getElementById('deliveryInstructions').value = orderState.delivery.instructions || '';
 
   const totals = calculateTotals();
-  return `Checkout info saved for ${firstName} ${lastName}. Ready to place order. Total: $${totals.total.toFixed(2)}. Use place-order to complete.`;
+  return `Checkout info saved for ${contact.firstName} ${contact.lastName}. Ready to place order. Total: $${totals.total.toFixed(2)}.`;
 }
 
 async function placeOrder() {
-  // Validate contact
   updateCheckoutState();
-  const c = orderState.contact;
-  if (!c.firstName || !c.lastName || !c.phone || !c.email) {
-    showError('checkoutError', 'Please fill in all required contact fields');
-    return 'Error: Please fill in all required contact fields before placing order.';
+  const infoResult = setCheckoutInfo(orderState.contact);
+  if (infoResult.startsWith('Validation')) {
+    showError('checkoutError', 'Please correct the highlighted contact fields');
+    return `Error: ${infoResult}`;
+  }
+  if (!orderState.store) {
+    showError('checkoutError', 'Please choose a store before placing your order');
+    return 'Error: Please choose a store before placing your order.';
   }
   hideError('checkoutError');
 
   const totals = calculateTotals();
-
-  const confirmed = confirm(
-    `Place order for $${totals.total.toFixed(2)}?\n` +
-    `${orderState.orderType === 'delivery' ? `Delivery to: ${orderState.address}` : `Carryout from: ${orderState.store.name}`}\n` +
-    `${orderState.cart.map(item => `  ${item.quantity}x ${item.name}`).join('\n')}\n\n` +
-    'Click OK to confirm.'
-  );
+  const confirmed = await requestOrderConfirmation(totals);
   if (!confirmed) return 'Order cancelled by user.';
 
   // Generate order number
@@ -718,6 +735,49 @@ async function placeOrder() {
   goToStep(8);
 
   return `Order placed! Order ${orderNumber}. Estimated ${orderState.orderType}: ${orderState.store.deliveryEstimate}. Total charged: $${totals.total.toFixed(2)}.`;
+}
+
+function validateCheckoutInfo(contact) {
+  return {
+    firstName: contact.firstName ? '' : 'First name is required',
+    lastName: contact.lastName ? '' : 'Last name is required',
+    phone: contact.phone && contact.phone.replace(/\D/g, '').length >= 10 ? '' : 'Please enter a valid phone number',
+    email: contact.email && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(contact.email) ? '' : 'Please enter a valid email address'
+  };
+}
+
+function requestOrderConfirmation(totals) {
+  const dialog = document.getElementById('orderConfirmationDialog');
+  const destination = orderState.orderType === 'delivery'
+    ? `Delivery to: ${orderState.address}`
+    : `Carryout from: ${orderState.store.name}`;
+  document.getElementById('orderConfirmationSummary').textContent = [
+    `Total: $${totals.total.toFixed(2)}`,
+    destination,
+    ...orderState.cart.map(item => `${item.quantity}x ${item.name}`)
+  ].join('\n');
+
+  return new Promise(resolve => {
+    const finish = confirmed => {
+      cancelButton.removeEventListener('click', handleCancelClick);
+      confirmButton.removeEventListener('click', handleConfirmClick);
+      dialog.removeEventListener('cancel', handleDialogCancel);
+      dialog.close();
+      resolve(confirmed);
+    };
+    const cancelButton = dialog.querySelector('[value="cancel"]');
+    const confirmButton = dialog.querySelector('[value="confirm"]');
+    const handleCancelClick = () => finish(false);
+    const handleConfirmClick = () => finish(true);
+    const handleDialogCancel = event => {
+      event.preventDefault();
+      finish(false);
+    };
+    cancelButton.addEventListener('click', handleCancelClick);
+    confirmButton.addEventListener('click', handleConfirmClick);
+    dialog.addEventListener('cancel', handleDialogCancel);
+    dialog.showModal();
+  });
 }
 
 // ============ STEP 8: CONFIRMATION ============
@@ -804,11 +864,10 @@ function generateCartMarkdown() {
 }
 
 function addItemToCartFromSpec(itemSpec) {
-  const product = getProductById(itemSpec.productId);
-  if (!product) {
-    return { success: false, error: `Product "${itemSpec.productId}" not found.` };
-  }
+  const validationError = validateItemSpec(itemSpec);
+  if (validationError) return { success: false, error: validationError };
 
+  const product = getProductById(itemSpec.productId);
   const qty = itemSpec.quantity || 1;
   const cartId = generateCartId();
 
@@ -859,6 +918,33 @@ function addItemToCartFromSpec(itemSpec) {
   }
 }
 
+function validateItemSpec(itemSpec) {
+  const product = getProductById(itemSpec.productId);
+  if (!product) return `Product "${itemSpec.productId}" not found.`;
+  if (itemSpec.quantity !== undefined && (!Number.isInteger(itemSpec.quantity) || itemSpec.quantity < 1)) {
+    return `Quantity for "${itemSpec.productId}" must be a positive integer.`;
+  }
+  if (!product.customizable) return '';
+  if (itemSpec.size !== undefined && !SIZES.some(size => size.id === itemSpec.size)) {
+    return `Size "${itemSpec.size}" is not available for "${itemSpec.productId}".`;
+  }
+  if (itemSpec.crust !== undefined && !CRUSTS.some(crust => crust.id === itemSpec.crust)) {
+    return `Crust "${itemSpec.crust}" is not available for "${itemSpec.productId}".`;
+  }
+  if (itemSpec.toppings !== undefined) {
+    if (!Array.isArray(itemSpec.toppings)) return `Toppings for "${itemSpec.productId}" must be an array.`;
+    const availableToppings = new Set(TOPPINGS.map(topping => topping.id));
+    const invalidToppings = itemSpec.toppings.filter(topping => !availableToppings.has(topping));
+    if (invalidToppings.length > 0) {
+      return `Toppings not available for "${itemSpec.productId}": ${[...new Set(invalidToppings)].join(', ')}.`;
+    }
+    if (new Set(itemSpec.toppings).size !== itemSpec.toppings.length) {
+      return `Toppings for "${itemSpec.productId}" must not contain duplicates.`;
+    }
+  }
+  return '';
+}
+
 function getCartSubtotal() {
   return orderState.cart.reduce((sum, item) => sum + item.price, 0);
 }
@@ -877,8 +963,10 @@ function updateNavDeliveryInfo() {
   if (orderState.address && orderState.store && currentStep >= 3) {
     el.hidden = false;
     if (pill) pill.hidden = true;
+    const location = orderState.orderType === 'delivery' ? orderState.address : orderState.store.address;
+    const fulfillment = orderState.orderType === 'delivery' ? 'Delivery' : 'Carryout';
     document.getElementById('navDeliveryText').textContent =
-      `Delivery \u00B7 ${orderState.store.deliveryEstimate} \u00B7 ${orderState.address.substring(0, 30)}${orderState.address.length > 30 ? '...' : ''}`;
+      `${fulfillment} \u00B7 ${orderState.store.deliveryEstimate} \u00B7 ${location.substring(0, 30)}${location.length > 30 ? '...' : ''}`;
   } else {
     el.hidden = true;
     if (pill) pill.hidden = false;
@@ -893,6 +981,13 @@ function updateCartBadge() {
     badge.textContent = count;
   } else {
     badge.style.display = 'none';
+  }
+}
+
+function handleCartChanged() {
+  updateCartBadge();
+  if (typeof registerToolsForStep === 'function') {
+    registerToolsForStep(currentStep);
   }
 }
 
@@ -946,94 +1041,33 @@ function getStateSnapshot() {
 }
 
 // ============ URL STATE MANAGEMENT ============
-const BASE_PATH = '/webmcp-labs/demos/pizza-order';
-
-const STEP_PATHS = {
-  1: BASE_PATH + '/',
-  2: BASE_PATH + '/location',
-  3: BASE_PATH + '/menu',
-  4: BASE_PATH + '/pizzas',
-  5: BASE_PATH + '/customize',
-  6: BASE_PATH + '/cart',
-  7: BASE_PATH + '/checkout',
-  8: BASE_PATH + '/confirmation'
-};
-
-const PATH_TO_STEP = {
-  [BASE_PATH + '/']: 1,
-  [BASE_PATH + '/location']: 2,
-  [BASE_PATH + '/menu']: 3,
-  [BASE_PATH + '/pizzas']: 4,
-  [BASE_PATH + '/customize']: 5,
-  [BASE_PATH + '/cart']: 6,
-  [BASE_PATH + '/checkout']: 7,
-  [BASE_PATH + '/confirmation']: 8
+const BASE_PATH = new URL('.', window.location.href).pathname;
+const STEP_SLUGS = {
+  1: 'home',
+  2: 'location',
+  3: 'menu',
+  4: 'products',
+  5: 'customize',
+  6: 'cart',
+  7: 'checkout',
+  8: 'confirmation'
 };
 
 function updateURL() {
-  const path = STEP_PATHS[currentStep] || '/';
   const params = new URLSearchParams();
-  
-  if (orderState.orderType) {
-    params.set('orderType', orderState.orderType);
-  }
-  
-  if (orderState.address) {
-    params.set('address', orderState.address);
-  }
-  
-  if (orderState.currentCategory) {
-    params.set('category', orderState.currentCategory);
-  }
-  
-  if (orderState.selectedProduct) {
-    params.set('pizza', orderState.selectedProduct.id);
-  }
-  
-  if (orderState.cart.length > 0) {
-    params.set('cartItems', orderState.cart.length);
-  }
-  
-  const search = params.toString();
-  const url = search ? `${path}?${search}` : path;
-  history.pushState({ step: currentStep, orderState: JSON.parse(JSON.stringify(orderState)) }, '', url);
+  params.set('step', STEP_SLUGS[currentStep] || STEP_SLUGS[1]);
+  history.pushState({ step: currentStep }, '', `${BASE_PATH}?${params}`);
 }
 
 function restoreFromURL() {
-  const path = window.location.pathname;
-  const params = new URLSearchParams(window.location.search);
-  const step = PATH_TO_STEP[path] || 1;
-  
-  // Restore order state from URL
-  if (params.has('orderType')) {
-    orderState.orderType = params.get('orderType');
-  }
-  
-  if (params.has('address')) {
-    orderState.address = params.get('address');
-    orderState.store = STORE;
-  }
-  
-  if (params.has('category')) {
-    orderState.currentCategory = params.get('category');
-  }
-  
-  if (params.has('pizza')) {
-    const pizzaId = params.get('pizza');
-    orderState.selectedProduct = getProductById(pizzaId);
-  }
-  
-  // Go to the step from URL (skip history update since we're restoring)
-  goToStep(step, true);
+  // Order state is intentionally kept in memory, so a fresh document load
+  // cannot safely resume a later step from the URL alone.
+  goToStep(1, true);
 }
 
 // Handle browser back/forward buttons
 window.addEventListener('popstate', (event) => {
   if (event.state && event.state.step) {
-    // Restore state from history
-    if (event.state.orderState) {
-      Object.assign(orderState, event.state.orderState);
-    }
     goToStep(event.state.step, true);
   } else {
     // No state, restore from URL params
@@ -1048,11 +1082,6 @@ function goToHome() {
 // ============ INIT ============
 // Start on Step 1 — register tools once webmcp-tools.js loads
 document.addEventListener('DOMContentLoaded', () => {
-  // Check if there's a path indicating a specific step, otherwise start at step 1
-  const path = window.location.pathname;
-  if (path !== BASE_PATH + '/' && PATH_TO_STEP[path]) {
-    restoreFromURL();
-  } else {
-    goToStep(1);
-  }
+  restoreFromURL();
+  history.replaceState({ step: currentStep }, '', BASE_PATH);
 });

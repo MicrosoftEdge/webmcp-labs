@@ -51,6 +51,37 @@
   --accent-warm-glow-25: rgba(182, 90, 58, 0.25);
 }
 
+.order-confirmation-dialog {
+  width: min(90vw, 480px);
+  margin: auto;
+  padding: 32px;
+  border: 0;
+  border-radius: 8px;
+  color: var(--brand-brown-950);
+  background: var(--text-on-dark);
+  box-shadow: 0 12px 48px rgba(0, 0, 0, 0.3);
+}
+
+.order-confirmation-dialog::backdrop {
+  background: rgba(0, 0, 0, 0.55);
+}
+
+.order-confirmation-dialog h2 {
+  margin-block-end: 16px;
+}
+
+.order-confirmation-dialog p {
+  color: var(--text-secondary);
+  white-space: pre-line;
+}
+
+.order-confirmation-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+  margin-block-start: 24px;
+}
+
 /* ---------- Reset & Base ---------- */
 *,
 *::before,
@@ -143,6 +174,10 @@ a:hover {
   align-items: center;
   gap: 10px;
   justify-self: center;
+  border: 0;
+  background: transparent;
+  font: inherit;
+  cursor: pointer;
 }
 
 .logo-icon {
@@ -623,9 +658,15 @@ a:hover {
   position: relative;
   box-shadow: 0 1px 3px var(--overlay-brown-08);
   border: 1px solid var(--cream-350);
+  width: 100%;
+  padding: 0;
+  color: inherit;
+  font: inherit;
+  text-align: start;
 }
 
-.home-cat-card:hover {
+.home-cat-card:hover,
+.home-cat-card:focus-visible {
   transform: translateY(-1px);
   box-shadow: 0 2px 8px var(--overlay-brown-10);
 }
@@ -1000,9 +1041,14 @@ a:hover {
   box-shadow: 0 1px 3px var(--overlay-brown-08);
   border: 1px solid var(--cream-350);
   position: relative;
+  width: 100%;
+  padding: 0;
+  color: inherit;
+  font: inherit;
 }
 
-.category-card:hover {
+.category-card:hover,
+.category-card:focus-visible {
   transform: translateY(-1px);
   box-shadow: 0 2px 8px var(--overlay-brown-10);
 }
