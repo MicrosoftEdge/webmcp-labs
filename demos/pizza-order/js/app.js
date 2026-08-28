@@ -119,7 +119,7 @@ function renderLocation() {
     q.textContent = 'Find a store near you';
     document.getElementById('addressInput').placeholder = 'Enter city, state, or zip';
   }
-  
+
   // If address already set, show store result
   if (orderState.address && orderState.store) {
     document.getElementById('addressEntry').style.display = 'none';
