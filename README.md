@@ -4,7 +4,7 @@ The WebMCP Labs repo contains experimental projects and samples for [WebMCP](htt
 
 WebMCP is a browser web API which lets you expose your web app's functionality as tools which can be run by an AI browsing agent.
 
-In WebMCP, tools are registered wither via JavaScript functions or HTML `<form>` elements. Tools are described by using natural language and structured schemas, designed for AI agent ingestion.
+In WebMCP, tools are registered either via JavaScript functions or HTML `<form>` elements. Tools are described by using natural language and structured schemas, designed for AI agent ingestion.
 
 ## Experimental projects
 
