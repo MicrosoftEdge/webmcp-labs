@@ -1,6 +1,6 @@
 # WebMCP Labs
 
-The WebMCP Labs repo contains experimental projects and samples for [WebMCP](https://github.com/webmachinelearning/webmcp).
+The WebMCP Labs repo contains experimental projects and samples for [WebMCP](https://github.com/webmachinelearning/webmcp), a specification developed by the [Web Machine Learning Community Group](https://www.w3.org/community/webmachinelearning/).
 
 WebMCP is a browser web API which lets you expose your web app's functionality as tools which can be run by an AI browsing agent.
 
