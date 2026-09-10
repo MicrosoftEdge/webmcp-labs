@@ -88,7 +88,15 @@
         <tr>
           <td><code>annotations</code></td>
           <td>Object</td>
-          <td>Optional hints for the agent. <code>readOnlyHint: true</code> means the tool doesn&rsquo;t mutate state. <code>untrustedContentHint: true</code> means the tool&rsquo;s output may contain untrusted content.</td>
+          <td>
+            Optional hints for the agent.
+            <ul>
+              <li><code>readOnlyHint: true</code> means the tool doesn&rsquo;t mutate state.</li>
+              <li><code>untrustedContentHint: true</code> means the tool&rsquo;s output may contain untrusted content.</li>
+              <li><code>consequentialHint: true</code> indicates an action with significant consequences, such as making a payment.</li>
+            </ul>
+            Omitted hints default to <code>false</code> when an annotations object is supplied.
+          </td>
         </tr>
         <tr>
           <td><code>execute</code></td>
@@ -110,7 +118,7 @@
         <tr>
           <td><code>fromOrigins</code></td>
           <td>Array&lt;String&gt;</td>
-          <td>Optional. Restrict the returned tools to those registered by (or exposed from) the listed origins. Returns a <code>Promise&lt;RegisteredTool[]&gt;</code>.</td>
+          <td>Optional. Include tools from the listed origins if they are exposed to the calling document, in addition to same-origin tools. An omitted or empty list returns only same-origin tools. Returns a <code>Promise&lt;RegisteredTool[]&gt;</code>.</td>
         </tr>
         <tr class="api-group-label"><td colspan="3">Unregistering tools</td></tr>
         <tr>

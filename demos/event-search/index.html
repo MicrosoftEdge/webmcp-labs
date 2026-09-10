@@ -258,7 +258,7 @@
         <tr>
           <td><code>toolname</code></td>
           <td><code>&lt;form&gt;</code></td>
-          <td>Registers the form as a WebMCP tool. Must be unique on the page. Letters, digits, hyphens, underscores, and dots only.</td>
+          <td>Registers the form as a WebMCP tool. Must be unique on the page. Use letters, digits, hyphens, underscores, and dots for compatibility with imperative tool names.</td>
         </tr>
         <tr>
           <td><code>tooltitle</code></td>
@@ -285,12 +285,12 @@
         <tr>
           <td><code>event.agentInvoked</code></td>
           <td>SubmitEvent</td>
-          <td>Boolean. <code>true</code> when the form submission was triggered by an AI agent, <code>false</code> when submitted by the user.</td>
+          <td>Boolean. <code>true</code> when the form is submitted during an active tool invocation, including when the user submits after manual review. <code>false</code> for submissions outside a tool invocation.</td>
         </tr>
         <tr>
           <td><code>event.respondWith(promise)</code></td>
           <td>SubmitEvent</td>
-          <td>Pass a Promise that resolves to the tool's return value. This lets you customize what the AI agent receives after form submission.</td>
+          <td>During the submit handler, first call <code>preventDefault()</code>, then pass a Promise that resolves to the tool's return value. Requires <code>event.agentInvoked</code> to be <code>true</code>.</td>
         </tr>
       </tbody>
     </table>
