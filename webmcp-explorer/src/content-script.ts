@@ -7,7 +7,7 @@
  * chrome.runtime messaging.
  *
  * Why we re-resolve tools per dispatch:
- *   document.modelContext.executeTool(tool, args) requires the *full* tool
+ *   document.modelContext.executeTool(tool, inputObject) requires the *full* tool
  *   object, including its live `window` reference. That object can't be
  *   structured-cloned across chrome.runtime, so the side panel can never
  *   hold it. Instead, the side panel dispatches by (origin, name) and we
@@ -58,7 +58,7 @@ declare global {
     getTools(options?: ModelContextGetToolsOptions): Promise<ModelContextRegisteredTool[]>;
     executeTool(
       tool: ModelContextRegisteredTool,
-      inputArguments: string,
+      inputObject?: object,
       options?: ModelContextExecuteToolOptions
     ): Promise<string | null>;
     ontoolchange: ((this: ModelContext, ev: Event) => void) | null;
@@ -67,6 +67,21 @@ declare global {
 
 function getModelContext(): ModelContext | null {
   return document.modelContext ?? null;
+}
+
+function parseToolInputArguments(inputArguments: string): object {
+  let inputObject: unknown;
+  try {
+    inputObject = JSON.parse(inputArguments);
+  } catch {
+    throw new TypeError('Tool input arguments must be valid JSON.');
+  }
+
+  if (inputObject === null || typeof inputObject !== 'object') {
+    throw new TypeError('Tool input arguments must be a JSON object.');
+  }
+
+  return inputObject;
 }
 
 /**
@@ -165,7 +180,8 @@ chrome.runtime.onMessage.addListener(
             });
             return;
           }
-          const result = await ctx.executeTool(tool, message.args);
+          const inputObject = parseToolInputArguments(message.args);
+          const result = await ctx.executeTool(tool, inputObject);
           sendResponse({ type: 'executeTool', result });
         } catch (e) {
           const msg = e instanceof Error ? e.message : String(e);
@@ -186,4 +202,3 @@ const initialCtx = getModelContext();
 if (initialCtx) ensureToolchangeListener(initialCtx);
 
 export {};
-
