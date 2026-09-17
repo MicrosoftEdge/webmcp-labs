@@ -28,8 +28,8 @@ export interface RegisteredTool {
   name: string;
   origin: string;
   description: string;
-  /** JSON-encoded schema describing the tool's input parameters. */
-  inputSchema?: string;
+  /** JSON-encoded in older Chromium versions; an object in newer versions. */
+  inputSchema?: unknown;
   /** Friendly display name, or an empty string when registration omitted it. */
   title: string;
   annotations?: ToolAnnotations;
@@ -52,4 +52,3 @@ export type BridgeResponse =
   | { type: 'executeTool'; result: string | null }
   | { type: 'error'; message: string }
   | { type: 'toolchange' };
-

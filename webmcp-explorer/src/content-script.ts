@@ -40,7 +40,7 @@ declare global {
     readonly name: string;
     readonly origin: string;
     readonly description: string;
-    readonly inputSchema?: string;
+    readonly inputSchema?: unknown;
     readonly title: string;
     readonly window: Window;
     readonly annotations?: ToolAnnotations;
@@ -58,7 +58,7 @@ declare global {
     getTools(options?: ModelContextGetToolsOptions): Promise<ModelContextRegisteredTool[]>;
     executeTool(
       tool: ModelContextRegisteredTool,
-      inputObject?: object,
+      input?: unknown,
       options?: ModelContextExecuteToolOptions
     ): Promise<string | null>;
     ontoolchange: ((this: ModelContext, ev: Event) => void) | null;
@@ -82,6 +82,45 @@ function parseToolInputArguments(inputArguments: string): object {
   }
 
   return inputObject;
+}
+
+function isInputArgumentParsingError(error: unknown): boolean {
+  const message = error instanceof Error ? error.message : String(error);
+  return message.toLowerCase().includes('failed to parse input arguments');
+}
+
+function executeToolWithSerializedArguments(
+  ctx: ModelContext,
+  tool: ModelContextRegisteredTool,
+  inputArguments: string,
+): Promise<string | null> {
+  return ctx.executeTool(tool, inputArguments);
+}
+
+function executeToolWithObjectArguments(
+  ctx: ModelContext,
+  tool: ModelContextRegisteredTool,
+  inputArguments: string,
+): Promise<string | null> {
+  const inputObject = parseToolInputArguments(inputArguments);
+  return ctx.executeTool(tool, inputObject);
+}
+
+async function executeToolWithCompatibleArguments(
+  ctx: ModelContext,
+  tool: ModelContextRegisteredTool,
+  inputArguments: string,
+): Promise<string | null> {
+  try {
+    // Newer Chromium versions accept argument objects:
+    // https://chromium-review.googlesource.com/c/chromium/src/+/8250826
+    return await executeToolWithObjectArguments(ctx, tool, inputArguments);
+  } catch (error) {
+    if (!isInputArgumentParsingError(error)) throw error;
+
+    // Older Chromium versions expect JSON-encoded argument text.
+    return executeToolWithSerializedArguments(ctx, tool, inputArguments);
+  }
 }
 
 /**
@@ -180,8 +219,11 @@ chrome.runtime.onMessage.addListener(
             });
             return;
           }
-          const inputObject = parseToolInputArguments(message.args);
-          const result = await ctx.executeTool(tool, inputObject);
+          const result = await executeToolWithCompatibleArguments(
+            ctx,
+            tool,
+            message.args,
+          );
           sendResponse({ type: 'executeTool', result });
         } catch (e) {
           const msg = e instanceof Error ? e.message : String(e);
