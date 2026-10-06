@@ -266,7 +266,7 @@ function renderDetail(idx: number) {
   // Error
   if (s.error != null) {
     html += `<div class="detail-section">
-      <span class="label" style="color: var(--smtc-status-danger-tint-foreground)">Error</span>
+      <span class="label" style="color: var(--status-danger-tint-foreground)">Error</span>
       <pre class="code-block">${escapeHtml(s.error)}</pre>
     </div>`;
   }
