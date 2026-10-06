@@ -197,7 +197,7 @@ function updateToolCardResult(bodyEl: HTMLElement, result: string, isError: bool
   const resultLabel = document.createElement('span');
   resultLabel.className = 'label';
   resultLabel.textContent = isError ? 'Error' : 'Result';
-  if (isError) resultLabel.style.color = 'var(--smtc-status-danger-tint-foreground)';
+  if (isError) resultLabel.style.color = 'var(--status-danger-tint-foreground)';
 
   const resultBlock = document.createElement('pre');
   resultBlock.className = 'code-block';
