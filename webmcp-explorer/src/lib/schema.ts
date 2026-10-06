@@ -4,9 +4,9 @@
 /**
  * Coerce a tool's raw `inputSchema` into a usable JSON Schema object.
  *
- * The production `document.modelContext` surface hands back `inputSchema` as a
- * JSON-encoded string. We also accept an object so the explorer remains useful
- * with pages or test fixtures that project the schema directly.
+ * Current Chromium returns `inputSchema` from `document.modelContext.getTools()`
+ * as an object. We also accept JSON-encoded strings for older browser versions
+ * and test fixtures.
  *
  * Returns the schema object, or `null` when there's nothing usable.
  */
