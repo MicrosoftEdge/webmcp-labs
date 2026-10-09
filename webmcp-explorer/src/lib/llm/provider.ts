@@ -10,7 +10,7 @@
 export type Message =
   | { role: 'user'; content: string }
   | { role: 'assistant'; content: string; toolCalls?: ToolCall[] }
-  | { role: 'tool'; toolCallId: string; content: string };
+  | { role: 'tool'; toolCallId: string; content: string; isError?: boolean };
 
 /** A tool the model can call. */
 export interface ToolDefinition {
@@ -32,6 +32,11 @@ export interface LLMResponse {
   toolCalls: ToolCall[];
 }
 
+export interface SendMessageOptions {
+  signal?: AbortSignal;
+  onStatus?: (message: string) => void;
+}
+
 /**
  * LLMProvider — every LLM backend implements this.
  */
@@ -40,7 +45,7 @@ export interface LLMProvider {
     systemPrompt: string,
     messages: Message[],
     tools: ToolDefinition[],
-    options?: { signal?: AbortSignal }
+    options?: SendMessageOptions
   ): Promise<LLMResponse>;
 }
 
@@ -67,6 +72,7 @@ export interface FieldDefinition {
 export interface ProviderMetadata {
   key: string;
   label: string;
+  description?: string;
   fields: FieldDefinition[];
   createProvider: (config: ProviderConfig) => Promise<LLMProvider>;
 }

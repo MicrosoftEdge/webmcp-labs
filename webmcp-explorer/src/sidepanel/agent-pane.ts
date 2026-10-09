@@ -120,9 +120,9 @@ function setState(next: AgentState) {
 
 function updateControls() {
   const s = state;
-  runBtn.disabled = s === 'running' || s === 'waiting';
-  stepBtn.disabled = s === 'running' || s === 'waiting';
-  stopBtn.disabled = s !== 'running';
+  runBtn.disabled = s !== 'idle' && s !== 'paused';
+  stepBtn.disabled = s !== 'idle' && s !== 'paused';
+  stopBtn.disabled = s === 'idle';
   const hasContent = steps.length > 0 || goalInput.value.trim() !== '';
   resetBtn.disabled = s === 'idle' && !hasContent;
   goalInput.disabled = s !== 'idle';
@@ -302,17 +302,34 @@ async function runAgentLoop(startMode: 'run' | 'step') {
   const goal = goalInput.value.trim();
   if (!goal) { setStatus('Please enter a goal.', 'error'); return; }
 
-  const provider = await createProvider();
-  if (!provider) { setStatus('Configure an LLM provider first (Config tab).', 'error'); return; }
-
-  const config = await loadConfig();
+  mode = startMode;
+  const requestController = new AbortController();
+  abortController = requestController;
+  setState(startMode === 'run' ? 'running' : 'stepping');
+  setStatus('Preparing model request...', 'info');
+  let provider: LLMProvider | null;
+  let config: Awaited<ReturnType<typeof loadConfig>>;
+  let tabId: number | null;
+  try {
+    provider = await createProvider();
+    requestController.signal.throwIfAborted();
+    if (!provider) throw new Error('Configure an LLM provider first (Config tab).');
+    config = await loadConfig();
+    requestController.signal.throwIfAborted();
+    tabId = await getActiveTabId();
+    requestController.signal.throwIfAborted();
+    if (tabId == null) throw new Error('No active tab.');
+  } catch (error) {
+    if (abortController === requestController) {
+      setState('idle');
+      abortController = null;
+      if (requestController.signal.aborted) setStatus('Stopped by user.', 'info');
+      else setStatus(error instanceof Error ? error.message : String(error), 'error');
+    }
+    return;
+  }
   const maxIterations = config.maxIterations;
 
-  const tabId = await getActiveTabId();
-  if (tabId == null) { setStatus('No active tab.', 'error'); return; }
-
-  mode = startMode;
-  abortController = new AbortController();
   steps = [];
   messages = [{ role: 'user', content: goal }];
   selectedIndex = null;
@@ -337,13 +354,15 @@ async function runAgentLoop(startMode: 'run' | 'step') {
   try {
     ({ tools: pageTools, aliasToTool } = await fetchPageTools());
   } catch {
+    if (requestController.signal.aborted) return;
     setStatus('Could not connect to page.', 'error');
     setState('idle');
     return;
   }
 
   for (let i = 0; i < maxIterations; i++) {
-    if (abortController.signal.aborted) {
+    if (requestController.signal.aborted) {
+      if (abortController !== requestController) return;
       setStatus('Stopped by user.', 'info');
       break;
     }
@@ -352,6 +371,7 @@ async function runAgentLoop(startMode: 'run' | 'step') {
     try {
       ({ tools: pageTools, aliasToTool } = await fetchPageTools());
     } catch { /* keep previous tools if refresh fails */ }
+    if (requestController.signal.aborted) break;
     const allTools = [...pageTools, ...BUILT_IN_TOOLS];
     const builtInNames = new Set(BUILT_IN_TOOLS.map(t => t.name));
     const toolInfos: ToolInfo[] = allTools.map(t => ({ name: t.name, system: builtInNames.has(t.name) || undefined }));
@@ -363,7 +383,7 @@ async function runAgentLoop(startMode: 'run' | 'step') {
       setState('paused');
       setStatus('Paused. Step to call model.', 'info');
       await new Promise<void>((resolve) => { stepResolver = resolve; });
-      if (abortController.signal.aborted) break;
+      if (requestController.signal.aborted) break;
       setState(mode === 'step' ? 'stepping' : 'running');
       setStatus('Calling model…', 'info');
     }
@@ -371,14 +391,20 @@ async function runAgentLoop(startMode: 'run' | 'step') {
     // Call LLM
     let result;
     try {
-      result = await provider.sendMessage(SYSTEM_PROMPT, messages, allTools, { signal: abortController.signal });
+      result = await provider.sendMessage(SYSTEM_PROMPT, messages, allTools, {
+        signal: requestController.signal,
+        onStatus: message => {
+          if (!requestController.signal.aborted) setStatus(message, 'info');
+        },
+      });
     } catch (e) {
-      if (abortController.signal.aborted) { setStatus('Stopped by user.', 'info'); break; }
+      if (requestController.signal.aborted) break;
       if (modelStepIdx != null) updateStep(modelStepIdx, { status: 'error', error: e instanceof Error ? e.message : String(e) });
       else addStep('LLM Error', 'error', { error: e instanceof Error ? e.message : String(e) });
       setStatus('Agent failed.', 'error');
       break;
     }
+    if (requestController.signal.aborted) break;
 
     // No tool calls — final text response
     if (result.toolCalls.length === 0) {
@@ -401,7 +427,7 @@ async function runAgentLoop(startMode: 'run' | 'step') {
 
     // Process each tool call
     for (const tc of result.toolCalls) {
-      if (abortController.signal.aborted) break;
+      if (requestController.signal.aborted) break;
 
       // Built-in: task_complete
       if (tc.name === 'task_complete') {
@@ -421,7 +447,7 @@ async function runAgentLoop(startMode: 'run' | 'step') {
         setStatus('Waiting for your reply…', 'info');
 
         const answer = await new Promise<string>((resolve) => { askResolver = resolve; });
-        if (abortController.signal.aborted) break;
+        if (requestController.signal.aborted) break;
 
         updateStep(stepIdx, { status: 'success', result: answer });
         messages.push({ role: 'tool', toolCallId: tc.id, content: answer });
@@ -437,7 +463,7 @@ async function runAgentLoop(startMode: 'run' | 'step') {
         setState('paused');
         setStatus('Paused. Execute step or resume.', 'info');
         await new Promise<void>((resolve) => { stepResolver = resolve; });
-        if (abortController.signal.aborted) break;
+        if (requestController.signal.aborted) break;
         // User may have switched to run mode via "Resume" button
         setState(mode === 'step' ? 'stepping' : 'running');
         setStatus('Running…', 'info');
@@ -450,8 +476,9 @@ async function runAgentLoop(startMode: 'run' | 'step') {
         const response = await chrome.tabs.sendMessage(tabId, {
           type: 'executeTool', name: ref.name, origin: ref.origin, args: tc.arguments,
         });
+        if (requestController.signal.aborted) break;
         const toolResult = response.type === 'error' ? `Error: ${response.message}` : (response.result ?? '(null)');
-        messages.push({ role: 'tool', toolCallId: tc.id, content: toolResult });
+        messages.push({ role: 'tool', toolCallId: tc.id, content: toolResult, isError: response.type === 'error' });
 
         if (response.type === 'error') {
           updateStep(stepIdx, { status: 'error', error: response.message });
@@ -459,17 +486,19 @@ async function runAgentLoop(startMode: 'run' | 'step') {
           updateStep(stepIdx, { status: 'success', result: toolResult });
         }
       } catch (e) {
+        if (requestController.signal.aborted) break;
         const errMsg = e instanceof Error ? e.message : String(e);
-        messages.push({ role: 'tool', toolCallId: tc.id, content: `Error: ${errMsg}` });
+        messages.push({ role: 'tool', toolCallId: tc.id, content: `Error: ${errMsg}`, isError: true });
         updateStep(stepIdx, { status: 'error', error: errMsg });
       }
     }
 
-    if (i === maxIterations - 1) {
+    if (!requestController.signal.aborted && i === maxIterations - 1) {
       setStatus(`Stopped: reached max iterations (${maxIterations}).`, 'info');
     }
   }
 
+  if (abortController !== requestController) return;
   setState('idle');
   abortController = null;
 }
@@ -495,12 +524,15 @@ stepBtn.addEventListener('click', () => {
 
 stopBtn.addEventListener('click', () => {
   abortController?.abort();
+  if (stepResolver) { stepResolver(); stepResolver = null; }
+  if (askResolver) { askResolver(''); askResolver = null; }
   setState('idle');
   setStatus('Stopped by user.', 'info');
 });
 
 resetBtn.addEventListener('click', () => {
   abortController?.abort();
+  abortController = null;
   // Resolve any pending promises so the old loop can exit cleanly
   if (stepResolver) { stepResolver(); stepResolver = null; }
   if (askResolver) { askResolver(''); askResolver = null; }
