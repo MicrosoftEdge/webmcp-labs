@@ -107,8 +107,14 @@ function messagesToPrompts(messages: Message[], api: ReturnType<typeof getPrompt
 }
 
 function parseResponse(response: unknown, tools: ToolDefinition[]): LLMResponse {
-  // With tool-call in expectedOutputs, even a text-only answer must be a content array.
-  if (!Array.isArray(response)) throw new Error(NATIVE_SUPPORT_ERROR);
+  // Some native tool-use implementations return strings for text-only turns.
+  if (typeof response === 'string') {
+    if (!response.trim()) throw new Error('Prompt API returned an empty response.');
+    return { text: response, toolCalls: [] };
+  }
+  if (!Array.isArray(response)) {
+    throw new Error('Prompt API returned an invalid response. Expected text or native content blocks.');
+  }
   const textParts: string[] = [];
   const toolCalls: ToolCall[] = [];
   const callIds = new Set<string>();
