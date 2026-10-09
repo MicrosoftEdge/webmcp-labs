@@ -6,6 +6,7 @@ import { loadConfig } from '../lib/storage';
 import type { LLMProvider, Message, ToolDefinition, ToolCall } from '../lib/llm/provider';
 import { PROVIDERS } from '../lib/llm/registry';
 import { buildLlmTools } from '../lib/llm-tools';
+import { finishInterruptedToolCalls, trimMessages } from '../lib/llm/history';
 
 // --- Marked configuration ---
 marked.setOptions({ breaks: true, gfm: true });
@@ -207,37 +208,36 @@ function updateToolCardResult(bodyEl: HTMLElement, result: string, isError: bool
   bodyEl.appendChild(resultBlock);
 }
 
-/**
- * Trim messages to stay within the configured cap.
- * Keeps the most recent messages, always preserving the first user message
- * so the conversation makes sense.
- */
-function trimMessages(maxMessages: number) {
-  if (messages.length <= maxMessages) return;
-  // Keep the first message (initial user message) and the most recent messages
-  const keep = maxMessages - 1;
-  messages = [messages[0], ...messages.slice(-keep)];
-}
-
 // --- Main send handler ---
 async function handleSend() {
   const text = inputEl.value.trim();
   if (!text || state === 'responding') return;
 
-  const provider = await createProvider();
-  if (!provider) {
-    appendErrorBubble('Configure an LLM provider first (Config tab).');
+  const requestController = new AbortController();
+  abortController = requestController;
+  setState('responding');
+  let provider: LLMProvider | null;
+  let tabId: number | null;
+  let config: Awaited<ReturnType<typeof loadConfig>>;
+  try {
+    provider = await createProvider();
+    requestController.signal.throwIfAborted();
+    if (!provider) throw new Error('Configure an LLM provider first (Config tab).');
+    tabId = await getActiveTabId();
+    requestController.signal.throwIfAborted();
+    if (tabId == null) throw new Error('No active tab.');
+    config = await loadConfig();
+    requestController.signal.throwIfAborted();
+  } catch (error) {
+    if (abortController === requestController) {
+      setState('idle');
+      abortController = null;
+      appendErrorBubble(requestController.signal.aborted
+        ? 'Stopped.'
+        : error instanceof Error ? error.message : String(error));
+    }
     return;
   }
-
-  const tabId = await getActiveTabId();
-  if (tabId == null) {
-    appendErrorBubble('No active tab.');
-    return;
-  }
-
-  // Load config for maxChatMessages
-  const config = await loadConfig();
 
   // Show user message
   appendUserBubble(text);
@@ -245,15 +245,12 @@ async function handleSend() {
   messages.push({ role: 'user', content: text });
 
   // Trim if over limit
-  trimMessages(config.maxChatMessages);
-
-  abortController = new AbortController();
-  setState('responding');
+  messages = trimMessages(messages, config.maxChatMessages);
 
   // Agentic loop: keep calling LLM until we get a text-only response (no tool calls)
   const MAX_TOOL_ROUNDS = 20; // safety cap to prevent infinite tool loops
   for (let round = 0; round < MAX_TOOL_ROUNDS; round++) {
-    if (abortController.signal.aborted) break;
+    if (requestController.signal.aborted) break;
 
     // Fetch page tools (build LLM-safe names + alias map)
     let pageTools: ToolDefinition[] = [];
@@ -261,21 +258,28 @@ async function handleSend() {
     try {
       ({ tools: pageTools, aliasToTool } = await fetchPageTools(tabId));
     } catch { /* page might not have tools — continue without */ }
+    if (requestController.signal.aborted) break;
 
     const typing = showTypingIndicator();
 
     let result;
     try {
-      result = await provider.sendMessage(SYSTEM_PROMPT, messages, pageTools, { signal: abortController.signal });
+      result = await provider.sendMessage(SYSTEM_PROMPT, messages, pageTools, {
+        signal: requestController.signal,
+        onStatus: message => {
+          if (!requestController.signal.aborted) typing.textContent = message;
+        },
+      });
     } catch (e) {
       removeTypingIndicator(typing);
-      if (!abortController.signal.aborted) {
+      if (!requestController.signal.aborted) {
         appendErrorBubble(`Error: ${e instanceof Error ? e.message : String(e)}`);
       }
       break;
     }
 
     removeTypingIndicator(typing);
+    if (requestController.signal.aborted) break;
 
     // No tool calls — final text response
     if (result.toolCalls.length === 0) {
@@ -295,7 +299,7 @@ async function handleSend() {
 
     // Execute each tool call
     for (const tc of result.toolCalls) {
-      if (abortController.signal.aborted) break;
+      if (requestController.signal.aborted) break;
 
       const { bodyEl } = appendToolCard(tc);
 
@@ -306,24 +310,29 @@ async function handleSend() {
         const response = await chrome.tabs.sendMessage(tabId, {
           type: 'executeTool', name: ref.name, origin: ref.origin, args: tc.arguments,
         });
+        if (requestController.signal.aborted) break;
         const toolResult = response.type === 'error' ? `Error: ${response.message}` : (response.result ?? '(null)');
         const isError = response.type === 'error';
         updateToolCardResult(bodyEl, toolResult, isError);
-        messages.push({ role: 'tool', toolCallId: tc.id, content: toolResult });
+        messages.push({ role: 'tool', toolCallId: tc.id, content: toolResult, isError });
       } catch (e) {
+        if (requestController.signal.aborted) break;
         console.error(`[chat] tool "${ref.name}" threw:`, e);
         const errMsg = e instanceof Error ? e.message : String(e);
         updateToolCardResult(bodyEl, errMsg, true);
-        messages.push({ role: 'tool', toolCallId: tc.id, content: `Error: ${errMsg}` });
+        messages.push({ role: 'tool', toolCallId: tc.id, content: `Error: ${errMsg}`, isError: true });
       }
     }
 
     // Trim after tool results are added
-    trimMessages(config.maxChatMessages);
+    if (requestController.signal.aborted) break;
+    messages = trimMessages(messages, config.maxChatMessages);
   }
 
+  if (abortController !== requestController) return;
   setState('idle');
-  if (abortController?.signal.aborted) {
+  if (requestController.signal.aborted) {
+    finishInterruptedToolCalls(messages);
     appendErrorBubble('Stopped.');
   }
   abortController = null;
@@ -346,6 +355,7 @@ stopBtn.addEventListener('click', () => {
 
 resetBtn.addEventListener('click', () => {
   abortController?.abort();
+  abortController = null;
   messages = [];
   messagesEl.innerHTML = '';
   showEmpty();

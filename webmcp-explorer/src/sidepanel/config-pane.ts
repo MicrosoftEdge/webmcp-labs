@@ -2,7 +2,7 @@
 // Licensed under the MIT License.
 
 import { loadConfig, saveConfig } from '../lib/storage';
-import type { ProviderConfig, ProviderMetadata } from '../lib/llm/provider';
+import type { Message, ProviderConfig, ProviderMetadata, ToolDefinition } from '../lib/llm/provider';
 import { PROVIDERS } from '../lib/llm/registry';
 
 // --- In-memory cache for per-provider configs ---
@@ -46,6 +46,12 @@ function renderProviderFields(def: ProviderMetadata | null) {
         </div>
       `).join('')}
     </div>`;
+  if (def.description) {
+    const description = document.createElement('p');
+    description.className = 'message-bar message-bar-info';
+    description.textContent = def.description;
+    providerFieldsContainer.prepend(description);
+  }
 }
 
 let previousProviderKey: string = '';
@@ -161,42 +167,69 @@ document.getElementById('config-save')!.addEventListener('click', async () => {
 });
 
 // Test connection
-document.getElementById('config-test')!.addEventListener('click', async () => {
+const testButton = document.getElementById('config-test') as HTMLButtonElement;
+testButton.addEventListener('click', async () => {
   const providerConfig = getProviderConfig();
   if (!providerConfig) return;
 
   showMessage('Testing connection…', 'info');
+  testButton.disabled = true;
 
   try {
     const meta = getProviderDef();
     if (!meta) return;
     const provider = await meta.createProvider(providerConfig);
+    const options = { onStatus: (message: string) => showMessage(message, 'info') };
 
-    await provider.sendMessage(
-      'You are a test.',
-      [{ role: 'user', content: 'Say ok' }],
-      []
-    );
+    if (meta.key !== 'prompt-api') {
+      await provider.sendMessage(
+        'You are a test.',
+        [{ role: 'user', content: 'Say ok' }],
+        []
+      );
+    }
 
     // For local providers, probe whether the model supports tool calling
-    if (meta.key === 'chat-completions') {
+    if (meta.key === 'chat-completions' || meta.key === 'prompt-api') {
+      const systemPrompt = 'Call test_tool with value "hello" exactly once. After receiving its result, repeat the result verbatim without calling another tool.';
+      const messages: Message[] = [{ role: 'user', content: 'Call the test_tool with value "hello"' }];
+      const tools: ToolDefinition[] = [{
+        name: 'test_tool',
+        description: 'A test tool that accepts a string value',
+        parameters: { type: 'object', properties: { value: { type: 'string' } }, required: ['value'] },
+      }];
       const toolProbe = await provider.sendMessage(
-        'You are a helpful assistant. You MUST call the provided tool.',
-        [{ role: 'user', content: 'Call the test_tool with value "hello"' }],
-        [{
-          name: 'test_tool',
-          description: 'A test tool that accepts a string value',
-          parameters: { type: 'object', properties: { value: { type: 'string' } }, required: ['value'] },
-        }]
+        systemPrompt, messages, tools, options,
       );
       if (toolProbe.toolCalls.length === 0) {
+        if (meta.key === 'prompt-api') {
+          throw new Error('The built-in model did not return a native tool call. Native tool calling is required; no fallback is used.');
+        }
         showMessage('Connected, but the model did not use tool calling. Tool-based features may not work with this model.', 'warning');
         return;
+      }
+      if (meta.key === 'prompt-api') {
+        const [call] = toolProbe.toolCalls;
+        if (toolProbe.toolCalls.length !== 1 || call.name !== 'test_tool' ||
+            JSON.parse(call.arguments)?.value !== 'hello') {
+          throw new Error('The built-in model returned an unexpected tool call or arguments.');
+        }
+        const toolResult = 'prompt-api-test-ok';
+        messages.push(
+          { role: 'assistant', content: toolProbe.text ?? '', toolCalls: toolProbe.toolCalls },
+          { role: 'tool', toolCallId: call.id, content: toolResult },
+        );
+        const completion = await provider.sendMessage(systemPrompt, messages, tools, options);
+        if (completion.toolCalls.length > 0 || !completion.text?.includes(toolResult)) {
+          throw new Error('The built-in model did not complete the native tool-result round trip.');
+        }
       }
     }
 
     showMessage('Connection successful!', 'success');
   } catch (e) {
     showMessage(`Connection failed: ${e instanceof Error ? e.message : String(e)}`, 'error');
+  } finally {
+    testButton.disabled = false;
   }
 });

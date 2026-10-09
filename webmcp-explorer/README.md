@@ -5,7 +5,7 @@ A browser extension for inspecting, debugging, and interacting with WebMCP-enabl
 ## Prerequisites
 
 - A Chromium-based browser (e.g. Edge or Chrome)
-- An LLM API key (see [Provider Setup](#provider-setup))
+- An LLM provider: a cloud API key, a local endpoint, or a browser with native Prompt API tool calling (see [Provider Setup](#provider-setup))
 
 ## Load the WebMCP Explorer extension
 
@@ -82,6 +82,23 @@ Use any OpenAI-compatible endpoint, local or remote. Works with Ollama, LM Studi
 | **Model** | Model name served by the endpoint (e.g. `llama3`, `mistral`) |
 
 > **Note:** The model must support tool calling. When you click **Test Connection**, the extension sends a probe request with a dummy tool. If the model doesn't return a tool call, you'll see a warning that tool-based features may not work.
+
+### Prompt API (built-in, experimental)
+
+Use the browser-provided language model directly from the extension side panel. No API key, endpoint, or model name is required; the browser manages the model.
+
+1. Use a browser build that implements the [Prompt API native tool-use contract](https://github.com/webmachinelearning/prompt-api#tool-use). The basic text-only Prompt API is not sufficient. The required globals are `LanguageModel`, `LanguageModelToolCall`, `LanguageModelToolSuccess`, and `LanguageModelToolError`, with support for `tool-call` and `tool-response` content.
+1. Enable the API as needed for your browser. See [Chrome's Prompt API documentation](https://developer.chrome.com/docs/ai/prompt-api) and [Edge's setup instructions](https://learn.microsoft.com/en-us/microsoft-edge/web-platform/prompt-api#enable-the-prompt-api). Availability depends on the browser build, model, device, and flags; enabling the base API does not guarantee native tool support.
+1. Select **Prompt API (built-in, experimental)** in **Config**, then click **Save**. Saving does not download or load a model.
+1. Click **Test Connection** to prepare the model and verify a harmless native tool call, tool result, and final answer. The first use may download the model; progress appears in the panel.
+
+Unsupported APIs, models, or response formats produce an error. There is no fallback to JSON-based tool calling, a cloud provider, or another model. Chat and Agent continue to execute tools through the existing WebMCP bridge, including Agent's step mode and built-in tools.
+
+The model availability check can be stopped and reports an error if the browser does not respond within 30 seconds. This limit applies only to availability, not model downloads or inference. In Chrome builds with native tool use, enable both `chrome://flags/#prompt-api` and `chrome://flags/#prompt-api-tool-use`. If preparation stalls, inspect `chrome://on-device-internals` for model provisioning and device eligibility; exposed JavaScript interfaces alone do not mean a model is ready.
+
+Each model request uses a fresh session with the current history and tools, and releases the session afterward. Stop cancels model preparation or inference. Stopping does not undo page-tool effects. Chat retains complete tool exchanges when trimming history, so the most recent exchange can exceed the configured message cap. Browser context limits still apply; a request that cannot fit reports an error.
+
+On-device inference does not make page tools offline or private: the tools themselves can still access the network or change page state. Use trusted pages as described in the disclaimer below.
 
 ## Extension tabs
 

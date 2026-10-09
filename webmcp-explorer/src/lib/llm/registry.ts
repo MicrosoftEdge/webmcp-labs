@@ -6,6 +6,7 @@ import { providerMetadata as openai } from './openai';
 import { providerMetadata as azureOpenai } from './azure-openai';
 import { providerMetadata as anthropic } from './anthropic';
 import { providerMetadata as chatCompletions } from './chat-completions';
+import { providerMetadata as promptApi } from './prompt-api';
 
 /** All registered LLM providers. To add a new provider, import its metadata here. */
-export const PROVIDERS: ProviderMetadata[] = [openai, azureOpenai, anthropic, chatCompletions];
+export const PROVIDERS: ProviderMetadata[] = [openai, azureOpenai, anthropic, chatCompletions, promptApi];
