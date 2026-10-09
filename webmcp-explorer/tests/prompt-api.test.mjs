@@ -83,7 +83,7 @@ test('factory is lightweight: saving configuration does not load or download a m
   assert.equal(sessions.length, 0);
 });
 
-test('text-only answers still use the native content-array contract', async () => {
+test('accepts text-only answers in native content arrays', async () => {
   const controller = new AbortController();
   const result = await send([userMessage], [], { signal: controller.signal });
   assert.deepEqual(result, { text: 'Done', toolCalls: [] });
@@ -97,6 +97,28 @@ test('text-only answers still use the native content-array contract', async () =
   assert.equal(session.prompts[0].options.signal, controller.signal);
   assert.equal(session.destroyed, 1);
   assert.deepEqual(availabilityOptions[0].tools, session.options.tools);
+});
+
+for (const text of ['Done', '{"toolCalls":[{"name":"lookup","arguments":{}}]}']) {
+  test(`treats string response as text only, never as tool calls: ${text}`, async () => {
+    response = text;
+    assert.deepEqual(await send(), { text, toolCalls: [] });
+    assert.equal(sessions[0].destroyed, 1);
+  });
+}
+
+test('reads native tool-call getter properties even when JSON serialization is empty', async () => {
+  const nativeCall = Object.create({
+    get callId() { return 'native-getter-id'; },
+    get name() { return 'lookup'; },
+    get arguments() { return { value: 'hello' }; },
+  });
+  assert.equal(JSON.stringify(nativeCall), '{}');
+  response = [{ type: 'tool-call', value: nativeCall }];
+  assert.deepEqual(await send(), {
+    text: null,
+    toolCalls: [{ id: 'native-getter-id', name: 'lookup', arguments: '{"value":"hello"}' }],
+  });
 });
 
 test('maps native text and multiple tool calls without executing them', async () => {
@@ -181,6 +203,26 @@ test('completes a native tool request, application result, and final-answer roun
     callId: 'opaque-native-id', name: 'lookup', result: [{ type: 'text', value: 'found' }],
   }));
   assert.deepEqual(completion, { text: 'The result was found.', toolCalls: [] });
+  assert.ok(sessions.every(session => session.destroyed === 1));
+});
+
+test('completes the Edge native-call then plain-string final-answer round trip', async () => {
+  response = [{
+    type: 'tool-call',
+    value: new LanguageModelToolCall({ callId: 'edge-native-id', name: 'lookup', arguments: { value: 'hello' } }),
+  }];
+  const request = await send();
+  response = 'The test_tool function was called with "hello" and returned a success response: **prompt-api-test-ok**.';
+  const completion = await send([
+    userMessage,
+    { role: 'assistant', content: '', toolCalls: request.toolCalls },
+    { role: 'tool', toolCallId: 'edge-native-id', content: 'prompt-api-test-ok' },
+  ]);
+  assert.deepEqual(completion, { text: response, toolCalls: [] });
+  const nativeResult = sessions[1].prompts[0].messages.at(-1).content[0].value;
+  assert.ok(nativeResult instanceof LanguageModelToolSuccess);
+  assert.equal(nativeResult.callId, 'edge-native-id');
+  assert.deepEqual(nativeResult.result, [{ type: 'text', value: 'prompt-api-test-ok' }]);
   assert.ok(sessions.every(session => session.destroyed === 1));
 });
 
@@ -344,8 +386,9 @@ test('inference failures propagate and release the session', async () => {
 });
 
 for (const [name, invalidResponse] of [
-  ['plain text', 'Done'],
-  ['JSON pretending to be tool calls', '{"toolCalls":[{"name":"lookup","arguments":{}}]}'],
+  ['empty string', ''],
+  ['whitespace string', ' \n\t '],
+  ['unexpected response object', { toolCalls: [] }],
   ['empty content', []],
   ['null content', [null]],
   ['unsupported content', [{ type: 'image', value: 'image' }]],

@@ -94,6 +94,8 @@ Use the browser-provided language model directly from the extension side panel. 
 
 Unsupported APIs, models, or response formats produce an error. There is no fallback to JSON-based tool calling, a cloud provider, or another model. Chat and Agent continue to execute tools through the existing WebMCP bridge, including Agent's step mode and built-in tools.
 
+Text-only replies can be native content arrays or plain strings, as returned by some browser implementations after a tool result. Strings are displayed only as text, never parsed into tool calls. Test Connection still requires an actual native tool call and successful result replay.
+
 The model availability check can be stopped and reports an error if the browser does not respond within 30 seconds. This limit applies only to availability, not model downloads or inference. In Chrome builds with native tool use, enable both `chrome://flags/#prompt-api` and `chrome://flags/#prompt-api-tool-use`. If preparation stalls, inspect `chrome://on-device-internals` for model provisioning and device eligibility; exposed JavaScript interfaces alone do not mean a model is ready.
 
 Each model request uses a fresh session with the current history and tools, and releases the session afterward. Stop cancels model preparation or inference. Stopping does not undo page-tool effects. Chat retains complete tool exchanges when trimming history, so the most recent exchange can exceed the configured message cap. Browser context limits still apply; a request that cannot fit reports an error.

@@ -187,6 +187,19 @@ test('Config saves a zero-field provider and verifies native tool replay', async
   assert.ok(await page.locator('#config-test').isEnabled());
 });
 
+test('Config accepts Edge native tool calls followed by a plain-string final answer', async () => {
+  await loadFixtures();
+  await tab('Config');
+  await queue(call('test_tool'),
+    'The test_tool function was called with "hello" and returned a success response: **prompt-api-test-ok**.');
+  await click('#config-test');
+  await textIncludes('#config-message', 'Connection successful!');
+  const sessions = await page.evaluate(() => fixture.sessions);
+  assert.equal(sessions.length, 2);
+  assert.equal(sessions[1].prompts[0].at(-1).content[0].value.result[0].value, 'prompt-api-test-ok');
+  assert.ok(sessions.every(session => session.destroyed === 1));
+});
+
 test('missing native API displays errors in Config, Chat, and Agent without fallback', async () => {
   await loadFixtures();
   await page.evaluate(() => { delete globalThis.LanguageModelToolCall; });
@@ -217,7 +230,7 @@ test('Chat Stop recovers while native availability is still pending', async () =
 
 test('Chat executes through the bridge and feeds native success and error results back', async () => {
   await loadFixtures();
-  await queue(call(), answer('First lookup complete'));
+  await queue(call(), 'First lookup complete');
   await sendChat();
   await textIncludes('#chat-messages', 'First lookup complete');
   await page.evaluate(() => { fixture.toolError = true; });
@@ -314,6 +327,20 @@ test('Agent step mode executes only on approval and replays the result before co
   const sessions = await page.evaluate(() => fixture.sessions);
   assert.equal(sessions[1].prompts[0].at(-1).content[0].value.result[0].value, 'found');
   assert.ok(sessions.every(session => session.destroyed === 1));
+});
+
+test('Agent accepts a plain-string answer after a native page-tool round trip', async () => {
+  await loadFixtures();
+  await tab('Agent');
+  await page.locator('#agent-goal').fill('Look up hello');
+  await queue(call(), 'The lookup returned found.');
+  await click('#agent-run');
+  await textIncludes('#agent-status', 'Agent finished.');
+  await textIncludes('#agent-detail', 'The lookup returned found.');
+  const state = await page.evaluate(() => ({ sessions: fixture.sessions, executions: fixture.executions }));
+  assert.equal(state.executions.length, 1);
+  assert.equal(state.sessions[1].prompts[0].at(-1).content[0].value.result[0].value, 'found');
+  assert.ok(state.sessions.every(session => session.destroyed === 1));
 });
 
 test('Agent replays ask_user replies without dispatching built-in tools to the page', async () => {
