@@ -53,6 +53,22 @@ test('Markdown guides include every suggested playground prompt', () => {
   }
 });
 
+test('The demo precedes collapsed documentation and the API reference', () => {
+  for (const demo of ['event-search', 'idea-board']) {
+    const html = readDemoFile(demo, 'index.html');
+    const preview = html.indexOf('class="browser-chrome demo-preview"');
+    const documentation = html.indexOf('class="playground-documentation"');
+    const reference = html.indexOf('class="api-reference"');
+    assert(preview > 0 && preview < documentation && documentation < reference);
+    assert(html.indexOf('class="code-pane"') > documentation);
+    assert(html.indexOf('id="prompt-status"') > documentation);
+    assert(html.indexOf('id="playground-tools"') > documentation);
+    const sections = [...html.matchAll(/<details class="playground-(setup|guidance|observation)"([^>]*)>/g)];
+    assert.equal(sections.length, 3);
+    for (const [, , attributes] of sections) assert(!/\bopen\b/.test(attributes));
+  }
+});
+
 test('Markdown input schemas match the actual tool registrations', () => {
   const { context, registeredTools, getVisibleTools } = createBoardFixture();
   context.addSticky('First');

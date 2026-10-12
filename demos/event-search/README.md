@@ -17,6 +17,10 @@ does not retrieve real events, reserve tickets, or make payments.
 3. Open the playground and the agent on that page. Select a lesson before
    sending its prompt. Copying a prompt does not invoke a tool.
 
+The demo comes first. Below it, expand **Setup and suggested prompts**,
+**Code examples and API explanations**, or **Form parameters and submission
+activity** as needed. The API reference and Markdown link are below the demo.
+
 The page detects the presence of `document.modelContext`, not an agent connection
 or a guarantee that this browser supports every declarative attribute. Check the
 agent's tool list to confirm exposure. Code and this guide remain readable when

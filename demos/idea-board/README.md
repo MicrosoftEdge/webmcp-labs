@@ -16,6 +16,10 @@ schemas, and expected transitions without requiring the visual page.
 3. Open the playground and the agent on that page. Send the prompts below one
    at a time. Copying a prompt does not execute a tool.
 
+The board comes first. Below it, expand **Setup and suggested prompts**,
+**Code examples and API explanations**, or **Registered tools and activity**
+as needed. The API reference and Markdown link are below the board.
+
 The page checks for `document.modelContext.registerTool`. API support is not an
 agent connection indicator. Without the API, no tools are registered, but the
 code examples and this guide remain readable.

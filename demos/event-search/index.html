@@ -16,20 +16,7 @@
   <header class="page-header">
     <h1>Event Search - Declarative WebMCP API Playground</h1>
     <p>Ask an agent to fill a form, compare who submits it, and see how a custom response reaches the agent.</p>
-    <p><a href="README.md">Read the Markdown guide</a> · <a href="../idea-board/">Explore the imperative playground</a></p>
   </header>
-
-  <section class="playground-setup" aria-labelledby="setup-heading">
-    <h2 id="setup-heading">Connect your agent</h2>
-    <p id="webmcp-status" class="webmcp-status" data-api="declarative" role="status">Checking browser API support...</p>
-    <ol>
-      <li>Use an up-to-date Edge Canary or Dev, enable <code>about://flags/#enable-webmcp-testing</code>, and restart. See the <a href="https://github.com/MicrosoftEdge/webmcp-labs#test-webmcp-in-edge">browser setup</a>.</li>
-      <li>Load and configure <a href="https://github.com/MicrosoftEdge/webmcp-labs/tree/main/webmcp-explorer#load-the-webmcp-explorer-extension">WebMCP Explorer</a>, or use another agent with WebMCP tool access.</li>
-      <li>Open the agent on this page. Select a lesson below, then paste its prompt into the agent. Copying a prompt does not execute it.</li>
-    </ol>
-    <p>This is a simulated search, not a ticket service. Form fills before submission are not logged here; watch the fields and your agent's tool activity.</p>
-    <p id="prompt-status" role="status"></p>
-  </section>
 
   <!-- Tab bar -->
   <nav class="tab-bar" role="tablist">
@@ -47,17 +34,7 @@
       <strong>Search</strong> to submit. Only <code>toolname</code> and
       <code>tooldescription</code> are required.
     </p>
-    <div class="prompt-card">
-      <p id="prompt-manual">Use search-events-manual to find concert tickets for an artist named Example Band in Seattle on 2030-06-15. Fill the form and wait for me to review and submit.</p>
-      <button type="button" class="copy-prompt" data-copy-prompt="prompt-manual">Copy prompt</button>
-    </div>
-    <aside class="lesson-callout">
-      <strong>Watch the handoff</strong>
-      <p>The agent fills the fields, but the tool invocation waits for you to click <strong>Search</strong>. A click during an active invocation is still agent-invoked; an ordinary submission outside an invocation is not.</p>
-    </aside>
-
-    <div class="split-layout">
-    <div class="browser-chrome">
+    <div class="browser-chrome demo-preview">
       <div class="browser-toolbar">
         <span class="browser-dots"><i></i><i></i><i></i></span>
         <span class="browser-url">https://eventfinder.com/search</span>
@@ -111,12 +88,6 @@
         </div>
       </div>
     </div>
-
-    <div class="code-pane">
-      <h3 class="code-caption">How it works: an HTML form becomes a tool</h3>
-      <pre class="code-block" tabindex="0" aria-label="Manual review code example"><code id="code-manual"></code></pre>
-    </div>
-    </div>
   </section>
 
   <!-- ================================================================
@@ -127,17 +98,7 @@
       Adding <code>toolautosubmit</code> lets the agent fill <em>and</em> submit
       the form automatically, no manual click required.
     </p>
-    <div class="prompt-card">
-      <p id="prompt-auto">Use search-events-auto to find concert tickets for an artist named Example Band in Seattle on 2030-06-15.</p>
-      <button type="button" class="copy-prompt" data-copy-prompt="prompt-auto">Copy prompt</button>
-    </div>
-    <aside class="lesson-callout">
-      <strong>One attribute changes who submits</strong>
-      <p>With <code>toolautosubmit</code>, the agent can submit without a manual click. The normal form remains usable by a person. Compare the submission activity below with Manual Review.</p>
-    </aside>
-
-    <div class="split-layout">
-    <div class="browser-chrome">
+    <div class="browser-chrome demo-preview">
       <div class="browser-toolbar">
         <span class="browser-dots"><i></i><i></i><i></i></span>
         <span class="browser-url">https://eventfinder.com/search</span>
@@ -192,12 +153,6 @@
         </div>
       </div>
     </div>
-
-    <div class="code-pane">
-      <h3 class="code-caption">How it works: add toolautosubmit</h3>
-      <pre class="code-block" tabindex="0" aria-label="Auto submit code example"><code id="code-auto"></code></pre>
-    </div>
-    </div>
   </section>
 
   <!-- ================================================================
@@ -209,17 +164,7 @@
       submissions, run your own logic, and return a custom value to the
       agent via <code>event.respondWith()</code>.
     </p>
-    <div class="prompt-card">
-      <p id="prompt-custom">Use search-events-custom to find concert tickets for an artist named Example Band in Seattle on 2030-06-15. Tell me the tool's returned result.</p>
-      <button type="button" class="copy-prompt" data-copy-prompt="prompt-custom">Copy prompt</button>
-    </div>
-    <aside class="lesson-callout">
-      <strong>Compare the page and agent responses</strong>
-      <p>The page shows a confirmation; the agent receives a simulated result string. The handler checks <code>agentInvoked</code>, calls <code>preventDefault()</code>, and passes a Promise to <code>respondWith()</code>.</p>
-    </aside>
-
-    <div class="split-layout">
-    <div class="browser-chrome">
+    <div class="browser-chrome demo-preview">
       <div class="browser-toolbar">
         <span class="browser-dots"><i></i><i></i><i></i></span>
         <span class="browser-url">https://eventfinder.com/search</span>
@@ -274,24 +219,69 @@
         </div>
       </div>
     </div>
-
-    <div class="code-pane">
-      <h3 class="code-caption">How it works: return a result to the agent</h3>
-      <pre class="code-block" tabindex="0" aria-label="Custom response code example"><code id="code-custom"></code></pre>
-    </div>
-    </div>
   </section>
 
-  <section class="playground-observation" aria-labelledby="observation-heading">
-    <h2 id="observation-heading">Watch this page</h2>
-    <h3>Form tool configured for this lesson</h3>
-    <p>The name below comes from the active form's attributes. Your agent's tool list confirms whether the browser exposes it. Switching lessons removes the previous form from the document.</p>
-    <ul id="playground-tools" class="playground-tools"></ul>
-    <h3>Submission activity</h3>
-    <p id="activity-empty">No submissions yet. Ask your agent to try the selected lesson.</p>
-    <p>This page shows its last 10 submissions and lesson changes, newest first. It cannot observe the agent's reasoning or connection state.</p>
-    <p id="activity-status" class="visually-hidden" role="status"></p>
-    <ol id="playground-activity" class="playground-activity" tabindex="0" aria-label="Recent page activity"></ol>
+  <section class="playground-documentation" aria-labelledby="documentation-heading">
+    <h2 id="documentation-heading">Documentation</h2>
+    <p><a href="README.md">Read the Markdown guide</a> · <a href="../idea-board/">Explore the imperative playground</a></p>
+
+    <details class="playground-setup">
+      <summary>Setup and suggested prompts</summary>
+      <p id="webmcp-status" class="webmcp-status" data-api="declarative" role="status">Checking browser API support...</p>
+      <ol>
+        <li>Use an up-to-date Edge Canary or Dev, enable <code>about://flags/#enable-webmcp-testing</code>, and restart. See the <a href="https://github.com/MicrosoftEdge/webmcp-labs#test-webmcp-in-edge">browser setup</a>.</li>
+        <li>Load and configure <a href="https://github.com/MicrosoftEdge/webmcp-labs/tree/main/webmcp-explorer#load-the-webmcp-explorer-extension">WebMCP Explorer</a>, or use another agent with WebMCP tool access.</li>
+        <li>Open the agent on this page. Select a demo tab above, then paste its prompt into the agent. Copying a prompt does not execute it.</li>
+      </ol>
+      <p>This is a simulated search, not a ticket service. Form fills before submission are not logged here; watch the fields and your agent's tool activity.</p>
+      <h3>Manual Review</h3>
+      <div class="prompt-card">
+        <p id="prompt-manual">Use search-events-manual to find concert tickets for an artist named Example Band in Seattle on 2030-06-15. Fill the form and wait for me to review and submit.</p>
+        <button type="button" class="copy-prompt" data-copy-prompt="prompt-manual">Copy prompt</button>
+      </div>
+      <h3>Auto Submit</h3>
+      <div class="prompt-card">
+        <p id="prompt-auto">Use search-events-auto to find concert tickets for an artist named Example Band in Seattle on 2030-06-15.</p>
+        <button type="button" class="copy-prompt" data-copy-prompt="prompt-auto">Copy prompt</button>
+      </div>
+      <h3>Custom Response</h3>
+      <div class="prompt-card">
+        <p id="prompt-custom">Use search-events-custom to find concert tickets for an artist named Example Band in Seattle on 2030-06-15. Tell me the tool's returned result.</p>
+        <button type="button" class="copy-prompt" data-copy-prompt="prompt-custom">Copy prompt</button>
+      </div>
+      <p id="prompt-status" role="status"></p>
+    </details>
+
+    <details class="playground-guidance">
+      <summary>Code examples and API explanations</summary>
+      <h3>Manual Review: an HTML form becomes a tool</h3>
+      <p>The agent fills the fields, but the tool invocation waits for you to click <strong>Search</strong>. A click during an active invocation is still agent-invoked; an ordinary submission outside an invocation is not.</p>
+      <div class="code-pane">
+        <pre class="code-block" tabindex="0" aria-label="Manual review code example"><code id="code-manual"></code></pre>
+      </div>
+      <h3>Auto Submit: add toolautosubmit</h3>
+      <p>With <code>toolautosubmit</code>, the agent can submit without a manual click. The normal form remains usable by a person. Compare the submission activity with Manual Review.</p>
+      <div class="code-pane">
+        <pre class="code-block" tabindex="0" aria-label="Auto submit code example"><code id="code-auto"></code></pre>
+      </div>
+      <h3>Custom Response: return a result to the agent</h3>
+      <p>The page shows a confirmation; the agent receives a simulated result string. The handler checks <code>agentInvoked</code>, calls <code>preventDefault()</code>, and passes a Promise to <code>respondWith()</code>.</p>
+      <div class="code-pane">
+        <pre class="code-block" tabindex="0" aria-label="Custom response code example"><code id="code-custom"></code></pre>
+      </div>
+    </details>
+
+    <details class="playground-observation">
+      <summary>Form parameters and submission activity</summary>
+      <h3>Form tool configured for this lesson</h3>
+      <p>The name below comes from the active form's attributes. Your agent's tool list confirms whether the browser exposes it. Switching lessons removes the previous form from the document.</p>
+      <ul id="playground-tools" class="playground-tools"></ul>
+      <h3>Submission activity</h3>
+      <p id="activity-empty">No submissions yet. Ask your agent to try the selected lesson.</p>
+      <p>This page shows its last 10 submissions and lesson changes, newest first. It cannot observe the agent's reasoning or connection state.</p>
+      <p id="activity-status" class="visually-hidden" role="status"></p>
+      <ol id="playground-activity" class="playground-activity" tabindex="0" aria-label="Recent page activity"></ol>
+    </details>
   </section>
 
   <!-- ================================================================

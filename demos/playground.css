@@ -1,36 +1,50 @@
 /* Copyright (c) Microsoft Corporation. Licensed under the MIT License. */
 
+.demo-preview {
+  max-width: 900px;
+}
+
+.playground-documentation {
+  margin-top: 2rem;
+  padding-top: 1.5rem;
+  border-top: 1px solid #e0e0e0;
+}
+
+.playground-documentation h2 {
+  margin: 0 0 0.75rem;
+  font-size: 1.25rem;
+}
+
 .playground-setup,
+.playground-guidance,
 .playground-observation {
-  margin: 1.5rem 0;
-  padding: 1.25rem;
+  margin: 0.75rem 0;
+  padding: 0.875rem 1rem;
   background: #fff;
   border: 1px solid #e0e0e0;
   border-radius: 8px;
 }
 
-.playground-setup h2,
-.playground-observation h2 {
-  margin: 0 0 0.75rem;
-  font-size: 1.125rem;
+.playground-documentation > details > summary {
+  font-weight: 600;
+  cursor: pointer;
 }
 
 .playground-setup h3,
+.playground-guidance h3,
 .playground-observation h3 {
   margin: 1.25rem 0 0.5rem;
   font-size: 1rem;
 }
 
 .playground-setup p,
-.playground-observation p,
-.lesson-callout p {
+.playground-guidance > p,
+.playground-observation p {
   margin: 0.5rem 0;
   line-height: 1.7;
 }
 
-.playground-setup a,
-.playground-observation a,
-.page-header a {
+.playground-documentation a {
   color: #006cbe;
   text-underline-offset: 0.2em;
 }
@@ -44,8 +58,7 @@
   margin-top: 0.5rem;
 }
 
-.webmcp-status,
-.lesson-callout {
+.webmcp-status {
   padding: 0.875rem 1rem;
   border-left: 3px solid #0078d4;
   background: #f0f7fc;
@@ -142,38 +155,24 @@
 }
 
 .playground-setup code,
-.playground-observation code,
-.lesson-callout code {
+.playground-guidance > p code,
+.playground-observation code {
   font-family: "Cascadia Code", "Consolas", "Courier New", monospace;
   font-size: 0.875em;
 }
 
 .playground-setup,
+.playground-guidance,
 .playground-observation,
-.lesson-callout,
 .code-explanation {
   overflow-wrap: anywhere;
 }
 
-.lesson-callout {
-  margin: 1rem 0 1.5rem;
-}
-
-.code-caption,
 .code-explanation {
   margin: 0;
   padding: 0.875rem 1.25rem;
   color: #d4d4d4;
   border-bottom: 1px solid #333;
-}
-
-.code-caption {
-  font-size: 0.875rem;
-  font-weight: 600;
-  background: #252525;
-}
-
-.code-explanation {
   font-size: 0.875rem;
   line-height: 1.65;
 }
@@ -182,8 +181,8 @@
 .playground-tools summary:focus-visible,
 .playground-tools pre:focus-visible,
 .playground-activity:focus-visible,
-.playground-setup a:focus-visible,
-.page-header a:focus-visible {
+.playground-documentation a:focus-visible,
+.playground-documentation > details > summary:focus-visible {
   outline: 2px solid #0078d4;
   outline-offset: 2px;
 }

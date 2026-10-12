@@ -16,86 +16,83 @@
   <header class="page-header">
     <h1>Idea Board - Imperative WebMCP API Playground</h1>
     <p>A sticky board powered by AI. Tools register and unregister dynamically based on what's on the board.</p>
-    <p><a href="README.md">Read the Markdown guide</a> · <a href="../event-search/">Explore the declarative playground</a></p>
   </header>
 
-  <section class="playground-setup" aria-labelledby="setup-heading">
-    <h2 id="setup-heading">Connect your agent</h2>
-    <p id="webmcp-status" class="webmcp-status" data-api="imperative" role="status">Checking browser API support...</p>
-    <ol>
-      <li>Use an up-to-date Edge Canary or Dev, enable <code>about://flags/#enable-webmcp-testing</code>, and restart. See the <a href="https://github.com/MicrosoftEdge/webmcp-labs#test-webmcp-in-edge">browser setup</a>.</li>
-      <li>Load and configure <a href="https://github.com/MicrosoftEdge/webmcp-labs/tree/main/webmcp-explorer#load-the-webmcp-explorer-extension">WebMCP Explorer</a>, or use another agent with WebMCP tool access.</li>
-      <li>Open the agent on this page. Paste one prompt at a time and watch the available tools and results below.</li>
-    </ol>
-    <h3>Try the lifecycle</h3>
-    <div class="prompt-card">
-      <p id="prompt-add">Add exactly three ideas for a weekend project to the board, using one sticky per idea. Then list the stickies and their IDs.</p>
-      <button type="button" class="copy-prompt" data-copy-prompt="prompt-add">Copy add prompt</button>
+  <div class="browser-chrome demo-preview">
+    <div class="browser-toolbar">
+      <span class="browser-dots"><i></i><i></i><i></i></span>
+      <span class="browser-url">https://ideaboard.app/workspace</span>
     </div>
-    <div class="prompt-card">
-      <p id="prompt-group">List the stickies, then group all of their IDs under "Weekend projects".</p>
-      <button type="button" class="copy-prompt" data-copy-prompt="prompt-group">Copy group prompt</button>
+    <div class="site-header">
+      <span class="site-logo">💡</span>
+      <span class="site-name">IdeaBoard</span>
     </div>
-    <div class="prompt-card">
-      <p id="prompt-clear">Clear the board. Then list the stickies to confirm it is empty.</p>
-      <button type="button" class="copy-prompt" data-copy-prompt="prompt-clear">Copy clear prompt</button>
+    <div class="board" id="board">
+      <div class="board-empty" id="board-empty">No stickies yet. Ask your WebMCP-enabled agent to add ideas. Suggested prompts are below.</div>
+      <div class="board-grid" id="board-grid"></div>
+      <div class="tool-badge" id="tool-badge">0 tools</div>
     </div>
-    <p id="prompt-status" role="status"></p>
-  </section>
-
-  <aside class="lesson-callout">
-    <strong>Watch the tools change, not just the stickies</strong>
-    <p>Add and list are always available when WebMCP is supported. The first sticky enables edit and clear; three stickies enable grouping. Clearing the board unregisters those three tools. Reloading resets the board and activity.</p>
-  </aside>
-
-  <!-- Main content -->
-  <div class="split-layout">
-
-    <!-- Left: browser chrome with IdeaBoard app -->
-    <div class="browser-chrome">
-      <div class="browser-toolbar">
-        <span class="browser-dots"><i></i><i></i><i></i></span>
-        <span class="browser-url">https://ideaboard.app/workspace</span>
-      </div>
-      <div class="site-header">
-        <span class="site-logo">💡</span>
-        <span class="site-name">IdeaBoard</span>
-      </div>
-      <div class="board" id="board">
-        <div class="board-empty" id="board-empty">No stickies yet. Paste the add prompt into your WebMCP-enabled agent to start.</div>
-        <div class="board-grid" id="board-grid"></div>
-        <div class="tool-badge" id="tool-badge">0 tools</div>
-      </div>
-    </div>
-
-    <!-- Right: code pane -->
-    <div class="code-pane">
-      <nav class="code-tab-bar" role="tablist">
-        <button class="code-tab active" role="tab" aria-selected="true" data-tab="register">Register</button>
-        <button class="code-tab" role="tab" aria-selected="false" data-tab="dynamic">Unregister</button>
-      </nav>
-      <div class="code-panel active" id="code-register">
-        <p class="code-explanation">How it works: register an input schema and an execute callback for each always-available tool.</p>
-        <pre class="code-block" tabindex="0" aria-label="Tool registration code example"><code id="code-register-display"></code></pre>
-      </div>
-      <div class="code-panel" id="code-dynamic">
-        <p class="code-explanation">How it works: the registration's options.signal controls the tool's lifetime. Calling abort() unregisters it. This is separate from the signal passed to execute for canceling an invocation.</p>
-        <pre class="code-block" tabindex="0" aria-label="Tool unregistration code example"><code id="code-dynamic-display"></code></pre>
-      </div>
-    </div>
-
   </div>
 
-  <section class="playground-observation" aria-labelledby="observation-heading">
-    <h2 id="observation-heading">Watch this page</h2>
-    <h3>Tools registered by this demo</h3>
-    <p id="tool-availability-status" role="status">No tools registered yet.</p>
-    <ul id="playground-tools" class="playground-tools"></ul>
-    <h3>Tool results and lifecycle changes</h3>
-    <p id="activity-empty">No tool calls yet. Ask your agent to add ideas.</p>
-    <p>This page shows its last 10 tool results and availability changes, newest first. Use your agent's own activity view for its full trace. This is not an agent connection indicator.</p>
-    <p id="activity-status" class="visually-hidden" role="status"></p>
-    <ol id="playground-activity" class="playground-activity" tabindex="0" aria-label="Recent page activity"></ol>
+  <section class="playground-documentation" aria-labelledby="documentation-heading">
+    <h2 id="documentation-heading">Documentation</h2>
+    <p><a href="README.md">Read the Markdown guide</a> · <a href="../event-search/">Explore the declarative playground</a></p>
+
+    <details class="playground-setup">
+      <summary>Setup and suggested prompts</summary>
+      <p id="webmcp-status" class="webmcp-status" data-api="imperative" role="status">Checking browser API support...</p>
+      <ol>
+        <li>Use an up-to-date Edge Canary or Dev, enable <code>about://flags/#enable-webmcp-testing</code>, and restart. See the <a href="https://github.com/MicrosoftEdge/webmcp-labs#test-webmcp-in-edge">browser setup</a>.</li>
+        <li>Load and configure <a href="https://github.com/MicrosoftEdge/webmcp-labs/tree/main/webmcp-explorer#load-the-webmcp-explorer-extension">WebMCP Explorer</a>, or use another agent with WebMCP tool access.</li>
+        <li>Open the agent on this page. Paste one prompt at a time and watch the available tools and results below.</li>
+      </ol>
+      <h3>Try the lifecycle</h3>
+      <div class="prompt-card">
+        <p id="prompt-add">Add exactly three ideas for a weekend project to the board, using one sticky per idea. Then list the stickies and their IDs.</p>
+        <button type="button" class="copy-prompt" data-copy-prompt="prompt-add">Copy add prompt</button>
+      </div>
+      <div class="prompt-card">
+        <p id="prompt-group">List the stickies, then group all of their IDs under "Weekend projects".</p>
+        <button type="button" class="copy-prompt" data-copy-prompt="prompt-group">Copy group prompt</button>
+      </div>
+      <div class="prompt-card">
+        <p id="prompt-clear">Clear the board. Then list the stickies to confirm it is empty.</p>
+        <button type="button" class="copy-prompt" data-copy-prompt="prompt-clear">Copy clear prompt</button>
+      </div>
+      <p id="prompt-status" role="status"></p>
+    </details>
+
+    <details class="playground-guidance">
+      <summary>Code examples and API explanations</summary>
+      <h3>Watch the tools change, not just the stickies</h3>
+      <p>Add and list are always available when WebMCP is supported. The first sticky enables edit and clear; three stickies enable grouping. Clearing the board unregisters those three tools. Reloading resets the board and activity.</p>
+      <div class="code-pane">
+        <nav class="code-tab-bar" role="tablist">
+          <button class="code-tab active" role="tab" aria-selected="true" data-tab="register">Register</button>
+          <button class="code-tab" role="tab" aria-selected="false" data-tab="dynamic">Unregister</button>
+        </nav>
+        <div class="code-panel active" id="code-register">
+          <p class="code-explanation">How it works: register an input schema and an execute callback for each always-available tool.</p>
+          <pre class="code-block" tabindex="0" aria-label="Tool registration code example"><code id="code-register-display"></code></pre>
+        </div>
+        <div class="code-panel" id="code-dynamic">
+          <p class="code-explanation">How it works: the registration's options.signal controls the tool's lifetime. Calling abort() unregisters it. This is separate from the signal passed to execute for canceling an invocation.</p>
+          <pre class="code-block" tabindex="0" aria-label="Tool unregistration code example"><code id="code-dynamic-display"></code></pre>
+        </div>
+      </div>
+    </details>
+
+    <details class="playground-observation">
+      <summary>Registered tools and activity</summary>
+      <h3>Tools registered by this demo</h3>
+      <p id="tool-availability-status" role="status">No tools registered yet.</p>
+      <ul id="playground-tools" class="playground-tools"></ul>
+      <h3>Tool results and lifecycle changes</h3>
+      <p id="activity-empty">No tool calls yet. Ask your agent to add ideas.</p>
+      <p>This page shows its last 10 tool results and availability changes, newest first. Use your agent's own activity view for its full trace. This is not an agent connection indicator.</p>
+      <p id="activity-status" class="visually-hidden" role="status"></p>
+      <ol id="playground-activity" class="playground-activity" tabindex="0" aria-label="Recent page activity"></ol>
+    </details>
   </section>
 
   <!-- API Reference -->
