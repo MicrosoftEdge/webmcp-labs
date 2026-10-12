@@ -4,9 +4,8 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Idea Board</title>
-  <link rel="alternate" type="text/markdown" href="README.md" title="Imperative playground guide">
   <link rel="stylesheet" href="styles.css">
-  <link rel="stylesheet" href="../documentation.css">
+  <link rel="stylesheet" href="../api-reference.css">
 </head>
 <body>
 
@@ -18,47 +17,41 @@
     <p>A sticky board powered by AI. Tools register and unregister dynamically based on what's on the board.</p>
   </header>
 
-  <div class="browser-chrome demo-preview">
-    <div class="browser-toolbar">
-      <span class="browser-dots"><i></i><i></i><i></i></span>
-      <span class="browser-url">https://ideaboard.app/workspace</span>
-    </div>
-    <div class="site-header">
-      <span class="site-logo">💡</span>
-      <span class="site-name">IdeaBoard</span>
-    </div>
-    <div class="board" id="board">
-      <div class="board-empty" id="board-empty">No stickies yet. Ask an agent with WebMCP tool-calling access to "brainstorm and add ideas about &lt;&gt; to board."</div>
-      <div class="board-grid" id="board-grid"></div>
-      <div class="tool-badge" id="tool-badge">0 tools</div>
-    </div>
-  </div>
+  <!-- Main content -->
+  <div class="split-layout">
 
-  <section class="documentation" aria-labelledby="documentation-heading">
-    <h2 id="documentation-heading">Documentation</h2>
-    <p><a href="README.md">Read the Markdown guide</a> · <a href="../event-search/">Explore the declarative playground</a></p>
-
-    <details class="documentation-examples">
-      <summary>Code examples and API explanations</summary>
-      <h3>Watch the tools change, not just the stickies</h3>
-      <p>Add and list are always available when WebMCP is supported. The first sticky enables edit and clear; three stickies enable grouping. Clearing the board unregisters those three tools. Reloading resets the board.</p>
-      <div class="code-pane">
-        <nav class="code-tab-bar" role="tablist">
-          <button class="code-tab active" role="tab" aria-selected="true" data-tab="register">Register</button>
-          <button class="code-tab" role="tab" aria-selected="false" data-tab="dynamic">Unregister</button>
-        </nav>
-        <div class="code-panel active" id="code-register">
-          <p class="code-explanation">How it works: register an input schema and an execute callback for each always-available tool.</p>
-          <pre class="code-block" tabindex="0" aria-label="Tool registration code example"><code id="code-register-display"></code></pre>
-        </div>
-        <div class="code-panel" id="code-dynamic">
-          <p class="code-explanation">How it works: the registration's options.signal controls the tool's lifetime. Calling abort() unregisters it. This is separate from the signal passed to execute for canceling an invocation.</p>
-          <pre class="code-block" tabindex="0" aria-label="Tool unregistration code example"><code id="code-dynamic-display"></code></pre>
-        </div>
+    <!-- Left: browser chrome with IdeaBoard app -->
+    <div class="browser-chrome">
+      <div class="browser-toolbar">
+        <span class="browser-dots"><i></i><i></i><i></i></span>
+        <span class="browser-url">https://ideaboard.app/workspace</span>
       </div>
-    </details>
+      <div class="site-header">
+        <span class="site-logo">💡</span>
+        <span class="site-name">IdeaBoard</span>
+      </div>
+      <div class="board" id="board">
+        <div class="board-empty" id="board-empty">No stickies yet. Ask an agent with WebMCP tool-calling access to "brainstorm and add ideas about &lt;&gt; to board."</div>
+        <div class="board-grid" id="board-grid"></div>
+        <div class="tool-badge" id="tool-badge">1 tool</div>
+      </div>
+    </div>
 
-  </section>
+    <!-- Right: code pane -->
+    <div class="code-pane">
+      <nav class="code-tab-bar" role="tablist">
+        <button class="code-tab active" role="tab" aria-selected="true" data-tab="register">Register</button>
+        <button class="code-tab" role="tab" aria-selected="false" data-tab="dynamic">Unregister</button>
+      </nav>
+      <div class="code-panel active" id="code-register">
+        <pre class="code-block"><code id="code-register-display"></code></pre>
+      </div>
+      <div class="code-panel" id="code-dynamic">
+        <pre class="code-block"><code id="code-dynamic-display"></code></pre>
+      </div>
+    </div>
+
+  </div>
 
   <!-- API Reference -->
   <section class="api-reference">
@@ -144,7 +137,7 @@
 
 
 
-<script src="../documentation.js"></script>
+<script src="../api-reference.js"></script>
 <script>
 // ============================================================
 // Board state

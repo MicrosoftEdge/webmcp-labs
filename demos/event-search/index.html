@@ -4,9 +4,8 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Event Search</title>
-  <link rel="alternate" type="text/markdown" href="README.md" title="Declarative playground guide">
   <link rel="stylesheet" href="styles.css">
-  <link rel="stylesheet" href="../documentation.css">
+  <link rel="stylesheet" href="../api-reference.css">
 </head>
 <body>
 
@@ -15,7 +14,7 @@
   <!-- Page header -->
   <header class="page-header">
     <h1>Event Search - Declarative WebMCP API Playground</h1>
-    <p>Ask an agent to fill a form, compare who submits it, and see how a custom response reaches the agent.</p>
+    <p>Same form, three levels of AI integration. Each tab builds on the last by adding a single attribute.</p>
   </header>
 
   <!-- Tab bar -->
@@ -34,7 +33,9 @@
       <strong>Search</strong> to submit. Only <code>toolname</code> and
       <code>tooldescription</code> are required.
     </p>
-    <div class="browser-chrome demo-preview">
+
+    <div class="split-layout">
+    <div class="browser-chrome">
       <div class="browser-toolbar">
         <span class="browser-dots"><i></i><i></i><i></i></span>
         <span class="browser-url">https://eventfinder.com/search</span>
@@ -88,6 +89,11 @@
         </div>
       </div>
     </div>
+
+    <div class="code-pane">
+      <pre class="code-block"><code id="code-manual"></code></pre>
+    </div>
+    </div>
   </section>
 
   <!-- ================================================================
@@ -98,7 +104,9 @@
       Adding <code>toolautosubmit</code> lets the agent fill <em>and</em> submit
       the form automatically, no manual click required.
     </p>
-    <div class="browser-chrome demo-preview">
+
+    <div class="split-layout">
+    <div class="browser-chrome">
       <div class="browser-toolbar">
         <span class="browser-dots"><i></i><i></i><i></i></span>
         <span class="browser-url">https://eventfinder.com/search</span>
@@ -153,6 +161,11 @@
         </div>
       </div>
     </div>
+
+    <div class="code-pane">
+      <pre class="code-block"><code id="code-auto"></code></pre>
+    </div>
+    </div>
   </section>
 
   <!-- ================================================================
@@ -164,7 +177,9 @@
       submissions, run your own logic, and return a custom value to the
       agent via <code>event.respondWith()</code>.
     </p>
-    <div class="browser-chrome demo-preview">
+
+    <div class="split-layout">
+    <div class="browser-chrome">
       <div class="browser-toolbar">
         <span class="browser-dots"><i></i><i></i><i></i></span>
         <span class="browser-url">https://eventfinder.com/search</span>
@@ -219,31 +234,11 @@
         </div>
       </div>
     </div>
-  </section>
 
-  <section class="documentation" aria-labelledby="documentation-heading">
-    <h2 id="documentation-heading">Documentation</h2>
-    <p><a href="README.md">Read the Markdown guide</a> · <a href="../idea-board/">Explore the imperative playground</a></p>
-
-    <details class="documentation-examples">
-      <summary>Code examples and API explanations</summary>
-      <h3>Manual Review: an HTML form becomes a tool</h3>
-      <p>The agent fills the fields, but the tool invocation waits for you to click <strong>Search</strong>. A click during an active invocation is still agent-invoked; an ordinary submission outside an invocation is not.</p>
-      <div class="code-pane">
-        <pre class="code-block" tabindex="0" aria-label="Manual review code example"><code id="code-manual"></code></pre>
-      </div>
-      <h3>Auto Submit: add toolautosubmit</h3>
-      <p>With <code>toolautosubmit</code>, the agent can submit without a manual click. The normal form remains usable by a person.</p>
-      <div class="code-pane">
-        <pre class="code-block" tabindex="0" aria-label="Auto submit code example"><code id="code-auto"></code></pre>
-      </div>
-      <h3>Custom Response: return a result to the agent</h3>
-      <p>The page shows a confirmation; the agent receives a simulated result string. The handler checks <code>agentInvoked</code>, calls <code>preventDefault()</code>, and passes a Promise to <code>respondWith()</code>.</p>
-      <div class="code-pane">
-        <pre class="code-block" tabindex="0" aria-label="Custom response code example"><code id="code-custom"></code></pre>
-      </div>
-    </details>
-
+    <div class="code-pane">
+      <pre class="code-block"><code id="code-custom"></code></pre>
+    </div>
+    </div>
   </section>
 
   <!-- ================================================================
@@ -306,7 +301,7 @@
 
 </div>
 
-<script src="../documentation.js"></script>
+<script src="../api-reference.js"></script>
 <script>
 // ============================================================
 // Code strings

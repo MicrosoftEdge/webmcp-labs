@@ -1,6 +1,6 @@
 /* Copyright (c) Microsoft Corporation. Licensed under the MIT License. */
 
-document.querySelectorAll('.api-table').forEach(table => {
+document.querySelectorAll('.api-reference .api-table').forEach(table => {
   table.setAttribute('role', 'table');
   const labels = [...table.querySelectorAll('thead th')].map(header => header.textContent);
   table.querySelectorAll('thead, tbody').forEach(group => group.setAttribute('role', 'rowgroup'));
