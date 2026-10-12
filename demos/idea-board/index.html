@@ -4,7 +4,9 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Idea Board</title>
+  <link rel="alternate" type="text/markdown" href="README.md" title="Imperative playground guide">
   <link rel="stylesheet" href="styles.css">
+  <link rel="stylesheet" href="../playground.css">
 </head>
 <body>
 
@@ -14,7 +16,37 @@
   <header class="page-header">
     <h1>Idea Board - Imperative WebMCP API Playground</h1>
     <p>A sticky board powered by AI. Tools register and unregister dynamically based on what's on the board.</p>
+    <p><a href="README.md">Read the Markdown guide</a> · <a href="../event-search/">Explore the declarative playground</a></p>
   </header>
+
+  <section class="playground-setup" aria-labelledby="setup-heading">
+    <h2 id="setup-heading">Connect your agent</h2>
+    <p id="webmcp-status" class="webmcp-status" data-api="imperative" role="status">Checking browser API support...</p>
+    <ol>
+      <li>Use an up-to-date Edge Canary or Dev, enable <code>about://flags/#enable-webmcp-testing</code>, and restart. See the <a href="https://github.com/MicrosoftEdge/webmcp-labs#test-webmcp-in-edge">browser setup</a>.</li>
+      <li>Load and configure <a href="https://github.com/MicrosoftEdge/webmcp-labs/tree/main/webmcp-explorer#load-the-webmcp-explorer-extension">WebMCP Explorer</a>, or use another agent with WebMCP tool access.</li>
+      <li>Open the agent on this page. Paste one prompt at a time and watch the available tools and results below.</li>
+    </ol>
+    <h3>Try the lifecycle</h3>
+    <div class="prompt-card">
+      <p id="prompt-add">Add exactly three ideas for a weekend project to the board, using one sticky per idea. Then list the stickies and their IDs.</p>
+      <button type="button" class="copy-prompt" data-copy-prompt="prompt-add">Copy add prompt</button>
+    </div>
+    <div class="prompt-card">
+      <p id="prompt-group">List the stickies, then group all of their IDs under "Weekend projects".</p>
+      <button type="button" class="copy-prompt" data-copy-prompt="prompt-group">Copy group prompt</button>
+    </div>
+    <div class="prompt-card">
+      <p id="prompt-clear">Clear the board. Then list the stickies to confirm it is empty.</p>
+      <button type="button" class="copy-prompt" data-copy-prompt="prompt-clear">Copy clear prompt</button>
+    </div>
+    <p id="prompt-status" role="status"></p>
+  </section>
+
+  <aside class="lesson-callout">
+    <strong>Watch the tools change, not just the stickies</strong>
+    <p>Add and list are always available when WebMCP is supported. The first sticky enables edit and clear; three stickies enable grouping. Clearing the board unregisters those three tools. Reloading resets the board and activity.</p>
+  </aside>
 
   <!-- Main content -->
   <div class="split-layout">
@@ -30,9 +62,9 @@
         <span class="site-name">IdeaBoard</span>
       </div>
       <div class="board" id="board">
-        <div class="board-empty" id="board-empty">No stickies yet. Ask an agent with WebMCP tool-calling access to "brainstorm and add ideas about &lt;&gt; to board."</div>
+        <div class="board-empty" id="board-empty">No stickies yet. Paste the add prompt into your WebMCP-enabled agent to start.</div>
         <div class="board-grid" id="board-grid"></div>
-        <div class="tool-badge" id="tool-badge">1 tool</div>
+        <div class="tool-badge" id="tool-badge">0 tools</div>
       </div>
     </div>
 
@@ -43,14 +75,28 @@
         <button class="code-tab" role="tab" aria-selected="false" data-tab="dynamic">Unregister</button>
       </nav>
       <div class="code-panel active" id="code-register">
+        <p class="code-explanation">How it works: register an input schema and an execute callback for each always-available tool.</p>
         <pre class="code-block" tabindex="0" aria-label="Tool registration code example"><code id="code-register-display"></code></pre>
       </div>
       <div class="code-panel" id="code-dynamic">
+        <p class="code-explanation">How it works: the registration's options.signal controls the tool's lifetime. Calling abort() unregisters it. This is separate from the signal passed to execute for canceling an invocation.</p>
         <pre class="code-block" tabindex="0" aria-label="Tool unregistration code example"><code id="code-dynamic-display"></code></pre>
       </div>
     </div>
 
   </div>
+
+  <section class="playground-observation" aria-labelledby="observation-heading">
+    <h2 id="observation-heading">Watch this page</h2>
+    <h3>Tools registered by this demo</h3>
+    <p id="tool-availability-status" role="status">No tools registered yet.</p>
+    <ul id="playground-tools" class="playground-tools"></ul>
+    <h3>Tool results and lifecycle changes</h3>
+    <p id="activity-empty">No tool calls yet. Ask your agent to add ideas.</p>
+    <p>This page shows its last 10 tool results and availability changes, newest first. Use your agent's own activity view for its full trace. This is not an agent connection indicator.</p>
+    <p id="activity-status" class="visually-hidden" role="status"></p>
+    <ol id="playground-activity" class="playground-activity" tabindex="0" aria-label="Recent page activity"></ol>
+  </section>
 
   <!-- API Reference -->
   <section class="api-reference">
@@ -136,6 +182,7 @@
 
 
 
+<script src="../playground.js"></script>
 <script>
 // ============================================================
 // Board state
@@ -147,6 +194,13 @@ let nextId = 1;
 const boardEl = document.getElementById('board-grid');
 const emptyEl = document.getElementById('board-empty');
 const badgeEl = document.getElementById('tool-badge');
+const registeredDemoTools = new Map();
+
+function registerDemoTool(tool, options) {
+  document.modelContext.registerTool(tool, options);
+  registeredDemoTools.set(tool.name, tool);
+  options?.signal?.addEventListener('abort', () => registeredDemoTools.delete(tool.name), { once: true });
+}
 
 // ============================================================
 // Rendering
@@ -283,18 +337,16 @@ function listStickies() {
 let editController = null;
 let clearController = null;
 let groupController = null;
-let toolCount = 2;
 
 function updateTools() {
-  const ctx = document.modelContext;
-  if (!ctx) return;
+  if (!playgroundDocumentation.supported) return;
 
   const count = stickies.length;
 
   // edit-sticky: register when 1+ stickies exist
   if (count >= 1 && !editController) {
     editController = new AbortController();
-    ctx.registerTool({
+    registerDemoTool({
       name: 'edit-sticky',
       description: 'Edit the text or color of an existing sticky note.',
       inputSchema: {
@@ -306,7 +358,7 @@ function updateTools() {
         },
         required: ['id']
       },
-      execute: ({ id, text, color }) => editSticky(id, text, color)
+      execute: ({ id, text, color }) => playgroundDocumentation.recordResult('edit-sticky', { id, text, color }, editSticky(id, text, color))
     }, { signal: editController.signal });
   } else if (count === 0 && editController) {
     editController.abort();
@@ -316,11 +368,11 @@ function updateTools() {
   // clear-board: register when 1+ stickies exist
   if (count >= 1 && !clearController) {
     clearController = new AbortController();
-    ctx.registerTool({
+    registerDemoTool({
       name: 'clear-board',
       description: 'Remove all sticky notes from the board.',
       inputSchema: { type: 'object', properties: {} },
-      execute: () => clearBoard()
+      execute: () => playgroundDocumentation.recordResult('clear-board', {}, clearBoard())
     }, { signal: clearController.signal });
   } else if (count === 0 && clearController) {
     clearController.abort();
@@ -330,7 +382,7 @@ function updateTools() {
   // group-stickies: register when 3+ stickies exist
   if (count >= 3 && !groupController) {
     groupController = new AbortController();
-    ctx.registerTool({
+    registerDemoTool({
       name: 'group-stickies',
       description: 'Assign a shared label to a set of stickies to visually group them.',
       inputSchema: {
@@ -345,24 +397,36 @@ function updateTools() {
         },
         required: ['label', 'stickyIds']
       },
-      execute: ({ label, stickyIds }) => groupStickies(label, stickyIds)
+      execute: ({ label, stickyIds }) => playgroundDocumentation.recordResult('group-stickies', { label, stickyIds }, groupStickies(label, stickyIds))
     }, { signal: groupController.signal });
   } else if (count < 3 && groupController) {
     groupController.abort();
     groupController = null;
   }
 
-  // Update badge
-  toolCount = 2 + (editController ? 1 : 0) + (clearController ? 1 : 0) + (groupController ? 1 : 0);
+  const tools = [
+    { name: 'add-sticky', reason: 'Always available. Add an idea to the board.' },
+    { name: 'list-stickies', reason: 'Always available. Read the current stickies and IDs.' }
+  ];
+  if (editController) tools.push({ name: 'edit-sticky', reason: 'Available because at least one sticky exists.' });
+  if (clearController) tools.push({ name: 'clear-board', reason: 'Available because at least one sticky exists.' });
+  if (groupController) tools.push({ name: 'group-stickies', reason: 'Available because at least three stickies exist.' });
+  const toolCount = tools.length;
   badgeEl.textContent = `${toolCount} tool${toolCount !== 1 ? 's' : ''}`;
+  document.getElementById('tool-availability-status').textContent = `${toolCount} tools registered by this demo.`;
+  playgroundDocumentation.showTools(tools.map(tool => ({
+    ...tool,
+    inputSchema: registeredDemoTools.get(tool.name).inputSchema,
+    concept: 'API focus: inputSchema describes accepted inputs; execute connects the invocation to an app function.'
+  })));
 }
 
 // ============================================================
 // Register the always-on tool
 // ============================================================
 
-if (document.modelContext) {
-  document.modelContext.registerTool({
+if (playgroundDocumentation.supported) {
+  registerDemoTool({
     name: 'add-sticky',
     description: 'Add a new sticky note to the IdeaBoard.',
     inputSchema: {
@@ -377,17 +441,20 @@ if (document.modelContext) {
       },
       required: ['text']
     },
-    execute: ({ text, color }) => addSticky(text, color)
+    execute: ({ text, color }) => playgroundDocumentation.recordResult('add-sticky', { text, color }, addSticky(text, color))
   });
 
-  document.modelContext.registerTool({
+  registerDemoTool({
     name: 'list-stickies',
     description: 'List all sticky notes currently on the board, including their IDs, text, color, and group.',
     inputSchema: { type: 'object', properties: {} },
-    execute: () => listStickies()
+    execute: () => playgroundDocumentation.recordResult('list-stickies', {}, listStickies())
   });
 
   updateTools();
+} else {
+  document.getElementById('tool-availability-status').textContent = 'No tools registered: the WebMCP registration API is unavailable. Follow the setup instructions and reload.';
+  playgroundDocumentation.showTools([]);
 }
 
 // ============================================================

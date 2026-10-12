@@ -4,7 +4,9 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Event Search</title>
+  <link rel="alternate" type="text/markdown" href="README.md" title="Declarative playground guide">
   <link rel="stylesheet" href="styles.css">
+  <link rel="stylesheet" href="../playground.css">
 </head>
 <body>
 
@@ -13,8 +15,21 @@
   <!-- Page header -->
   <header class="page-header">
     <h1>Event Search - Declarative WebMCP API Playground</h1>
-    <p>Same form, three levels of AI integration. Each tab builds on the last by adding a single attribute.</p>
+    <p>Ask an agent to fill a form, compare who submits it, and see how a custom response reaches the agent.</p>
+    <p><a href="README.md">Read the Markdown guide</a> · <a href="../idea-board/">Explore the imperative playground</a></p>
   </header>
+
+  <section class="playground-setup" aria-labelledby="setup-heading">
+    <h2 id="setup-heading">Connect your agent</h2>
+    <p id="webmcp-status" class="webmcp-status" data-api="declarative" role="status">Checking browser API support...</p>
+    <ol>
+      <li>Use an up-to-date Edge Canary or Dev, enable <code>about://flags/#enable-webmcp-testing</code>, and restart. See the <a href="https://github.com/MicrosoftEdge/webmcp-labs#test-webmcp-in-edge">browser setup</a>.</li>
+      <li>Load and configure <a href="https://github.com/MicrosoftEdge/webmcp-labs/tree/main/webmcp-explorer#load-the-webmcp-explorer-extension">WebMCP Explorer</a>, or use another agent with WebMCP tool access.</li>
+      <li>Open the agent on this page. Select a lesson below, then paste its prompt into the agent. Copying a prompt does not execute it.</li>
+    </ol>
+    <p>This is a simulated search, not a ticket service. Form fills before submission are not logged here; watch the fields and your agent's tool activity.</p>
+    <p id="prompt-status" role="status"></p>
+  </section>
 
   <!-- Tab bar -->
   <nav class="tab-bar" role="tablist">
@@ -32,6 +47,14 @@
       <strong>Search</strong> to submit. Only <code>toolname</code> and
       <code>tooldescription</code> are required.
     </p>
+    <div class="prompt-card">
+      <p id="prompt-manual">Use search-events-manual to find concert tickets for an artist named Example Band in Seattle on 2030-06-15. Fill the form and wait for me to review and submit.</p>
+      <button type="button" class="copy-prompt" data-copy-prompt="prompt-manual">Copy prompt</button>
+    </div>
+    <aside class="lesson-callout">
+      <strong>Watch the handoff</strong>
+      <p>The agent fills the fields, but the tool invocation waits for you to click <strong>Search</strong>. A click during an active invocation is still agent-invoked; an ordinary submission outside an invocation is not.</p>
+    </aside>
 
     <div class="split-layout">
     <div class="browser-chrome">
@@ -90,6 +113,7 @@
     </div>
 
     <div class="code-pane">
+      <h3 class="code-caption">How it works: an HTML form becomes a tool</h3>
       <pre class="code-block" tabindex="0" aria-label="Manual review code example"><code id="code-manual"></code></pre>
     </div>
     </div>
@@ -103,6 +127,14 @@
       Adding <code>toolautosubmit</code> lets the agent fill <em>and</em> submit
       the form automatically, no manual click required.
     </p>
+    <div class="prompt-card">
+      <p id="prompt-auto">Use search-events-auto to find concert tickets for an artist named Example Band in Seattle on 2030-06-15.</p>
+      <button type="button" class="copy-prompt" data-copy-prompt="prompt-auto">Copy prompt</button>
+    </div>
+    <aside class="lesson-callout">
+      <strong>One attribute changes who submits</strong>
+      <p>With <code>toolautosubmit</code>, the agent can submit without a manual click. The normal form remains usable by a person. Compare the submission activity below with Manual Review.</p>
+    </aside>
 
     <div class="split-layout">
     <div class="browser-chrome">
@@ -162,6 +194,7 @@
     </div>
 
     <div class="code-pane">
+      <h3 class="code-caption">How it works: add toolautosubmit</h3>
       <pre class="code-block" tabindex="0" aria-label="Auto submit code example"><code id="code-auto"></code></pre>
     </div>
     </div>
@@ -176,6 +209,14 @@
       submissions, run your own logic, and return a custom value to the
       agent via <code>event.respondWith()</code>.
     </p>
+    <div class="prompt-card">
+      <p id="prompt-custom">Use search-events-custom to find concert tickets for an artist named Example Band in Seattle on 2030-06-15. Tell me the tool's returned result.</p>
+      <button type="button" class="copy-prompt" data-copy-prompt="prompt-custom">Copy prompt</button>
+    </div>
+    <aside class="lesson-callout">
+      <strong>Compare the page and agent responses</strong>
+      <p>The page shows a confirmation; the agent receives a simulated result string. The handler checks <code>agentInvoked</code>, calls <code>preventDefault()</code>, and passes a Promise to <code>respondWith()</code>.</p>
+    </aside>
 
     <div class="split-layout">
     <div class="browser-chrome">
@@ -235,9 +276,22 @@
     </div>
 
     <div class="code-pane">
+      <h3 class="code-caption">How it works: return a result to the agent</h3>
       <pre class="code-block" tabindex="0" aria-label="Custom response code example"><code id="code-custom"></code></pre>
     </div>
     </div>
+  </section>
+
+  <section class="playground-observation" aria-labelledby="observation-heading">
+    <h2 id="observation-heading">Watch this page</h2>
+    <h3>Form tool configured for this lesson</h3>
+    <p>The name below comes from the active form's attributes. Your agent's tool list confirms whether the browser exposes it. Switching lessons removes the previous form from the document.</p>
+    <ul id="playground-tools" class="playground-tools"></ul>
+    <h3>Submission activity</h3>
+    <p id="activity-empty">No submissions yet. Ask your agent to try the selected lesson.</p>
+    <p>This page shows its last 10 submissions and lesson changes, newest first. It cannot observe the agent's reasoning or connection state.</p>
+    <p id="activity-status" class="visually-hidden" role="status"></p>
+    <ol id="playground-activity" class="playground-activity" tabindex="0" aria-label="Recent page activity"></ol>
   </section>
 
   <!-- ================================================================
@@ -300,6 +354,7 @@
 
 </div>
 
+<script src="../playground.js"></script>
 <script>
 // ============================================================
 // Code strings
@@ -459,6 +514,23 @@ function activatePanel(tabId) {
       if (card) card.innerHTML = '';
     }
   });
+  const form = document.querySelector('.tab-panel.active form');
+  const parameters = [...form.elements].filter(element => element.name).map(element => ({
+    name: element.name,
+    type: element.tagName === 'SELECT' ? 'select' : element.type,
+    required: element.required,
+    description: element.getAttribute('toolparamdescription')
+  }));
+  playgroundDocumentation.showTools([{
+    name: form.getAttribute('toolname'),
+    reason: form.hasAttribute('toolautosubmit') ? 'Agent can fill and submit automatically.' : 'Agent fills; user reviews and submits.',
+    concept: tabId === 'custom'
+      ? 'API focus: agentInvoked identifies agent submissions; preventDefault and respondWith supply a custom result.'
+      : tabId === 'auto'
+        ? 'API focus: toolautosubmit permits submission without a user click.'
+        : 'API focus: toolname and tooldescription expose a form; toolparamdescription explains each input.',
+    parameters
+  }], 'Form configuration changed');
 }
 
 document.querySelectorAll('.tab-button').forEach(btn => {
@@ -470,6 +542,7 @@ document.querySelectorAll('.tab-button').forEach(btn => {
     btn.classList.add('active');
     btn.setAttribute('aria-selected', 'true');
     activatePanel(btn.dataset.tab);
+    playgroundDocumentation.recordActivity('Lesson selected', btn.textContent);
   });
 });
 
@@ -494,6 +567,11 @@ function attachFormHandler(tabId) {
       if (e.agentInvoked) {
         e.respondWith(Promise.resolve('Form submitted.'));
       }
+      playgroundDocumentation.recordActivity(
+        'Manual Review submitted',
+        e.agentInvoked ? 'Submitted during an active agent invocation after user review.' : 'Ordinary user submission outside an agent invocation.',
+        'API: without toolautosubmit, an agent-filled form waits for user submission. agentInvoked identifies the active invocation.'
+      );
       showToast('toast-manual', 'Form submitted! In a real app this would navigate to results.');
     });
   } else if (tabId === 'auto') {
@@ -503,13 +581,20 @@ function attachFormHandler(tabId) {
       if (e.agentInvoked) {
         e.respondWith(Promise.resolve('Form submitted.'));
       }
-      showToast('toast-auto', 'Auto-submitted! The agent triggered this form automatically.');
+      playgroundDocumentation.recordActivity(
+        'Auto Submit submitted',
+        e.agentInvoked ? 'Submitted during an active agent invocation.' : 'Ordinary user submission outside an agent invocation.',
+        'API: toolautosubmit permits agent submission; agentInvoked distinguishes it from an ordinary user submission.'
+      );
+      showToast('toast-auto', e.agentInvoked ? 'Auto-submitted during an agent invocation.' : 'Form submitted by user.');
     });
   } else if (tabId === 'custom') {
     const form = document.getElementById('form-custom');
     if (form) form.addEventListener('submit', e => {
       if (!e.agentInvoked) {
         e.preventDefault();
+        playgroundDocumentation.recordActivity('Custom Response submitted', 'Ordinary user submission. No custom agent result was returned.',
+          'API: agentInvoked is false, so the handler does not call respondWith.');
         showToast('toast-custom', 'Submitted by user. Agent submissions return a custom response.');
         return;
       }
@@ -517,10 +602,11 @@ function attachFormHandler(tabId) {
       e.preventDefault();
 
       const data = new FormData(e.target);
-      e.respondWith(Promise.resolve(
-        `Found 3 events for "${data.get("artist")}" ` +
-        `on ${data.get("date")} in ${data.get("location")}.`
-      ));
+      const result = `Found 3 events for "${data.get("artist")}" ` +
+        `on ${data.get("date")} in ${data.get("location")}.`;
+      e.respondWith(Promise.resolve(result));
+      playgroundDocumentation.recordActivity('Custom response supplied to the browser', result,
+        'API: agentInvoked is true. preventDefault stops navigation; respondWith supplies a Promise resolving to this result.');
       showToast('toast-custom', 'Agent request intercepted - returning custom response...');
     });
   }

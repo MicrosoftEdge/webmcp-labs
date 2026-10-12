@@ -20,6 +20,16 @@ In WebMCP, tools are registered either via JavaScript functions or HTML `<form>`
 | [Idea Board](https://microsoftedge.github.io/webmcp-labs/idea-board/) | Sticky board playground showing WebMCP tool registration using the JavaScript WebMCP API, with tools that dynamically appear and disappear based on the state of the board. |
 | [Contoso Pizza](https://microsoftedge.github.io/webmcp-labs/pizza-order/) | Pizza-ordering site with WebMCP tools that let an agent browse the menu, create and update an order, and check out. |
 
+The agent-led playgrounds include setup instructions, suggested prompts, and
+page-observed activity. For a text equivalent with expected behavior and code,
+see the [declarative Event Search guide](demos/event-search/README.md) and
+[imperative Idea Board guide](demos/idea-board/README.md). These Markdown guides
+can be read without running the demos.
+
+To check that playground prompts, schemas, and tool lifecycle stay aligned with
+the Markdown guides, run `node --test demos/playground.test.cjs` with Node.js 18
+or later.
+
 ## Test WebMCP in Edge
 
 To test WebMCP, use an up to date version of Microsoft Edge Canary or Dev. See [Become a Microsoft Edge Insider](https://explore.microsoft.com/edge/download/insider).
