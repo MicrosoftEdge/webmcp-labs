@@ -29,21 +29,22 @@ body {
 /* ---- Page header ---- */
 
 .page-header {
-  margin-bottom: 1.25rem;
+  margin-bottom: 1.75rem;
 }
 
 .page-header h1 {
-  font-size: 1.25rem;
+  font-size: clamp(1.5rem, 3vw, 1.875rem);
   font-weight: 600;
-  margin: 0 0 0.25rem;
+  margin: 0 0 0.75rem;
   color: #242424;
 }
 
 .page-header p {
+  max-width: 75ch;
   margin: 0;
   color: #616161;
-  font-size: 0.8125rem;
-  line-height: 1.5;
+  font-size: 1rem;
+  line-height: 1.65;
 }
 
 /* ---- Tab bar (Fluent pivot style) ---- */
@@ -51,6 +52,7 @@ body {
 .tab-bar {
   display: flex;
   gap: 0;
+  overflow-x: auto;
   border-bottom: 1px solid #e0e0e0;
   margin-bottom: 1rem;
 }
@@ -90,24 +92,27 @@ body {
 }
 
 .panel-description {
-  margin: 0 0 1rem;
+  max-width: 85ch;
+  margin: 0 0 1.5rem;
   color: #616161;
-  font-size: 0.8125rem;
-  line-height: 1.55;
+  font-size: 0.9375rem;
+  line-height: 1.7;
 }
 
 .panel-description code {
   background: #f0f0f0;
   padding: 1px 5px;
   border-radius: 3px;
-  font-size: 0.75rem;
+  font-family: "Cascadia Code", "Consolas", "Courier New", monospace;
+  font-size: 0.875em;
+  overflow-wrap: anywhere;
 }
 
 /* ---- Split layout ---- */
 
 .split-layout {
   display: grid;
-  grid-template-columns: 3fr 2fr;
+  grid-template-columns: minmax(0, 3fr) minmax(0, 2fr);
   gap: 1.25rem;
   align-items: start;
 }
@@ -339,6 +344,7 @@ body {
 /* ---- Code block (no chrome, just dark box) ---- */
 
 .code-pane {
+  min-width: 0;
   background: #1e1e1e;
   border-radius: 8px;
   overflow: hidden;
@@ -348,17 +354,17 @@ body {
 pre.code-block,
 pre.code-block code {
   font-family: "Cascadia Code", "Consolas", "Courier New", monospace;
-  font-size: 12px;
+  font-size: 14px;
 }
 
 .code-block {
   background: #1e1e1e;
   color: #d4d4d4;
   border-radius: 0;
-  padding: 0.875rem 1rem;
+  padding: 1.25rem;
   overflow: auto;
   max-height: 520px;
-  line-height: 1.6;
+  line-height: 1.75;
   margin: 0;
   tab-size: 2;
   scrollbar-color: #555 #1e1e1e;
@@ -393,8 +399,8 @@ pre.code-block code {
 .t-attr,
 .t-prop { color: #9cdcfe; }
 .t-str { color: #ce9178; }
-.t-punc { color: #808080; }
-.t-cmt { color: #6a9955; font-style: italic; }
+.t-punc { color: #b0b0b0; }
+.t-cmt { color: #8fbc7a; font-style: italic; }
 .t-kw { color: #569cd6; }
 .t-fn { color: #dcdcaa; }
 .t-num { color: #b5cea8; }
@@ -410,37 +416,40 @@ pre.code-block code {
   box-decoration-break: clone;
 }
 
-/* Dimmed lines (context, not the focus) */
-
-.dim {
-  opacity: 0.58;
-}
-
 /* ---- API Reference section ---- */
 
 .api-reference {
-  margin-top: 2.5rem;
+  margin-top: 3rem;
   border-top: 1px solid #e0e0e0;
-  padding-top: 1.5rem;
+  padding-top: 2rem;
 }
 
 .api-reference h2 {
-  font-size: 1rem;
+  font-size: 1.25rem;
   font-weight: 600;
-  margin: 0 0 1rem;
+  margin: 0 0 1.25rem;
   color: #242424;
+}
+
+.api-table-scroll {
+  overflow-x: auto;
+  background: #fff;
+  border: 1px solid #e0e0e0;
+  border-radius: 8px;
 }
 
 .api-table {
   width: 100%;
+  min-width: 760px;
   border-collapse: collapse;
-  font-size: 0.8125rem;
+  font-size: 0.9375rem;
+  line-height: 1.7;
 }
 
 .api-table th,
 .api-table td {
   text-align: left;
-  padding: 0.5rem 0.75rem;
+  padding: 0.875rem 1rem;
   border-bottom: 1px solid #e8e8e8;
   vertical-align: top;
 }
@@ -449,7 +458,7 @@ pre.code-block code {
   font-weight: 600;
   color: #424242;
   background: #f5f5f5;
-  font-size: 0.75rem;
+  font-size: 0.8125rem;
   text-transform: uppercase;
   letter-spacing: 0.03em;
 }
@@ -458,11 +467,18 @@ pre.code-block code {
   color: #424242;
 }
 
+.api-table td:first-child:not([colspan]),
+.api-table td:nth-child(2) {
+  white-space: nowrap;
+}
+
 .api-table code {
   background: #f0f0f0;
   padding: 1px 5px;
   border-radius: 3px;
-  font-size: 0.75rem;
+  font-family: "Cascadia Code", "Consolas", "Courier New", monospace;
+  font-size: 0.875em;
+  overflow-wrap: anywhere;
 }
 
 .api-table tr:last-child td {
@@ -473,9 +489,21 @@ pre.code-block code {
   font-weight: 600;
   color: #242424;
   background: #fafafa;
-  font-size: 0.75rem;
+  font-size: 0.8125rem;
   text-transform: uppercase;
   letter-spacing: 0.02em;
+}
+
+.api-reference a {
+  color: #006cbe;
+  text-underline-offset: 0.2em;
+}
+
+.tab-button:focus-visible,
+.code-block:focus-visible,
+.api-table-scroll:focus-visible {
+  outline: 2px solid #0078d4;
+  outline-offset: -2px;
 }
 
 /* ---- Responsive ---- */

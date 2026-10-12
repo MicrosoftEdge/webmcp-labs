@@ -43,10 +43,10 @@
         <button class="code-tab" role="tab" aria-selected="false" data-tab="dynamic">Unregister</button>
       </nav>
       <div class="code-panel active" id="code-register">
-        <pre class="code-block"><code id="code-register-display"></code></pre>
+        <pre class="code-block" tabindex="0" aria-label="Tool registration code example"><code id="code-register-display"></code></pre>
       </div>
       <div class="code-panel" id="code-dynamic">
-        <pre class="code-block"><code id="code-dynamic-display"></code></pre>
+        <pre class="code-block" tabindex="0" aria-label="Tool unregistration code example"><code id="code-dynamic-display"></code></pre>
       </div>
     </div>
 
@@ -54,13 +54,14 @@
 
   <!-- API Reference -->
   <section class="api-reference">
-    <h2>Imperative WebMCP API Reference</h2>
+    <h2 id="api-reference-heading">Imperative WebMCP API Reference</h2>
+    <div class="api-table-scroll" tabindex="0" role="region" aria-labelledby="api-reference-heading">
     <table class="api-table">
       <thead>
         <tr>
-          <th>Option</th>
-          <th>Type</th>
-          <th>Description</th>
+          <th scope="col">Option</th>
+          <th scope="col">Type</th>
+          <th scope="col">Description</th>
         </tr>
       </thead>
       <tbody>
@@ -128,6 +129,7 @@
         </tr>
       </tbody>
     </table>
+    </div>
   </section>
 
 </div>

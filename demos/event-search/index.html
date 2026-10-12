@@ -90,7 +90,7 @@
     </div>
 
     <div class="code-pane">
-      <pre class="code-block"><code id="code-manual"></code></pre>
+      <pre class="code-block" tabindex="0" aria-label="Manual review code example"><code id="code-manual"></code></pre>
     </div>
     </div>
   </section>
@@ -162,7 +162,7 @@
     </div>
 
     <div class="code-pane">
-      <pre class="code-block"><code id="code-auto"></code></pre>
+      <pre class="code-block" tabindex="0" aria-label="Auto submit code example"><code id="code-auto"></code></pre>
     </div>
     </div>
   </section>
@@ -235,7 +235,7 @@
     </div>
 
     <div class="code-pane">
-      <pre class="code-block"><code id="code-custom"></code></pre>
+      <pre class="code-block" tabindex="0" aria-label="Custom response code example"><code id="code-custom"></code></pre>
     </div>
     </div>
   </section>
@@ -244,13 +244,14 @@
        API Reference
        ================================================================ -->
   <section class="api-reference">
-    <h2>Declarative WebMCP API Reference</h2>
+    <h2 id="api-reference-heading">Declarative WebMCP API Reference</h2>
+    <div class="api-table-scroll" tabindex="0" role="region" aria-labelledby="api-reference-heading">
     <table class="api-table">
       <thead>
         <tr>
-          <th>Attribute</th>
-          <th>Applies to</th>
-          <th>Description</th>
+          <th scope="col">Attribute</th>
+          <th scope="col">Applies to</th>
+          <th scope="col">Description</th>
         </tr>
       </thead>
       <tbody>
@@ -294,6 +295,7 @@
         </tr>
       </tbody>
     </table>
+    </div>
   </section>
 
 </div>
