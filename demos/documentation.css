@@ -1,0 +1,120 @@
+/* Copyright (c) Microsoft Corporation. Licensed under the MIT License. */
+
+.demo-preview {
+  max-width: 900px;
+}
+
+.documentation {
+  margin-top: 2rem;
+  padding-top: 1.5rem;
+  border-top: 1px solid #e0e0e0;
+}
+
+.documentation h2 {
+  margin: 0 0 0.75rem;
+  font-size: 1.25rem;
+}
+
+.documentation-examples {
+  margin: 0.75rem 0;
+  padding: 0.875rem 1rem;
+  background: #fff;
+  border: 1px solid #e0e0e0;
+  border-radius: 8px;
+  overflow-wrap: anywhere;
+}
+
+.documentation-examples > summary {
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.documentation-examples h3 {
+  margin: 1.25rem 0 0.5rem;
+  font-size: 1rem;
+}
+
+.documentation-examples > p {
+  margin: 0.5rem 0;
+  line-height: 1.7;
+}
+
+.documentation a {
+  color: #006cbe;
+  text-underline-offset: 0.2em;
+}
+
+.documentation-examples > p code {
+  font-family: "Cascadia Code", "Consolas", "Courier New", monospace;
+  font-size: 0.875em;
+}
+
+.code-explanation {
+  margin: 0;
+  padding: 0.875rem 1.25rem;
+  color: #d4d4d4;
+  border-bottom: 1px solid #333;
+  font-size: 0.875rem;
+  line-height: 1.65;
+  overflow-wrap: anywhere;
+}
+
+.documentation a:focus-visible,
+.documentation-examples > summary:focus-visible {
+  outline: 2px solid #0078d4;
+  outline-offset: 2px;
+}
+
+.api-cell-label {
+  display: none;
+}
+
+@media (max-width: 768px) {
+  .api-table {
+    min-width: 0;
+  }
+
+  .api-table thead {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+  }
+
+  .api-table,
+  .api-table tbody,
+  .api-table tr,
+  .api-table td {
+    display: block;
+    width: 100%;
+  }
+
+  .api-table tr {
+    padding: 0.75rem 1rem;
+    border-bottom: 1px solid #e0e0e0;
+  }
+
+  .api-table tr:last-child {
+    border-bottom: none;
+  }
+
+  .api-table td,
+  .api-table td:first-child:not([colspan]),
+  .api-table td:nth-child(2) {
+    padding: 0.375rem 0;
+    border-bottom: none;
+    white-space: normal;
+    overflow-wrap: anywhere;
+  }
+
+  .api-cell-label {
+    display: block;
+    margin-bottom: 0.25rem;
+    font-size: 0.75rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+    color: #616161;
+  }
+}

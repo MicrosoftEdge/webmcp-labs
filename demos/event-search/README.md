@@ -15,16 +15,13 @@ does not retrieve real events, reserve tickets, or make payments.
 2. Load [WebMCP Explorer](https://github.com/MicrosoftEdge/webmcp-labs/tree/main/webmcp-explorer#load-the-webmcp-explorer-extension)
    and configure a tool-calling model, or use another agent with WebMCP access.
 3. Open the playground and the agent on that page. Select a lesson before
-   sending its prompt. Copying a prompt does not invoke a tool.
+   sending its prompt.
 
-The demo comes first. Below it, expand **Setup and suggested prompts**,
-**Code examples and API explanations**, or **Form parameters and submission
-activity** as needed. The API reference and Markdown link are below the demo.
+The demo comes first. Below it, expand **Code examples and API explanations**
+as needed. The API reference and Markdown link are below the demo.
 
-The page detects the presence of `document.modelContext`, not an agent connection
-or a guarantee that this browser supports every declarative attribute. Check the
-agent's tool list to confirm exposure. Code and this guide remain readable when
-the API is unavailable.
+Check the agent's tool list to confirm that the browser exposes the selected
+form. Code and this guide remain readable when the API is unavailable.
 
 ## Tool inputs
 
@@ -52,7 +49,7 @@ Expected sequence:
 
 1. The agent fills the required fields.
 2. The invocation waits for the user to review and click **Search**.
-3. The page records a submission and shows a confirmation.
+3. The page shows a confirmation.
 
 `toolname` names the tool; `tooldescription` tells the agent what it does.
 Without `toolautosubmit`, submitting is the user's responsibility. A user click
@@ -89,8 +86,7 @@ result to the browser through `event.respondWith()`:
 Found 3 events for "Example Band" on 2030-06-15 in Seattle.
 ```
 
-Compare that result in the agent with the confirmation on the page. The page
-logs what it supplied to the browser, not proof that the agent consumed it.
+Compare that result in the agent with the confirmation on the page.
 An ordinary user submission does not call `respondWith()`.
 
 ## Code equivalent
@@ -143,18 +139,13 @@ and show simulated confirmations rather than contacting a backend.
 - Only the selected lesson's form is in the document. Selecting another lesson
   removes the old form and inserts the selected form. Finish an invocation
   before switching lessons.
-- **Form tool configured** shows the active form's name and submission mode.
-  It describes markup, not independently verified browser registration.
-- Expand **Inspect form parameters** to connect each actual control's name,
-  type, required state, and `toolparamdescription` to the agent's inputs.
-  Activity entries explain which submission attributes and events are involved.
-- **Submission activity** shows the last 10 page-observed submissions and lesson
-  changes, newest first. Form filling before submission is not logged. Use the
-  agent's own trace to inspect fills and pending invocations.
+- Use the code examples to connect each control's name, required state, and
+  `toolparamdescription` to the agent's inputs. Use the agent's own trace to
+  inspect fills and pending invocations.
 - If manual review appears stalled after the fields are filled, click
   **Search**. If submission is blocked, check all required fields.
 - If no tool appears, check browser setup, reload, and refresh your agent's
-  tool list. Copying a prompt does not connect an agent.
+  tool list.
 
 ## Attribute and event reference
 

@@ -14,15 +14,14 @@ schemas, and expected transitions without requiring the visual page.
 2. Load [WebMCP Explorer](https://github.com/MicrosoftEdge/webmcp-labs/tree/main/webmcp-explorer#load-the-webmcp-explorer-extension)
    and configure a tool-calling model, or use another agent with WebMCP access.
 3. Open the playground and the agent on that page. Send the prompts below one
-   at a time. Copying a prompt does not execute a tool.
+   at a time.
 
-The board comes first. Below it, expand **Setup and suggested prompts**,
-**Code examples and API explanations**, or **Registered tools and activity**
+The board comes first. Below it, expand **Code examples and API explanations**
 as needed. The API reference and Markdown link are below the board.
 
-The page checks for `document.modelContext.registerTool`. API support is not an
-agent connection indicator. Without the API, no tools are registered, but the
-code examples and this guide remain readable.
+The page registers tools when `document.modelContext` is available. Without the
+API, no tools are registered, but the code examples and this guide remain
+readable.
 
 ## Lesson 1: add ideas and discover tools
 
@@ -38,7 +37,7 @@ Expected sequence:
 3. The third note registers `group-stickies`. Five tools are now available.
 4. `list-stickies` returns the IDs, text, colors, and any group labels.
 
-Inspect the board, the named tool list, and the activity log together. The
+Inspect the board's tool count and the agent's tool list together. The
 registration code tab shows how `inputSchema` describes inputs and `execute`
 connects an agent invocation to an existing app function.
 
@@ -166,17 +165,9 @@ cancellation.
 
 ## Observe and troubleshoot
 
-- **Tools registered by this demo** lists the registrations maintained by the
-  page and explains why each tool is available. Use the agent's tool list to
-  confirm discovery; the page is not enumerating another agent's private state.
-- Expand **Inspect inputSchema** on a tool to read the schema from its actual
-  registration. Connect its required inputs to the prompt and its `execute`
-  result to the activity log. Registration changes explain `registerTool` and
-  the lifetime controlled by `options.signal`.
-- **Tool results and lifecycle changes** keeps the last 10 page-observed results
-  and registration changes, newest first. It does not expose agent reasoning.
-  Each callback's inputs and returned result are shown together in the log.
-- The board and log are in memory. Reloading resets both.
+- Use the agent's tool list to confirm discovery. Compare the code examples
+  and schemas above with the inputs and results in the agent's own activity.
+- The board is in memory. Reloading resets it.
 - If a tool is missing, check the required board state, browser setup, and the
   agent's refreshed tool list.
 - When the API is unavailable, the tool badge reports zero, not a simulated
