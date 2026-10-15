@@ -382,68 +382,6 @@ pre.code-block code {
 .t-prop { color: #9cdcfe; }             /* property names */
 .t-op  { color: #d4d4d4; }              /* operators */
 
-/* ---- API Reference section ---- */
-
-.api-reference {
-  margin-top: 2.5rem;
-  border-top: 1px solid #e0e0e0;
-  padding-top: 1.5rem;
-}
-
-.api-reference h2 {
-  font-size: 1rem;
-  font-weight: 600;
-  margin: 0 0 1rem;
-  color: #242424;
-}
-
-.api-table {
-  width: 100%;
-  border-collapse: collapse;
-  font-size: 0.8125rem;
-}
-
-.api-table th,
-.api-table td {
-  text-align: left;
-  padding: 0.5rem 0.75rem;
-  border-bottom: 1px solid #e8e8e8;
-  vertical-align: top;
-}
-
-.api-table th {
-  font-weight: 600;
-  color: #424242;
-  background: #f5f5f5;
-  font-size: 0.75rem;
-  text-transform: uppercase;
-  letter-spacing: 0.03em;
-}
-
-.api-table td {
-  color: #424242;
-}
-
-.api-table code {
-  background: #f0f0f0;
-  padding: 1px 5px;
-  border-radius: 3px;
-  font-size: 0.75rem;
-}
-
-.api-table tr:last-child td {
-  border-bottom: none;
-}
-
-.api-group-label {
-  font-weight: 600;
-  color: #242424;
-  background: #fafafa;
-  font-size: 0.75rem;
-  text-transform: uppercase;
-  letter-spacing: 0.02em;
-}
-
 /* ---- Responsive ---- */
 
 @media (max-width: 900px) {
