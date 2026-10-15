@@ -290,7 +290,7 @@
         <tr>
           <td><code>event.respondWith(promise)</code></td>
           <td>SubmitEvent</td>
-          <td>During the submit handler, first call <code>preventDefault()</code>, then pass a Promise that resolves to the tool's return value. Requires <code>event.agentInvoked</code> to be <code>true</code>.</td>
+          <td>During the submit handler, first call <code>preventDefault()</code>, then pass a Promise that resolves to the tool's return value. Requires <code>event.agentInvoked</code> to be <code>true</code>. Canceling an agent-invoked submission with <code>preventDefault()</code> without calling <code>respondWith()</code> rejects the tool invocation.</td>
         </tr>
       </tbody>
     </table>
@@ -489,12 +489,18 @@ function attachFormHandler(tabId) {
     const form = document.getElementById('form-manual');
     if (form) form.addEventListener('submit', e => {
       e.preventDefault();
+      if (e.agentInvoked) {
+        e.respondWith(Promise.resolve('Form submitted.'));
+      }
       showToast('toast-manual', 'Form submitted! In a real app this would navigate to results.');
     });
   } else if (tabId === 'auto') {
     const form = document.getElementById('form-auto');
     if (form) form.addEventListener('submit', e => {
       e.preventDefault();
+      if (e.agentInvoked) {
+        e.respondWith(Promise.resolve('Form submitted.'));
+      }
       showToast('toast-auto', 'Auto-submitted! The agent triggered this form automatically.');
     });
   } else if (tabId === 'custom') {
