@@ -244,64 +244,75 @@
   <!-- ================================================================
        API Reference
        ================================================================ -->
-  <section class="api-reference">
+  <section class="api-reference" aria-labelledby="api-reference-heading">
     <h2 id="api-reference-heading">Declarative WebMCP API Reference</h2>
-    <div class="api-table-scroll" tabindex="0" role="region" aria-labelledby="api-reference-heading">
-    <table class="api-table">
-      <thead>
-        <tr>
-          <th scope="col">Attribute</th>
-          <th scope="col">Applies to</th>
-          <th scope="col">Description</th>
-        </tr>
-      </thead>
-      <tbody>
-        <tr class="api-group-label"><td colspan="3">Form attributes</td></tr>
-        <tr>
-          <td><code>toolname</code></td>
-          <td><code>&lt;form&gt;</code></td>
-          <td>Registers the form as a WebMCP tool. Must be unique on the page. Use letters, digits, hyphens, underscores, and dots for compatibility with imperative tool names.</td>
-        </tr>
-        <tr>
-          <td><code>tooltitle</code></td>
-          <td><code>&lt;form&gt;</code></td>
-          <td>Optional friendly display name shown in UIs. The agent uses <code>toolname</code> for invocation.</td>
-        </tr>
-        <tr>
-          <td><code>tooldescription</code></td>
-          <td><code>&lt;form&gt;</code></td>
-          <td>Human-readable description of what the tool does. Helps the AI agent decide when and how to use this tool.</td>
-        </tr>
-        <tr>
-          <td><code>toolautosubmit</code></td>
-          <td><code>&lt;form&gt;</code></td>
-          <td>When present, the form is submitted automatically after the agent fills it in. Without this, the user must submit manually.</td>
-        </tr>
-        <tr class="api-group-label"><td colspan="3">Input attributes</td></tr>
-        <tr>
-          <td><code>toolparamdescription</code></td>
-          <td><code>&lt;input&gt;</code>, <code>&lt;select&gt;</code>, <code>&lt;textarea&gt;</code></td>
-          <td>Describes the parameter so the agent knows what value to provide. For example: "Event date in YYYY-MM-DD format".</td>
-        </tr>
-        <tr class="api-group-label"><td colspan="3">SubmitEvent properties</td></tr>
-        <tr>
-          <td><code>event.agentInvoked</code></td>
-          <td>SubmitEvent</td>
-          <td>Boolean. <code>true</code> when the form is submitted during an active tool invocation, including when the user submits after manual review. <code>false</code> for submissions outside a tool invocation.</td>
-        </tr>
-        <tr>
-          <td><code>event.respondWith(promise)</code></td>
-          <td>SubmitEvent</td>
-          <td>During the submit handler, first call <code>preventDefault()</code>, then pass a Promise that resolves to the tool's return value. Requires <code>event.agentInvoked</code> to be <code>true</code>. Canceling an agent-invoked submission with <code>preventDefault()</code> without calling <code>respondWith()</code> rejects the tool invocation.</td>
-        </tr>
-      </tbody>
-    </table>
-    </div>
+    <p class="api-introduction">Define a form tool, describe its inputs, and control submission.</p>
+
+    <section aria-labelledby="api-form-definition">
+      <h3 id="api-form-definition">Form definition</h3>
+      <p class="api-context">Attributes on <code>&lt;form&gt;</code>.</p>
+      <dl class="api-entries">
+        <div>
+          <dt><code>toolname</code></dt>
+          <dd>Registers the form with a tool identifier.
+            <span class="api-detail">Must be unique on the page. Use letters, digits, hyphens, underscores, and dots for compatibility with imperative tool names.</span>
+          </dd>
+        </div>
+        <div>
+          <dt><code>tooldescription</code></dt>
+          <dd>Describes what the tool does.
+            <span class="api-detail">Helps the agent decide when and how to use it.</span>
+          </dd>
+        </div>
+        <div>
+          <dt><code>tooltitle</code><span class="api-metadata">Optional</span></dt>
+          <dd>Provides a friendly display name for UIs.
+            <span class="api-detail">The agent still uses <code>toolname</code> for invocation.</span>
+          </dd>
+        </div>
+      </dl>
+    </section>
+
+    <section aria-labelledby="api-input-descriptions">
+      <h3 id="api-input-descriptions">Input descriptions</h3>
+      <dl class="api-entries">
+        <div>
+          <dt><code>toolparamdescription</code></dt>
+          <dd>Explains what value a field expects.
+            <span class="api-detail">Applies to <code>&lt;input&gt;</code>, <code>&lt;select&gt;</code>, and <code>&lt;textarea&gt;</code>.</span>
+          </dd>
+        </div>
+      </dl>
+    </section>
+
+    <section aria-labelledby="api-submission-contract">
+      <h3 id="api-submission-contract">Submission contract</h3>
+      <dl class="api-entries">
+        <div>
+          <dt><code>toolautosubmit</code><span class="api-metadata">Form attribute</span></dt>
+          <dd>Allows automatic submission after the agent fills the form.
+            <span class="api-detail">Without it, the user must submit manually.</span>
+          </dd>
+        </div>
+        <div>
+          <dt><code>event.agentInvoked</code><span class="api-metadata">SubmitEvent, Boolean</span></dt>
+          <dd>Indicates an active tool invocation.
+            <span class="api-detail"><code>true</code> even when the user submits after manual review. <code>false</code> for submissions outside a tool invocation.</span>
+          </dd>
+        </div>
+        <div>
+          <dt><code>event.respondWith(promise)</code><span class="api-metadata">SubmitEvent method</span></dt>
+          <dd>Supplies the tool result.
+            <span class="api-detail">During the submit handler, call <code>preventDefault()</code> first, then pass a Promise resolving to the return value. Requires <code>event.agentInvoked</code> to be <code>true</code>.</span>
+          </dd>
+        </div>
+      </dl>
+      <p class="api-note"><strong>Submission rule:</strong> Canceling an agent-invoked submission with <code>preventDefault()</code> without calling <code>respondWith()</code> rejects the tool invocation.</p>
+    </section>
   </section>
 
 </div>
 
-<script src="../api-reference.js"></script>
 <script>
 // ============================================================
 // Code strings

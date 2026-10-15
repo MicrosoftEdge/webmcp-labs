@@ -54,90 +54,101 @@
   </div>
 
   <!-- API Reference -->
-  <section class="api-reference">
+  <section class="api-reference" aria-labelledby="api-reference-heading">
     <h2 id="api-reference-heading">Imperative WebMCP API Reference</h2>
-    <div class="api-table-scroll" tabindex="0" role="region" aria-labelledby="api-reference-heading">
-    <table class="api-table">
-      <thead>
-        <tr>
-          <th scope="col">Option</th>
-          <th scope="col">Type</th>
-          <th scope="col">Description</th>
-        </tr>
-      </thead>
-      <tbody>
-        <tr class="api-group-label"><td colspan="3">registerTool(tool, options) &mdash; <code>tool</code> properties</td></tr>
-        <tr>
-          <td><code>name</code></td>
-          <td>String</td>
-          <td>Unique identifier for the tool. Letters, digits, hyphens, underscores, and dots. Max 128 characters.</td>
-        </tr>
-        <tr>
-          <td><code>description</code></td>
-          <td>String</td>
-          <td>Human-readable description of what the tool does. Helps the agent decide when and how to use it.</td>
-        </tr>
-        <tr>
-          <td><code>title</code></td>
-          <td>String</td>
-          <td>Optional. Friendly display name shown in UIs (the agent uses <code>name</code> for invocation).</td>
-        </tr>
-        <tr>
-          <td><code>inputSchema</code></td>
-          <td>Object</td>
-          <td>JSON Schema describing the input parameters the tool accepts. See <a href="https://json-schema.org/understanding-json-schema/about" target="_blank" rel="noopener">json-schema.org</a>.</td>
-        </tr>
-        <tr>
-          <td><code>annotations</code></td>
-          <td>Object</td>
-          <td>
-            Optional hints for the agent.
-            <ul>
-              <li><code>readOnlyHint: true</code> means the tool doesn&rsquo;t mutate state.</li>
-              <li><code>untrustedContentHint: true</code> means the tool&rsquo;s output may contain untrusted content.</li>
-              <li><code>consequentialHint: true</code> indicates an action with significant consequences, such as making a payment.</li>
+    <p class="api-introduction">Define a tool, control its lifetime, and discover tools across origins.</p>
+
+    <section aria-labelledby="api-tool-definition">
+      <h3 id="api-tool-definition">Tool definition</h3>
+      <p class="api-context">Properties of <code>tool</code> in <code>document.modelContext.registerTool(tool, options)</code>.</p>
+      <dl class="api-entries">
+        <div>
+          <dt><code>name</code><span class="api-metadata">String</span></dt>
+          <dd>Identifies the tool.
+            <span class="api-detail">Must be unique. Letters, digits, hyphens, underscores, and dots; maximum 128 characters.</span>
+          </dd>
+        </div>
+        <div>
+          <dt><code>description</code><span class="api-metadata">String</span></dt>
+          <dd>Describes what the tool does.
+            <span class="api-detail">Helps the agent decide when and how to use it.</span>
+          </dd>
+        </div>
+        <div>
+          <dt><code>inputSchema</code><span class="api-metadata">Object</span></dt>
+          <dd>Describes the accepted input parameters.
+            <span class="api-detail">Uses <a href="https://json-schema.org/understanding-json-schema/about" target="_blank" rel="noopener">JSON Schema</a>.</span>
+          </dd>
+        </div>
+        <div>
+          <dt><code>execute</code><span class="api-metadata">Function</span></dt>
+          <dd>Handles invocation and returns the result to the agent.
+            <span class="api-detail">Can be sync or async. Receives the input object and an options object whose <code>signal</code> is aborted when the invocation is canceled.</span>
+          </dd>
+        </div>
+        <div>
+          <dt><code>title</code><span class="api-metadata">String, optional</span></dt>
+          <dd>Provides a friendly display name for UIs.
+            <span class="api-detail">The agent still uses <code>name</code> for invocation.</span>
+          </dd>
+        </div>
+        <div>
+          <dt><code>annotations</code><span class="api-metadata">Object, optional</span></dt>
+          <dd>Provides hints about tool behavior.
+            <ul class="api-detail">
+              <li><code>readOnlyHint: true</code>: does not mutate state.</li>
+              <li><code>untrustedContentHint: true</code>: output may contain untrusted content.</li>
+              <li><code>consequentialHint: true</code>: action has significant consequences, such as making a payment.</li>
             </ul>
-            Omitted hints default to <code>false</code> when an annotations object is supplied.
-          </td>
-        </tr>
-        <tr>
-          <td><code>execute</code></td>
-          <td>Function</td>
-          <td>Called when the agent invokes the tool. Receives the input object and an options object whose <code>signal</code> is aborted if the invocation is canceled. Chromium does not validate the input against <code>inputSchema</code>; validate it in the callback. Can be sync or async. Return value is sent back to the agent.</td>
-        </tr>
-        <tr class="api-group-label"><td colspan="3">registerTool(tool, options) &mdash; <code>options</code> properties</td></tr>
-        <tr>
-          <td><code>signal</code></td>
-          <td>AbortSignal</td>
-          <td>Optional. Pass an <code>AbortController.signal</code> to later unregister the tool by calling <code>controller.abort()</code>.</td>
-        </tr>
-        <tr>
-          <td><code>exposedTo</code></td>
-          <td>Array&lt;String&gt;</td>
-          <td>Optional. Origins (e.g. <code>"https://example.com"</code>) that an iframe wants to share this tool with. Use to bubble a tool up from a cross-origin iframe to its parent document.</td>
-        </tr>
-        <tr class="api-group-label"><td colspan="3">Discovering tools &mdash; <code>document.modelContext.getTools(options?)</code></td></tr>
-        <tr>
-          <td><code>fromOrigins</code></td>
-          <td>Array&lt;String&gt;</td>
-          <td>Optional. Include tools from the listed origins if they are exposed to the calling document, in addition to same-origin tools. An omitted or empty list returns only same-origin tools. Returns a <code>Promise&lt;RegisteredTool[]&gt;</code>.</td>
-        </tr>
-        <tr class="api-group-label"><td colspan="3">Unregistering tools</td></tr>
-        <tr>
-          <td><code>AbortController</code></td>
-          <td>Object</td>
-          <td>Create a controller, pass <code>controller.signal</code> to <code>registerTool()</code>. Call <code>controller.abort()</code> to unregister the tool at any time.</td>
-        </tr>
-      </tbody>
-    </table>
-    </div>
+            <span class="api-detail">Omitted hints default to <code>false</code> when an annotations object is supplied.</span>
+          </dd>
+        </div>
+      </dl>
+      <p class="api-note"><strong>Input validation:</strong> Chromium does not validate inputs against <code>inputSchema</code>. Validate them in <code>execute</code>.</p>
+    </section>
+
+    <section aria-labelledby="api-registration-lifetime">
+      <h3 id="api-registration-lifetime">Registration lifetime</h3>
+      <dl class="api-entries">
+        <div>
+          <dt><code>options.signal</code><span class="api-metadata">AbortSignal, optional</span></dt>
+          <dd>Removes the tool registration when aborted.
+            <span class="api-detail">Create an <code>AbortController</code> and pass <code>controller.signal</code> to <code>registerTool()</code>. Call <code>controller.abort()</code> to unregister the tool at any time.</span>
+            <span class="api-detail">This controls registration lifetime, not the invocation cancellation signal received by <code>execute</code>.</span>
+          </dd>
+        </div>
+      </dl>
+    </section>
+
+    <section aria-labelledby="api-discovery-exposure">
+      <h3 id="api-discovery-exposure">Discovery and exposure</h3>
+      <dl class="api-entries">
+        <div>
+          <dt><code>getTools(options?)</code><span class="api-metadata">document.modelContext method</span></dt>
+          <dd>Discovers tools available to the calling document.
+            <span class="api-detail">Returns a <code>Promise&lt;RegisteredTool[]&gt;</code>.</span>
+          </dd>
+        </div>
+        <div>
+          <dt><code>fromOrigins</code><span class="api-metadata">Array&lt;String&gt;, optional</span></dt>
+          <dd>Includes tools from the listed origins.
+            <span class="api-detail">An option for <code>getTools()</code>. Tools must be exposed to the calling document and are included alongside same-origin tools. An omitted or empty list returns only same-origin tools.</span>
+          </dd>
+        </div>
+        <div>
+          <dt><code>exposedTo</code><span class="api-metadata">Array&lt;String&gt;, optional</span></dt>
+          <dd>Shares a tool with the listed origins.
+            <span class="api-detail">An option for <code>registerTool()</code>. Allows a cross-origin iframe to expose its tool to its parent document.</span>
+          </dd>
+        </div>
+      </dl>
+    </section>
   </section>
 
 </div>
 
 
 
-<script src="../api-reference.js"></script>
 <script>
 // ============================================================
 // Board state
