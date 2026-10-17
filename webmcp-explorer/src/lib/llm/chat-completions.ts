@@ -20,11 +20,20 @@ export class ChatCompletionsProvider implements LLMProvider {
   private client: OpenAI;
   private model: string;
 
-  constructor(config: ProviderConfig) {
+  constructor(config: ProviderConfig, options?: {
+    headers?: Record<string, string>;
+    fetch?: typeof fetch;
+    maxRetries?: number;
+    timeout?: number;
+  }) {
     this.client = new OpenAI({
       baseURL: config.baseUrl,
       apiKey: config.apiKey || 'unused',
       dangerouslyAllowBrowser: true,
+      defaultHeaders: options?.headers,
+      fetch: options?.fetch,
+      maxRetries: options?.maxRetries,
+      timeout: options?.timeout,
     });
     this.model = config.model;
   }

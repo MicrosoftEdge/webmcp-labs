@@ -8,6 +8,14 @@
     "sidePanel",
     "storage"
   ],
+  "optional_host_permissions": [
+    "https://github.com/*",
+    "https://api.github.com/*",
+    "https://api.githubcopilot.com/*",
+    "https://api.individual.githubcopilot.com/*",
+    "https://api.business.githubcopilot.com/*",
+    "https://api.enterprise.githubcopilot.com/*"
+  ],
   "side_panel": {
     "default_path": "sidepanel/index.html"
   },
