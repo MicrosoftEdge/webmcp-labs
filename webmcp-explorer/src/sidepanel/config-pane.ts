@@ -7,6 +7,8 @@ import { PROVIDERS } from '../lib/llm/registry';
 
 // --- In-memory cache for per-provider configs ---
 let providerConfigs: Record<string, ProviderConfig> = {};
+let signInController: AbortController | null = null;
+let refreshAuthenticationStatus: (() => Promise<void>) | null = null;
 
 // --- DOM refs ---
 
@@ -28,6 +30,9 @@ function getProviderDef(): ProviderMetadata | null {
 }
 
 function renderProviderFields(def: ProviderMetadata | null) {
+  signInController?.abort();
+  signInController = null;
+  refreshAuthenticationStatus = null;
   // All values come from our own provider metadata constants, so innerHTML is safe here.
   if (!def) { providerFieldsContainer.innerHTML = ''; return; }
 
@@ -45,8 +50,163 @@ function renderProviderFields(def: ProviderMetadata | null) {
                 ${field.defaultValue ? `value="${field.defaultValue}"` : ''}>`}
         </div>
       `).join('')}
+      ${def.authentication ? `
+        <div class="stack gap-sm" id="provider-auth">
+          <div id="provider-auth-status" role="status">Checking sign-in status...</div>
+          <div class="row gap-sm">
+            <button class="btn btn-primary" id="provider-sign-in" disabled>Sign in with GitHub</button>
+            <button class="btn btn-neutral" id="provider-sign-out" disabled>Sign out</button>
+            <button class="btn btn-neutral" id="provider-sign-in-cancel" hidden>Cancel</button>
+          </div>
+          <div id="provider-device-code" role="status" hidden></div>
+        </div>
+      ` : ''}
     </div>`;
+  for (const field of def.fields) {
+    if (!field.description && !field.documentationUrl) continue;
+    const control = document.getElementById(field.id)!;
+    const help = document.createElement('p');
+    help.id = `${field.id}-help`;
+    help.className = 'text-secondary';
+    help.textContent = field.description ?? '';
+    control.setAttribute('aria-describedby', help.id);
+    if (field.documentationUrl) {
+      const link = document.createElement('a');
+      link.href = field.documentationUrl;
+      link.target = '_blank';
+      link.rel = 'noopener noreferrer';
+      link.textContent = 'Source and documentation';
+      help.append(' ', link);
+    }
+    control.after(help);
+  }
+  if (def.description) {
+    const description = document.createElement('p');
+    description.className = 'text-secondary';
+    description.textContent = def.description;
+    providerFieldsContainer.prepend(description);
+  }
+  if (def.authentication) wireAuthentication(def, def.authentication);
 }
+
+function draftProviderConfig(def: ProviderMetadata): ProviderConfig {
+  const config: ProviderConfig = { provider: def.key };
+  for (const field of def.fields) {
+    const element = document.getElementById(field.id) as HTMLInputElement | HTMLSelectElement;
+    config[field.configKey] = element.value.trim();
+  }
+  return config;
+}
+
+async function requestHostPermissions(def: ProviderMetadata): Promise<void> {
+  if (def.hostPermissions && !await chrome.permissions.request({ origins: def.hostPermissions })) {
+    throw new Error('Permission to connect to GitHub and Copilot is required.');
+  }
+}
+
+function wireAuthentication(def: ProviderMetadata, authentication: NonNullable<ProviderMetadata['authentication']>) {
+  const container = document.getElementById('provider-auth')!;
+  const status = document.getElementById('provider-auth-status')!;
+  const signIn = document.getElementById('provider-sign-in') as HTMLButtonElement;
+  const signOut = document.getElementById('provider-sign-out') as HTMLButtonElement;
+  const cancel = document.getElementById('provider-sign-in-cancel') as HTMLButtonElement;
+  const deviceCode = document.getElementById('provider-device-code')!;
+  let statusRequest = 0;
+
+  async function refreshStatus() {
+    if (signInController || !container.isConnected) return;
+    const request = ++statusRequest;
+    try {
+      const signedIn = await authentication.isSignedIn(draftProviderConfig(def));
+      if (!container.isConnected || signInController || request !== statusRequest) return;
+      status.textContent = signedIn
+        ? 'Signed in for this browser session. Test Connection verifies Copilot access.'
+        : 'Not signed in for this OAuth client.';
+      signIn.disabled = false;
+      // Also allow clearing expired or malformed credentials.
+      signOut.disabled = false;
+    } catch (error) {
+      if (!container.isConnected || signInController || request !== statusRequest) return;
+      status.textContent = 'Unable to read sign-in status.';
+      signIn.disabled = false;
+      signOut.disabled = false;
+      showMessage(error instanceof Error ? error.message : String(error), 'error');
+    }
+  }
+  refreshAuthenticationStatus = refreshStatus;
+  for (const field of def.fields) {
+    document.getElementById(field.id)!.addEventListener('change', () => void refreshStatus());
+  }
+  signIn.addEventListener('click', async () => {
+    const controller = new AbortController();
+    signInController = controller;
+    signIn.disabled = true;
+    signOut.disabled = true;
+    cancel.hidden = false;
+    messageEl.hidden = true;
+    status.textContent = 'Starting GitHub sign-in...';
+    try {
+      await requestHostPermissions(def);
+      controller.signal.throwIfAborted();
+      await authentication.signIn(draftProviderConfig(def), (code, verificationUrl) => {
+        if (!container.isConnected || controller.signal.aborted) return;
+        const instructions = document.createElement('p');
+        instructions.textContent = 'Enter this code on GitHub: ';
+        const codeElement = document.createElement('code');
+        codeElement.textContent = code;
+        instructions.append(codeElement);
+        const link = document.createElement('a');
+        link.href = verificationUrl;
+        link.target = '_blank';
+        link.rel = 'noopener noreferrer';
+        link.textContent = 'Open GitHub to authorize';
+        deviceCode.replaceChildren(instructions, link);
+        deviceCode.hidden = false;
+        status.textContent = 'Waiting for GitHub authorization. Keep this panel open.';
+      }, controller.signal);
+      if (container.isConnected) showMessage('GitHub sign-in complete. Save your settings, then Test Connection.', 'success');
+    } catch (error) {
+      if (container.isConnected) {
+        const text = controller.signal.aborted ? 'GitHub sign-in cancelled.'
+          : error instanceof DOMException && error.name === 'TimeoutError'
+            ? 'GitHub sign-in timed out. Please try again.'
+            : error instanceof Error ? error.message : String(error);
+        showMessage(text, controller.signal.aborted ? 'info' : 'error');
+      }
+    } finally {
+      if (signInController === controller) signInController = null;
+      if (container.isConnected) {
+        cancel.hidden = true;
+        deviceCode.hidden = true;
+        deviceCode.replaceChildren();
+        await refreshStatus();
+      }
+    }
+  });
+  cancel.addEventListener('click', () => signInController?.abort());
+  signOut.addEventListener('click', async () => {
+    signIn.disabled = true;
+    signOut.disabled = true;
+    try {
+      await authentication.signOut();
+      if (container.isConnected) {
+        showMessage('GitHub credentials cleared from this extension. This does not revoke the shared OAuth authorization on GitHub.', 'success');
+      }
+    } catch (error) {
+      if (container.isConnected) showMessage(error instanceof Error ? error.message : String(error), 'error');
+    } finally {
+      await refreshStatus();
+    }
+  });
+  queueMicrotask(() => void refreshStatus());
+}
+
+window.addEventListener('pagehide', () => signInController?.abort());
+chrome.storage.onChanged.addListener((changes, area) => {
+  if (area === 'session' && Object.keys(changes).some((key) => key.startsWith('webmcp-explorer-copilot-'))) {
+    void refreshAuthenticationStatus?.();
+  }
+});
 
 let previousProviderKey: string = '';
 
@@ -75,12 +235,13 @@ function populateFromCache(def: ProviderMetadata) {
   if (!cached) return;
   for (const field of def.fields) {
     const el = document.getElementById(field.id) as HTMLInputElement | HTMLSelectElement | null;
-    if (el) el.value = cached[field.configKey] ?? '';
+    if (el) el.value = cached[field.configKey] ?? field.defaultValue ?? '';
   }
 }
 
 // Switch provider fields on change
 providerSelect.addEventListener('change', () => {
+  messageEl.hidden = true;
   // Capture the previous provider's fields before they are removed from the DOM
   if (previousProviderKey) captureProvider(previousProviderKey);
   previousProviderKey = providerSelect.value;
@@ -170,6 +331,7 @@ document.getElementById('config-test')!.addEventListener('click', async () => {
   try {
     const meta = getProviderDef();
     if (!meta) return;
+    await requestHostPermissions(meta);
     const provider = await meta.createProvider(providerConfig);
 
     await provider.sendMessage(
