@@ -75,7 +75,7 @@
           </dd>
         </div>
         <div>
-          <dt><code>inputSchema</code><span class="api-metadata">Object</span></dt>
+          <dt><code>inputSchema</code><span class="api-metadata">Object, optional</span></dt>
           <dd>Describes the accepted input parameters.
             <span class="api-detail">Uses <a href="https://json-schema.org/understanding-json-schema/about" target="_blank" rel="noopener">JSON Schema</a>.</span>
           </dd>
@@ -99,6 +99,7 @@
               <li><code>readOnlyHint: true</code>: does not mutate state.</li>
               <li><code>untrustedContentHint: true</code>: output may contain untrusted content.</li>
               <li><code>consequentialHint: true</code>: action has significant consequences, such as making a payment.</li>
+              <li><code>debugging: true</code>: intended for debugging and developer tooling rather than end-user interactions.</li>
             </ul>
             <span class="api-detail">Omitted hints default to <code>false</code> when an annotations object is supplied.</span>
           </dd>
@@ -126,7 +127,7 @@
         <div>
           <dt><code>getTools(options?)</code><span class="api-metadata">document.modelContext method</span></dt>
           <dd>Discovers tools available to the calling document.
-            <span class="api-detail">Returns a <code>Promise&lt;RegisteredTool[]&gt;</code>.</span>
+            <span class="api-detail">Returns a <code>Promise&lt;Tool[]&gt;</code> of browser tool snapshots. Each exposes <code>inputSchema</code> as an object, or <code>null</code> if omitted at registration; <code>annotations</code> is also <code>null</code> if omitted.</span>
           </dd>
         </div>
         <div>
