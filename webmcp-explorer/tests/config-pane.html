@@ -1,0 +1,61 @@
+<!-- Copyright (c) Microsoft Corporation.
+ Licensed under the MIT License. -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Mock companion settings</title>
+  <link rel="stylesheet" href="../src/sidepanel/styles.css">
+</head>
+<body>
+  <main class="stack gap-md" style="max-width: 600px; margin: 20px auto">
+    <h1>Mock companion settings</h1>
+    <p>No real authentication or inference is performed. Use fake pairing tokens only.
+      Mock storage lasts for this browser tab and survives reloads.</p>
+    <label for="provider-select">Provider</label>
+    <select id="provider-select" class="select"></select>
+    <div id="provider-fields"></div>
+    <label for="max-iterations">Max Agent Iterations</label>
+    <input id="max-iterations" type="number">
+    <label for="max-chat-messages">Max Chat Messages</label>
+    <input id="max-chat-messages" type="number">
+    <div class="row gap-sm">
+      <button id="config-save" class="btn btn-primary">Save</button>
+      <button id="config-test" class="btn btn-neutral">Test Connection</button>
+    </div>
+    <div id="config-message" hidden></div>
+  </main>
+  <script type="module">
+    const storageKey = 'webmcp-settings-fixture';
+    const stored = JSON.parse(sessionStorage.getItem(storageKey) ?? JSON.stringify({
+      'webmcp-explorer-config': {
+        provider: { provider: 'openai', apiKey: 'mock-existing-key', model: 'existing-model' },
+        providerConfigs: { openai: { provider: 'openai', apiKey: 'mock-existing-key', model: 'existing-model' } },
+        maxIterations: 17, maxChatMessages: 41,
+      },
+    }));
+    globalThis.chrome = { storage: { local: {
+      get: async (key) => ({ [key]: structuredClone(stored[key]) }),
+      set: async (values) => {
+        Object.assign(stored, structuredClone(values));
+        sessionStorage.setItem(storageKey, JSON.stringify(stored));
+      },
+    } } };
+    globalThis.fetch = async (input, init) => {
+      const url = new URL(input instanceof Request ? input.url : String(input));
+      if (url.origin !== 'http://127.0.0.1:8787') throw new Error('The fixture refuses non-mocked network requests.');
+      const token = new Headers(init?.headers).get('Authorization');
+      if (!token || !/^Bearer mock_pairing_token_x{32}$/.test(token)) {
+        return Response.json({ error: 'For this fixture, use mock_pairing_token_ followed by 32 x characters.' }, { status: 401 });
+      }
+      if (url.pathname === '/models') return Response.json({ models: [
+        { id: 'mock-model', name: '<img src=x onerror=alert(1)> Mock model' },
+      ] });
+      if (url.pathname === '/sessions') return Response.json({ sessionId: null, text: 'ok', toolCalls: [] });
+      throw new Error('The fixture refuses unknown endpoints.');
+    };
+    await import('../src/sidepanel/config-pane.ts');
+  </script>
+</body>
+</html>

@@ -322,6 +322,11 @@ async function handleSend() {
     trimMessages(config.maxChatMessages);
   }
 
+  try {
+    await provider.dispose?.();
+  } catch (error) {
+    appendErrorBubble(`Provider cleanup failed: ${error instanceof Error ? error.message : String(error)}`);
+  }
   setState('idle');
   if (abortController?.signal.aborted) {
     appendErrorBubble('Stopped.');

@@ -304,6 +304,13 @@ async function runAgentLoop(startMode: 'run' | 'step') {
 
   const provider = await createProvider();
   if (!provider) { setStatus('Configure an LLM provider first (Config tab).', 'error'); return; }
+  const releaseProvider = async () => {
+    try {
+      await provider.dispose?.();
+    } catch (error) {
+      setStatus(`Provider cleanup failed: ${error instanceof Error ? error.message : String(error)}`, 'error');
+    }
+  };
 
   const config = await loadConfig();
   const maxIterations = config.maxIterations;
@@ -409,6 +416,8 @@ async function runAgentLoop(startMode: 'run' | 'step') {
         addStep('task_complete', 'done', { args: tc.arguments, result: summary });
         messages.push({ role: 'tool', toolCallId: tc.id, content: summary });
         setStatus('Goal achieved.', 'success');
+        await releaseProvider();
+        abortController = null;
         setState('idle');
         return;
       }
@@ -470,6 +479,7 @@ async function runAgentLoop(startMode: 'run' | 'step') {
     }
   }
 
+  await releaseProvider();
   setState('idle');
   abortController = null;
 }
