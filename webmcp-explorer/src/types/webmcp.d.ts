@@ -14,15 +14,15 @@ export interface ToolAnnotations {
   readOnlyHint: boolean;
   untrustedContentHint: boolean;
   consequentialHint: boolean;
+  debugging: boolean;
 }
 
 /**
  * Tool projection sent over chrome.runtime messaging to the side panel.
  *
- * This is a *subset* of the real WebIDL RegisteredTool: the live `window`
- * reference and the `execute` callback can't be structured-cloned, so we drop
- * them. The content script re-resolves the full live tool by its unique
- * (origin, name) identity when dispatching executeTool.
+ * This is a serializable projection of the browser's Tool object, without
+ * its live `window` reference. The content script re-resolves the live tool
+ * by its (origin, name) identity when dispatching executeTool.
  */
 export interface RegisteredTool {
   name: string;
@@ -32,7 +32,7 @@ export interface RegisteredTool {
   inputSchema?: unknown;
   /** Friendly display name, or an empty string when registration omitted it. */
   title: string;
-  annotations?: ToolAnnotations;
+  annotations?: ToolAnnotations | null;
 }
 
 /**

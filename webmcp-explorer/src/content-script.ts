@@ -7,8 +7,8 @@
  * chrome.runtime messaging.
  *
  * Why we re-resolve tools per dispatch:
- *   document.modelContext.executeTool(tool, inputObject) requires the *full* tool
- *   object, including its live `window` reference. That object can't be
+ *   document.modelContext.executeTool(tool, inputObject) requires a genuine
+ *   browser Tool object, not a plain object with matching properties. It can't be
  *   structured-cloned across chrome.runtime, so the side panel can never
  *   hold it. Instead, the side panel dispatches by (origin, name) and we
  *   re-resolve the live tool from document.modelContext here just before
@@ -35,15 +35,15 @@ declare global {
     modelContext?: ModelContext;
   }
 
-  /** Live tool object returned by document.modelContext.getTools(). */
+  /** Browser Tool object returned by document.modelContext.getTools(). */
   interface ModelContextRegisteredTool {
     readonly name: string;
     readonly origin: string;
     readonly description: string;
     readonly inputSchema?: unknown;
     readonly title: string;
-    readonly window: Window;
-    readonly annotations?: ToolAnnotations;
+    readonly window: Window | null;
+    readonly annotations?: ToolAnnotations | null;
   }
 
   interface ModelContextGetToolsOptions {
