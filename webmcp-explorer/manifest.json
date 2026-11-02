@@ -8,6 +8,9 @@
     "sidePanel",
     "storage"
   ],
+  "host_permissions": [
+    "http://127.0.0.1/*"
+  ],
   "side_panel": {
     "default_path": "sidepanel/index.html"
   },

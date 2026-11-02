@@ -13,6 +13,15 @@ let providerConfigs: Record<string, ProviderConfig> = {};
 const providerSelect = document.getElementById('provider-select') as HTMLSelectElement;
 const providerFieldsContainer = document.getElementById('provider-fields')!;
 const messageEl = document.getElementById('config-message')!;
+let providerOperation: AbortController | undefined;
+messageEl.setAttribute('role', 'status');
+
+function cancelProviderOperation() {
+  providerOperation?.abort();
+  providerOperation = undefined;
+  (document.getElementById('config-save') as HTMLButtonElement).disabled = false;
+  (document.getElementById('config-test') as HTMLButtonElement).disabled = false;
+}
 
 // Populate provider dropdown
 providerSelect.innerHTML = '<option value="">Select a provider…</option>';
@@ -28,6 +37,8 @@ function getProviderDef(): ProviderMetadata | null {
 }
 
 function renderProviderFields(def: ProviderMetadata | null) {
+  cancelProviderOperation();
+  messageEl.hidden = true;
   // All values come from our own provider metadata constants, so innerHTML is safe here.
   if (!def) { providerFieldsContainer.innerHTML = ''; return; }
 
@@ -46,6 +57,100 @@ function renderProviderFields(def: ProviderMetadata | null) {
         </div>
       `).join('')}
     </div>`;
+  if (def.description) {
+    const description = document.createElement('p');
+    description.className = 'text-secondary';
+    description.textContent = def.description;
+    providerFieldsContainer.prepend(description);
+  }
+  renderProviderActions(def);
+}
+
+function renderProviderActions(def: ProviderMetadata) {
+  if (!def.credentialKey && !def.loadModels) return;
+  const actions = document.createElement('div');
+  actions.className = 'row gap-sm';
+  const buttons: HTMLButtonElement[] = [];
+  const addButton = (label: string, action: () => void) => {
+    const button = document.createElement('button');
+    button.className = 'btn btn-neutral';
+    button.textContent = label;
+    button.addEventListener('click', action);
+    actions.appendChild(button);
+    buttons.push(button);
+    return button;
+  };
+  const modelField = def.fields.find((field) => field.configKey === 'model');
+  const modelSelect = modelField ? document.getElementById(modelField.id) as HTMLSelectElement : null;
+  const resetModels = () => modelSelect?.replaceChildren(new Option('Refresh models to select', ''));
+  for (const field of def.fields.filter((field) => field.configKey !== 'model')) {
+    document.getElementById(field.id)?.addEventListener('input', resetModels);
+  }
+  const refreshModels = async (signal: AbortSignal) => {
+    const config = getProviderConfig(false);
+    if (!config || !def.loadModels || !modelSelect) return;
+    const models = await def.loadModels(config, signal);
+    signal.throwIfAborted();
+    resetModels();
+    for (const model of models) modelSelect.add(new Option(model.label, model.value));
+    modelSelect.value = models.some((model) => model.value === config.model) ? config.model : '';
+  };
+  const runOperation = async (operation: (signal: AbortSignal) => Promise<string>) => {
+    const controller = new AbortController();
+    providerOperation = controller;
+    const fields = providerFieldsContainer.querySelectorAll<HTMLInputElement | HTMLSelectElement>('input, select');
+    for (const field of fields) field.disabled = true;
+    for (const button of buttons) button.disabled = true;
+    cancelButton.disabled = false;
+    (document.getElementById('config-save') as HTMLButtonElement).disabled = true;
+    (document.getElementById('config-test') as HTMLButtonElement).disabled = true;
+    showMessage('Waiting for provider...', 'info');
+    try {
+      const message = await operation(controller.signal);
+      if (!controller.signal.aborted) showMessage(message, 'success');
+    } catch (error) {
+      if (providerOperation === controller) {
+        showMessage(controller.signal.aborted ? 'Provider operation cancelled.'
+          : error instanceof Error ? error.message : String(error), controller.signal.aborted ? 'info' : 'error');
+      }
+    } finally {
+      if (providerOperation === controller) {
+        cancelProviderOperation();
+        for (const field of fields) field.disabled = false;
+        for (const button of buttons) button.disabled = false;
+        cancelButton.disabled = true;
+      }
+    }
+  };
+  if (def.credentialKey) {
+    addButton('Forget credentials', () => {
+      void runOperation(async (signal) => {
+        const config = await loadConfig();
+        signal.throwIfAborted();
+        delete config.providerConfigs[def.key];
+        if (config.provider?.provider === def.key) config.provider = null;
+        await saveConfig(config);
+        delete providerConfigs[def.key];
+        for (const field of def.fields) {
+          const input = document.getElementById(field.id) as HTMLInputElement | HTMLSelectElement;
+          input.value = field.defaultValue ?? field.options?.[0]?.value ?? '';
+        }
+        resetModels();
+        return 'Local connection settings removed. Copilot CLI sign-in is unchanged. Stop any requests already running.';
+      });
+    });
+  }
+  if (def.loadModels) {
+    addButton('Refresh models', () => {
+      void runOperation(async (signal) => {
+        await refreshModels(signal);
+        return 'Models refreshed. Select a model and click Save.';
+      });
+    });
+  }
+  const cancelButton = addButton('Cancel', () => providerOperation?.abort());
+  cancelButton.disabled = true;
+  providerFieldsContainer.append(actions);
 }
 
 let previousProviderKey: string = '';
@@ -75,7 +180,13 @@ function populateFromCache(def: ProviderMetadata) {
   if (!cached) return;
   for (const field of def.fields) {
     const el = document.getElementById(field.id) as HTMLInputElement | HTMLSelectElement | null;
-    if (el) el.value = cached[field.configKey] ?? '';
+    if (el) {
+      const value = cached[field.configKey] ?? '';
+      if (el instanceof HTMLSelectElement && value && !Array.from(el.options).some((option) => option.value === value)) {
+        el.add(new Option(value, value));
+      }
+      el.value = value;
+    }
   }
 }
 
@@ -104,7 +215,7 @@ loadConfig().then((config) => {
   }
   (document.getElementById('max-iterations') as HTMLInputElement).value = String(config.maxIterations);
   (document.getElementById('max-chat-messages') as HTMLInputElement).value = String(config.maxChatMessages);
-});
+}).catch((error) => showMessage(`Could not load configuration: ${error instanceof Error ? error.message : String(error)}`, 'error'));
 
 function showMessage(text: string, type: 'success' | 'error' | 'info' | 'warning') {
   messageEl.hidden = false;
@@ -112,7 +223,7 @@ function showMessage(text: string, type: 'success' | 'error' | 'info' | 'warning
   messageEl.textContent = text;
 }
 
-function getProviderConfig(): ProviderConfig | null {
+function getProviderConfig(validate = true): ProviderConfig | null {
   const def = getProviderDef();
   if (!def) {
     showMessage('Please select a provider.', 'error');
@@ -123,7 +234,7 @@ function getProviderConfig(): ProviderConfig | null {
   for (const field of def.fields) {
     const el = document.getElementById(field.id) as HTMLInputElement | HTMLSelectElement;
     const val = el.value.trim();
-    if (!val && !field.optional) {
+    if (validate && !val && !field.optional) {
       showMessage(`${field.label} is required.`, 'error');
       return null;
     }
@@ -156,8 +267,12 @@ document.getElementById('config-save')!.addEventListener('click', async () => {
   const maxChatMessages = parseInt((document.getElementById('max-chat-messages') as HTMLInputElement).value, 10) || 50;
   // Update the active provider in the cache, then persist everything
   providerConfigs[providerConfig.provider] = providerConfig;
-  await saveConfig({ provider: providerConfig, providerConfigs: { ...providerConfigs }, maxIterations, maxChatMessages });
-  showMessage('All provider configurations saved.', 'success');
+  try {
+    await saveConfig({ provider: providerConfig, providerConfigs: { ...providerConfigs }, maxIterations, maxChatMessages });
+    showMessage('All provider configurations saved.', 'success');
+  } catch (error) {
+    showMessage(`Could not save configuration: ${error instanceof Error ? error.message : String(error)}`, 'error');
+  }
 });
 
 // Test connection
