@@ -1,0 +1,16 @@
+{
+  "manifest_version": 3,
+  "name": "WebMCP Agent",
+  "version": "0.1.0",
+  "description": "An agent that completes tasks on web pages using their WebMCP tools.",
+  "minimum_chrome_version": "156",
+  "key": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAwqGTdN94QTF7PN7GRKcwhAl+Sf5mjXAbVcBn9IBo4DQLuA8hC58GZyJfA19VFAXm3MwdrCnbj1c9gyzfHUO8sZ2CI0m+t6Fsfa2plQNq6ItqFKtZ7yOjdOulhpMqmOUfx+sB1n/6UU8x1au4GEdpc1QGdR0OHSuRluM1AquRCyHXqwcDDs4zBb4fUObsnOSAYIqPPbOuPcUkwi0kGJEfwJfjGDSPVTD/Aifmv07AC39wcL8H9eLh1PPONR9pamYmNDrZdrf4AVjYl8cUjoZZR+ujFNbjHGB2klfQ50/yyvZIt9PdDicff3to3vTbDHwBkb4Z6hMZxJ88eO4FHnw2SQIDAQAB",
+  "permissions": ["sidePanel", "storage", "tabs", "webNavigation", "nativeMessaging", "alarms"],
+  "host_permissions": ["<all_urls>"],
+  "background": { "service_worker": "background.js", "type": "module" },
+  "side_panel": { "default_path": "sidepanel.html" },
+  "content_scripts": [
+    { "matches": ["<all_urls>"], "js": ["content.js"], "run_at": "document_idle" }
+  ],
+  "action": { "default_title": "WebMCP Agent" }
+}

@@ -1,0 +1,16 @@
+<!doctype html>
+<html lang="en"><meta charset="utf-8"><title>WebMCP Agent dynamic fixture</title><h1>Dynamic tools</h1>
+<button id="toggle">Toggle extra tool</button>
+<script>
+let controller;
+if (document.modelContext) document.modelContext.registerTool({
+  name: 'base', description: 'Always present.', execute: () => ({ ok: true })
+});
+document.getElementById('toggle').onclick = () => {
+  if (controller) { controller.abort(); controller = undefined; }
+  else {
+    controller = new AbortController();
+    document.modelContext.registerTool({ name: 'extra', description: 'Temporarily available.', execute: () => ({ extra: true }) }, { signal: controller.signal });
+  }
+};
+</script></html>

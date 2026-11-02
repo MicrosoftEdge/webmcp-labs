@@ -1,0 +1,8 @@
+<!doctype html>
+<html lang="en"><meta charset="utf-8"><title>Embedded tool frame</title><p>Cross-origin tool</p>
+<script>
+if (document.modelContext) document.modelContext.registerTool({
+  name: 'search', description: 'Return the embedded-frame identity.', inputSchema: { type: 'object', properties: {} },
+  annotations: { readOnlyHint: true }, execute: () => ({ frame: 'embedded' })
+}, { exposedTo: ['__OTHER_ORIGIN__'] });
+</script></html>

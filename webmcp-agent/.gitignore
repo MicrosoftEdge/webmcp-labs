@@ -1,0 +1,9 @@
+node_modules/
+dist/
+dist-types/
+*.tsbuildinfo
+coverage/
+.probe/
+host/run-host.cmd
+host/run-host.sh
+host/com.microsoft.webmcp_agent.json

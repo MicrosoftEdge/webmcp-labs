@@ -1,0 +1,14 @@
+{
+  "name": "@webmcp-agent/shared",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    "./protocol": "./dist/protocol.js",
+    "./validate": "./dist/validate.js",
+    "./toolNames": "./dist/toolNames.js"
+  },
+  "dependencies": {
+    "zod": "4.3.6"
+  }
+}

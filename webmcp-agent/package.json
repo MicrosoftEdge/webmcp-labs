@@ -1,0 +1,32 @@
+{
+  "name": "webmcp-agent",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=22.12.0"
+  },
+  "workspaces": [
+    "shared",
+    "host",
+    "extension"
+  ],
+  "scripts": {
+    "build": "tsc -b && npm run build --workspace @webmcp-agent/extension",
+    "typecheck": "tsc -b && tsc --noEmit -p tsconfig.test.json",
+    "test": "npm run build && vitest run",
+    "probe:sdk": "npm run build && node scripts/probe-sdk.mjs",
+    "probe:live": "npm run build && node scripts/probe-live.mjs",
+    "setup": "npm run build && node scripts/setup.mjs",
+    "login": "tsc -b host && node scripts/login.mjs",
+    "doctor": "tsc -b host && node scripts/doctor.mjs",
+    "unregister": "node scripts/unregister.mjs",
+    "fixtures": "node scripts/fixtures.mjs",
+    "test:browser": "node scripts/test-browser.mjs"
+  },
+  "devDependencies": {
+    "@types/node": "22.19.0",
+    "typescript": "5.9.3",
+    "vitest": "4.0.18"
+  }
+}
