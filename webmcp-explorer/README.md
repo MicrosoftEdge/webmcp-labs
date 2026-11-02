@@ -5,7 +5,7 @@ A browser extension for inspecting, debugging, and interacting with WebMCP-enabl
 ## Prerequisites
 
 - A Chromium-based browser (e.g. Edge or Chrome)
-- An LLM API key (see [Provider Setup](#provider-setup))
+- An LLM API key, or GitHub Copilot access (see [Provider Setup](#provider-setup))
 
 ## Load the WebMCP Explorer extension
 
@@ -70,6 +70,65 @@ To configure your LLM provider:
 |---|---|
 | **API Key** | From [console.anthropic.com](https://console.anthropic.com/) |
 | **Model** | e.g. `claude-opus-5` |
+
+### GitHub Copilot (subscription)
+
+This is an **experimental, unofficial browser-only compatibility integration**.
+It uses undocumented Copilot authentication and Chat Completions endpoints, not the
+Copilot SDK. GitHub may change or restrict these endpoints without notice; working
+authentication does not guarantee a supported integration or access to every model.
+No companion, CLI, hosted backend, or separate API key is required.
+
+1. In **Config**, select **GitHub Copilot (subscription)**.
+1. Choose a model available to your GitHub.com Copilot account and organization.
+1. Click **Sign in with GitHub** and allow the optional GitHub/Copilot host permissions.
+1. Follow **Open GitHub to authorize**, enter the displayed device code, and review
+   GitHub's authorization screen. Only enter codes you initiated in this extension.
+   Keep the side panel open until sign-in completes.
+1. Click **Save**, then **Test Connection**. Chat and Agent work as with other providers.
+
+You can cancel sign-in; closing the panel or switching providers also cancels it.
+GitHub.com accounts are supported, subject to subscription and organization policies.
+Custom GitHub Enterprise hosts are not supported.
+
+| Field | Description |
+|---|---|
+| **Model** | A Copilot model ID that supports Chat Completions and tool calling. `gpt-4.1` is the initial suggestion, not a guarantee of availability.
+| **OAuth Client ID (advanced override)** | Identifies the application requesting GitHub authorization, **not** your account or Copilot subscription. It is public, not an API key or secret. Normally leave the default unchanged; this override is for integration testing. A custom client must support device flow and be accepted by Copilot; registering an app does not guarantee access. Never enter an access token or client secret. |
+
+**Where the default ID is published:** [microsoft/AzureStorageExplorer#8995](https://github.com/microsoft/AzureStorageExplorer/issues/8995)
+explicitly identifies `Iv1.b507a08c87ecfe98` as the VS Code GitHub OAuth client ID.
+That issue also treats approval to reuse the identity as a pre-release requirement.
+It is evidence of the value's provenance, **not** permission for this project to reuse
+the application identity or a guarantee of third-party Copilot API support.
+[GitHub's OAuth documentation](https://docs.github.com/en/apps/oauth-apps/building-oauth-apps/authorizing-oauth-apps)
+explains client IDs and authorization flows; it does not establish this project's
+authorization to use that particular client. Resolve identity approval before a production release.
+
+**OAuth identity limitation:** GitHub may identify the default authorization as
+**Visual Studio Code**, not WebMCP Explorer. This project does not own that app.
+The extension requests `read:user`, not repository scopes, but a shared app may already
+have other permissions from earlier authorizations. Review GitHub's actual consent
+screen before approving. Configurable client IDs do not make this officially supported.
+
+**Token handling:** GitHub credentials and short-lived Copilot tokens are kept in
+`chrome.storage.session`, restricted to trusted extension contexts. They are not saved
+in provider settings, persistent extension storage, or sent through a project-operated
+server. Sign in again after restarting the browser, reloading, or updating the extension.
+Credentials left in persistent storage by the earlier authentication branch are removed,
+not reused. A browser/profile or extension compromise can still expose session credentials.
+
+**Sign out** clears this extension's credentials and cached Copilot token and aborts its
+active model requests. It does not revoke the shared OAuth authorization on GitHub:
+revocation can affect VS Code or other applications using that identity. If you need to
+revoke it, review [GitHub's authorized OAuth apps](https://github.com/settings/applications).
+An already-submitted request or page tool action cannot be undone by signing out.
+
+Copilot endpoints are restricted to an explicit HTTPS allowlist. Redirects and cookie
+credentials are disabled, tokens are renewed near expiration, and failed model requests
+are not automatically retried. Only the existing browser WebMCP tools are executed;
+there are no local shell/filesystem tools. Test Connection sends a real prompt and can
+consume subscription usage. Availability, billing, and policies remain controlled by GitHub.
 
 ### Chat Completions API (Ollama, LM Studio, etc.)
 
