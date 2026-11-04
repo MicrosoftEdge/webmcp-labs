@@ -9,7 +9,20 @@ import { once } from 'node:events';
 import { root, extensionId } from './platform.mjs';
 import { startFixtures } from './fixtures.mjs';
 
-const browserName = process.argv.includes('--chrome') ? 'Chrome' : 'Edge';
+const requestedArguments = new Set(process.argv.slice(2));
+const supportedArguments = new Set([
+  '--chrome', '--headed', '--history', '--restricted-page',
+  '--allow-model-calls', '--confirm-test', '--stop-test',
+]);
+for (const argument of requestedArguments) {
+  if (!supportedArguments.has(argument)) {
+    throw new Error(`Unknown browser-integration argument: ${argument}. UI presentation checks now use npm run test:ui.`);
+  }
+}
+if ((requestedArguments.has('--confirm-test') || requestedArguments.has('--stop-test')) && !requestedArguments.has('--allow-model-calls')) {
+  throw new Error('--confirm-test and --stop-test require explicit --allow-model-calls opt-in.');
+}
+const browserName = requestedArguments.has('--chrome') ? 'Chrome' : 'Edge';
 const executable = process.env.WEBMCP_TEST_BROWSER ?? (browserName === 'Chrome'
   ? 'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe'
   : 'C:\\Program Files (x86)\\Microsoft\\Edge\\Application\\msedge.exe');
@@ -17,7 +30,6 @@ if (!existsSync(executable)) throw new Error('Set WEBMCP_TEST_BROWSER to an inst
 const directory = await mkdtemp(join(tmpdir(), 'webmcp-agent-browser-'));
 const profile = join(directory, 'profile');
 await mkdir(profile);
-// Persist the same testing-flag preference that the user enables at about:flags.
 await writeFile(join(profile, 'Local State'), JSON.stringify({ browser: { enabled_labs_experiments: ['enable-webmcp-testing@1'] } }));
 const fixtures = await startFixtures();
 const extensionPath = join(root, 'extension', 'dist');
@@ -53,6 +65,7 @@ async function createPage(url, initialScript) {
   const { sessionId } = await send('Target.attachToTarget', { targetId, flatten: true });
   await send('Runtime.enable', {}, sessionId);
   await send('Page.enable', {}, sessionId);
+  await send('Page.bringToFront', {}, sessionId);
   if (initialScript) {
     await send('Page.addScriptToEvaluateOnNewDocument', { source: initialScript }, sessionId);
     await send('Page.navigate', { url }, sessionId);
@@ -67,7 +80,8 @@ async function createPage(url, initialScript) {
 }
 try {
   browser = spawn(executable, [
-    '--headless=new', '--disable-gpu', '--no-first-run', '--no-default-browser-check',
+    ...(requestedArguments.has('--headed') ? [] : ['--headless=new', '--disable-gpu']),
+    '--no-first-run', '--no-default-browser-check',
     '--remote-debugging-port=0', '--enable-unsafe-extension-debugging',
     `--user-data-dir=${profile}`, ...(browserName === 'Edge' ? [`--load-extension=${extensionPath}`, `--disable-extensions-except=${extensionPath}`] : []),
     '--enable-blink-features=WebMCP,WebMCPTesting', 'about:blank',
@@ -98,9 +112,8 @@ try {
   });
   const version = await send('Browser.getVersion');
   console.log(`${browserName}: ${version.product}`);
-  // Official Chrome builds may ignore --load-extension; the debugging API is
-  // explicitly restricted to this isolated profile and unpacked directory.
-  let targets = await send('Target.getTargets');
+  // Official Chrome may ignore --load-extension; debugging is confined to this owned profile.
+  const targets = await send('Target.getTargets');
   if (browserName === 'Chrome' || !targets.targetInfos.some(target => target.url.startsWith(`chrome-extension://${extensionId}/`))) {
     console.log('Debug extension load:', await send('Extensions.loadUnpacked', { path: extensionPath, enableInIncognito: false }));
     if (browserName === 'Chrome') {
@@ -139,7 +152,7 @@ try {
   let page = await waitFor(() => get("testMessages.filter(message => message.type === 'page' && message.tools.length === 5).at(-1)"), 'five fixture tools');
   assert.equal(page.tools.filter(tool => tool.annotations.debugging).length, 1);
   console.log('PASS: content discovery, annotations, native handshake, SDK chat open.');
-  if (process.argv.includes('--history')) {
+  if (requestedArguments.has('--history')) {
     async function waitForOpened(expectedId) {
       await waitFor(() => get(`testMessages.some(message=>message.type==='history' && message.done${expectedId ? ` && message.chatId===${JSON.stringify(expectedId)}` : ''}) ||
         testMessages.some(message=>message.type==='error')`), 'SDK history switch', 60000);
@@ -154,16 +167,28 @@ try {
       await waitFor(() => get("!document.querySelector('button[aria-label=\"New chat\"]').disabled"), 'New chat ready');
       await get("testMessages.length=0; document.querySelector('button[aria-label=\"New chat\"]').click()");
       const id = await waitForOpened();
-      await waitFor(() => get(`testMessages.some(message=>message.type==='chats' && message.chats.some(chat=>chat.chatId===${JSON.stringify(id)}))`), 'automatic Saved chats refresh');
+      try {
+        await waitFor(() => get(`testMessages.some(message=>message.type==='chats' && message.chats.some(chat=>chat.chatId===${JSON.stringify(id)}))`), 'automatic Saved chats refresh');
+      } catch (error) {
+        console.error('Saved chats refresh diagnostic:', JSON.stringify(await get(`({
+          expectedChatId:${JSON.stringify(id)},
+          messages:testMessages.filter(message=>['chat_opened','chats','error','connection'].includes(message.type)),
+          notices:document.querySelector('.transcript')?.innerText
+        })`), null, 2));
+        await get("globalThis.chatListsBefore=testMessages.filter(message=>message.type==='chats').length;testPort.postMessage({type:'list_chats'})");
+        await waitFor(() => get("testMessages.filter(message=>message.type==='chats').length>chatListsBefore"), 'diagnostic SDK session list');
+        console.error('Later SDK session list:', JSON.stringify(await get("testMessages.filter(message=>message.type==='chats').at(-1)"), null, 2));
+        throw error;
+      }
       return id;
     }
     async function resumeChat(id) {
       await get("document.querySelector('nav [aria-label=\"History\"]').click()");
       await waitFor(() => get(`testMessages.some(message=>message.type==='chats' && message.chats.some(chat=>chat.chatId===${JSON.stringify(id)})) &&
-        document.querySelectorAll('.history').length === testMessages.filter(message=>message.type==='chats').at(-1).chats.length`), 'rendered SDK history list');
+        document.querySelectorAll('.history-row').length === testMessages.filter(message=>message.type==='chats').at(-1).chats.length`), 'rendered SDK history list');
       await get(`(() => {
         const index=testMessages.filter(message=>message.type==='chats').at(-1).chats.findIndex(chat=>chat.chatId===${JSON.stringify(id)});
-        const button=document.querySelectorAll('.history')[index].querySelector('button');
+        const button=document.querySelectorAll('.history-row')[index].querySelector('.history-open');
         if(button.disabled)throw new Error('History selection is unexpectedly disabled');
         testMessages.length=0;
         button.click();
@@ -182,12 +207,8 @@ try {
     await resumeChat(third);
     console.log('PASS: New chat, current-history selection, and repeated SDK close/resume switches keep the panel usable.');
   }
-  if (process.argv.includes('--restricted-page')) {
+  if (requestedArguments.has('--restricted-page')) {
     const url = browserName === 'Edge' ? 'edge://extensions/' : 'chrome://extensions/';
-    console.log('Browser URL origin behavior:', await get(`JSON.stringify({
-      internal:new URL(${JSON.stringify(url)}).origin,
-      extension:new URL(chrome.runtime.getURL('sidepanel.html')).origin
-    })`));
     const restricted = await createPage(url);
     await get(`(async () => {
       const tab=(await chrome.tabs.query({})).find(tab=>tab.url===${JSON.stringify(url)});
@@ -207,9 +228,8 @@ try {
   const manual = await waitFor(() => get("testMessages.find(message => message.type === 'inspect_result')"), 'manual tool run');
   assert(manual.ok && manual.result.includes('FIXTURE-42'));
   console.log('PASS: inspector runs a genuine browser tool and returns the raw result.');
-  // Exercise actual React inspector rendering, not only the messaging harness.
   await get("document.querySelector('nav [aria-label=\"Tools\"]').click()");
-  await waitFor(() => get("document.body.innerText.includes('Hidden from agent') && document.body.innerText.includes('debug_state')"), 'debug tool visibility');
+  await waitFor(() => get("document.querySelectorAll('.tool-row').length===5 && document.body.innerText.includes('debug_state') && document.body.innerText.includes('Hidden')"), 'content tools reach the rendered inspector');
   await send('Page.navigate', { url: `${fixtures.origins[0]}/iframes.html` }, fixture.sessionId);
   page = await waitFor(() => get("testMessages.filter(message => message.type === 'page' && message.tools.length === 2 && message.page.url.endsWith('/iframes.html')).at(-1)"), 'iframe tools');
   assert.equal(new Set(page.tools.map(tool => tool.origin)).size, 2);
@@ -229,176 +249,32 @@ try {
   await waitFor(() => get("testMessages.some(message => message.type === 'page' && message.page.url.endsWith('/dynamic.html') && message.tools.length === 1)"), 'toolchange removal');
   console.log('PASS: dynamic tool snapshots update on registration and removal.');
 
-  if (process.argv.includes('--composer') || process.argv.includes('--markdown')) {
-    // Test rendering with SDK-shaped events without spending model quota or
-    // modifying production SDK sessions. Only this preview document's port is mocked.
-    const { targetId } = await send('Target.createTarget', { url: 'about:blank' });
-    const { sessionId } = await send('Target.attachToTarget', { targetId, flatten: true });
-    await send('Page.enable', {}, sessionId);
-    await send('Runtime.enable', {}, sessionId);
-    await send('Page.addScriptToEvaluateOnNewDocument', { source: `
-      globalThis.previewRequests=[];
-      const listeners=[];
-      globalThis.previewDeliver=message=>listeners.forEach(listener=>listener(message));
-      chrome.runtime.connect=()=>({
-        postMessage:message=>previewRequests.push(message),
-        onMessage:{addListener:listener=>{listeners.push(listener);globalThis.previewConnected=true;}},
-        onDisconnect:{addListener:()=>{}},
-        disconnect:()=>{}
-      });
-    ` }, sessionId);
-    await send('Page.navigate', { url: `chrome-extension://${extensionId}/sidepanel.html` }, sessionId);
-    const preview = expression => evaluate(sessionId, expression);
-    await waitFor(() => preview("document.querySelector('.app-header') && globalThis.previewConnected"), 'composer preview');
-    await preview(`(() => {
-      previewDeliver({type:'connection',status:'Connected'});
-      previewDeliver({type:'models',models:[{id:'auto',name:'Auto'},{id:'sdk-model',name:'SDK model with a deliberately long display name',multiplier:2}]});
-      previewDeliver({type:'chat_opened',chatId:'webmcp-agent-preview',title:'WebMCP Agent'});
-      previewDeliver({type:'page',page:{tabId:1,url:'https://fixture.example/',title:'WebMCP fixture',origin:'https://fixture.example'},tools:[],available:true});
-      previewDeliver({type:'history',chatId:'webmcp-agent-preview',items:[],done:true});
-      previewDeliver({type:'chat_loading',loading:false});
-    })()`);
-    await waitFor(() => preview("document.querySelector('.composer .model-chip select') && !document.querySelector('.composer textarea').disabled"), 'initial model chip');
-    assert(!await preview("!!document.querySelector('.app-header select')"));
-    assert(await preview("document.querySelector('button[aria-label=\"New chat\"]').title==='New chat'"));
-    await preview(`(() => {
-      const select=document.querySelector('.composer select');
-      select.value='sdk-model';select.dispatchEvent(new Event('change',{bubbles:true}));
-    })()`);
-    await waitFor(() => preview("previewRequests.some(message=>message.type==='set_model' && message.model==='sdk-model')"), 'unchanged SDK model identity');
-    await preview("previewDeliver({type:'notice',text:'Synthetic notice'})");
-    assert(await preview("!!document.querySelector('.composer .model-chip')"), 'Notices must not count as conversation history');
-    await preview(`(() => {
-      const input=document.querySelector('.composer textarea');
-      Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype,'value').set.call(input,'Synthetic first message');
-      input.dispatchEvent(new Event('input',{bubbles:true}));
-    })()`);
-    await waitFor(() => preview("!document.querySelector('.composer button[type=submit]').disabled"), 'Fluent composer input');
-    await preview("document.querySelector('.composer button[type=submit]').click()");
-    assert(await preview("previewRequests.some(message=>message.type==='send' && message.text==='Synthetic first message')"), 'Composer must forward the user message without a second agent loop');
-    await preview("previewDeliver({type:'user',text:'Synthetic first message'});previewDeliver({type:'status',chatId:'webmcp-agent-preview',state:'running'})");
-    await waitFor(() => preview("!document.querySelector('.composer .model-chip')"), 'model chip hidden after first message');
-    await preview("[...document.querySelectorAll('.composer button')].find(button=>button.textContent==='Stop').click()");
-    assert(await preview("previewRequests.some(message=>message.type==='stop')"));
-    await preview("previewDeliver({type:'status',chatId:'webmcp-agent-preview',state:'idle'});[...document.querySelectorAll('.header-actions button')].find(button=>button.textContent==='Settings').click()");
-    await waitFor(() => preview("!!document.querySelector('.settings-model select')"), 'model control retained in Settings');
-    assert(await preview("document.querySelector('.settings-model select').value==='sdk-model'"));
-    await preview("[...document.querySelectorAll('.header-actions button')].find(button=>button.textContent==='Settings').click();document.querySelector('button[aria-label=\"New chat\"]').click()");
-    assert(await preview("previewRequests.some(message=>message.type==='new_chat')"));
-    await preview(`(() => {
-      previewDeliver({type:'reset'});
-      previewDeliver({type:'chat_opened',chatId:'webmcp-agent-preview-restored',title:'Saved chat'});
-      previewDeliver({type:'history',chatId:'webmcp-agent-preview-restored',items:[{kind:'user',text:'Saved SDK message'}],done:true});
-      previewDeliver({type:'chat_loading',loading:false});
-    })()`);
-    await waitFor(() => preview("document.querySelector('.transcript').innerText.includes('Saved SDK message')"), 'restored conversation');
-    assert(!await preview("!!document.querySelector('.composer .model-chip')"), 'A resumed conversation must not show the initial picker');
-    await preview(`(() => {
-      previewDeliver({type:'reset'});
-      previewDeliver({type:'chat_opened',chatId:'webmcp-agent-preview-empty',title:'WebMCP Agent'});
-      previewDeliver({type:'history',chatId:'webmcp-agent-preview-empty',items:[],done:true});
-      previewDeliver({type:'chat_loading',loading:false});
-    })()`);
-    await waitFor(() => preview("!!document.querySelector('.composer .model-chip')"), 'picker restored for a new empty chat');
-    for (const width of [320, 440]) {
-      await send('Emulation.setDeviceMetricsOverride', { width, height: 900, deviceScaleFactor: 1, mobile: false }, sessionId);
-      for (const scheme of ['light', 'dark']) {
-        await send('Emulation.setEmulatedMedia', { features: [{ name: 'prefers-color-scheme', value: scheme }] }, sessionId);
-        await waitFor(() => preview(`document.querySelector('.app-provider').dataset.colorScheme===${JSON.stringify(scheme)}`), 'Fluent theme change');
-        assert(await preview(`(() => {
-          const composer=document.querySelector('.composer-surface').getBoundingClientRect();
-          const chip=document.querySelector('.model-chip select').getBoundingClientRect();
-          return document.documentElement.scrollWidth<=innerWidth && chip.left>=composer.left && chip.right<=composer.right;
-        })()`), `Composer overflow at ${width}px in ${scheme} mode`);
-        if (process.env.WEBMCP_TEST_ARTIFACT_DIR) {
-          await mkdir(process.env.WEBMCP_TEST_ARTIFACT_DIR, { recursive: true });
-          const image = await send('Page.captureScreenshot', { format: 'png' }, sessionId);
-          await writeFile(join(process.env.WEBMCP_TEST_ARTIFACT_DIR, `webmcp-agent-composer-preview-${width}-${scheme}.png`), Buffer.from(image.data, 'base64'));
-        }
-      }
-    }
-    console.log('PASS: compact composer, first-message/resume transitions, Settings models, accessible +, and 320/440px light/dark layouts.');
-    if (process.argv.includes('--markdown')) {
-      const codeText = `const result = await page.search({ query: "${'a-long-synthetic-query-'.repeat(7)}" });\n  console.log(result);\n`;
-      const text = [
-        '# Markdown that reads clearly', '',
-        'A useful answer with **emphasis**, *context*, and `inlineCode()`.', '',
-        '## Suggested steps', '',
-        '1. Read the available tools.', '2. Choose the right action.', '   - Keep the current origin.', '   - Review the result.', '',
-        '> Website hints are claims, not verified permissions.', '',
-        '### Status', '', '- [x] Discover tools', '- [ ] Execute the request', '', '~~Old behavior~~ is replaced.', '',
-        '## Tool reference', '',
-        '| Tool | Origin | Purpose | Status |', '| --- | --- | --- | --- |',
-        '| `search` | fixture.example | Find matching records | Read-only |',
-        '| `place_order` | fixture.example | Synthetic order | Confirm first |', '',
-        '## Example', '', '```ts', codeText.trimEnd(), '```', '',
-        '[Documentation](https://learn.microsoft.com/)', '',
-        '![Remote image](https://tracker.example/pixel)', '',
-        '<script>window.unsafeMarkdownExecuted=true</script>', '',
-        '[Unsafe link](javascript:alert%281%29)',
-      ].join('\n');
-      await preview(`previewDeliver({type:'user',text:'Show a Markdown example'});previewDeliver({type:'delta',chatId:'webmcp-agent-preview-empty',text:'## Streaming\\n\\n\`\`\`ts\\nconst result ='})`);
-      await waitFor(() => preview("!!document.querySelector('.message.assistant .markdown pre')"), 'partial streaming fence');
-      await preview(`previewDeliver({type:'message',chatId:'webmcp-agent-preview-empty',text:${JSON.stringify(text)}})`);
-      await waitFor(() => preview("document.querySelectorAll('.markdown-table th').length===4"), 'Markdown table rendering');
-      assert(await preview("!!document.querySelector('.message.assistant .markdown h1') && !!document.querySelector('.markdown blockquote') && document.querySelectorAll('.markdown input[type=checkbox]:disabled').length===2"));
-      assert(!await preview("globalThis.unsafeMarkdownExecuted || document.querySelector('.markdown img') || [...document.querySelectorAll('.markdown a')].some(link=>link.href.startsWith('javascript:'))"));
-      assert(await preview("document.querySelector('.message.assistant').className.includes('fui-ChatMessage')"), 'Transcript must use Contrib Chat');
-      await preview("Object.defineProperty(navigator,'clipboard',{configurable:true,value:{writeText:async text=>{globalThis.copiedMarkdownCode=text}}})");
-      await preview("document.querySelector('.markdown-code button').click()");
-      await waitFor(() => preview("document.querySelector('.copy-status')?.textContent==='Copied'"), 'copy-code feedback');
-      assert.equal(await preview('globalThis.copiedMarkdownCode'), codeText);
-      for (const width of [320, 440]) {
-        await send('Emulation.setDeviceMetricsOverride', { width, height: 1100, deviceScaleFactor: 1, mobile: false }, sessionId);
-        for (const scheme of ['light', 'dark']) {
-          await send('Emulation.setEmulatedMedia', { features: [{ name: 'prefers-color-scheme', value: scheme }] }, sessionId);
-          await waitFor(() => preview(`document.querySelector('.app-provider').dataset.colorScheme===${JSON.stringify(scheme)}`), 'Markdown Fluent theme');
-          const layout = await preview(`(() => {
-            const code=document.querySelector('.markdown pre');
-            const table=document.querySelector('.markdown-table');
-            const main=document.querySelector('main');
-            const mainBounds=main.getBoundingClientRect();
-            const contentRight=mainBounds.right-parseFloat(getComputedStyle(main).paddingRight);
-            const contentWidth=main.clientWidth-parseFloat(getComputedStyle(main).paddingLeft)-parseFloat(getComputedStyle(main).paddingRight);
-            const assistant=document.querySelector('.message.assistant');
-            const body=assistant.querySelector('.message-body');
-            return {
-              fits:document.documentElement.scrollWidth<=innerWidth,
-              messageFits:assistant.getBoundingClientRect().right<=contentRight+1 && body.getBoundingClientRect().right<=contentRight+1,
-              usesPanelWidth:body.getBoundingClientRect().width>=contentWidth*0.9,
-              codeScrolls:code.scrollWidth>code.clientWidth,
-              codeWhitespace:getComputedStyle(code).whiteSpace,
-              tableScrolls:table.scrollWidth>table.clientWidth,
-              textColor:getComputedStyle(document.querySelector('.message.assistant .markdown')).color,
-              background:getComputedStyle(document.querySelector('.message.assistant .message-body')).backgroundColor
-            };
-          })()`);
-          assert(layout.fits, `Markdown overflow at ${width}px in ${scheme}: ${JSON.stringify(layout)}`);
-          assert(layout.messageFits && layout.usesPanelWidth, 'Markdown must use the narrow panel width without a clipped avatar gutter');
-          assert(layout.codeScrolls && layout.codeWhitespace === 'pre', 'Long code must preserve whitespace and scroll within its block');
-          assert(layout.tableScrolls, 'Wide tables must scroll within the message');
-          const luminance = color => {
-            const channels = color.match(/[\d.]+/g).slice(0, 3).map(Number).map(value => value / 255)
-              .map(value => value <= 0.04045 ? value / 12.92 : ((value + 0.055) / 1.055) ** 2.4);
-            return channels[0] * 0.2126 + channels[1] * 0.7152 + channels[2] * 0.0722;
-          };
-          const colors = [luminance(layout.textColor), luminance(layout.background)].sort((a, b) => a - b);
-          assert((colors[1] + 0.05) / (colors[0] + 0.05) >= 4.5, 'Markdown body text must meet 4.5:1 contrast');
-          if (process.env.WEBMCP_TEST_ARTIFACT_DIR) {
-            const image = await send('Page.captureScreenshot', { format: 'png', captureBeyondViewport: true }, sessionId);
-            await writeFile(join(process.env.WEBMCP_TEST_ARTIFACT_DIR, `webmcp-agent-markdown-${width}-${scheme}.png`), Buffer.from(image.data, 'base64'));
-          }
-        }
-      }
-      await preview("navigator.clipboard.writeText=async()=>{throw new Error('Synthetic clipboard failure')};document.querySelector('.markdown-code button').click()");
-      await waitFor(() => preview("document.querySelector('.copy-status')?.textContent.includes('Copy failed')"), 'explicit clipboard failure');
-      console.log('PASS: Markdown/GFM, streaming code, copy success/failure, safe links/media, and narrow light/dark Fluent chat rendering.');
-    }
-    await send('Target.closeTarget', { targetId });
-    await get('chrome.tabs.update(fixtureTabId,{active:true})');
-  }
+  await send('Page.navigate', { url: `${fixtures.origins[0]}/pizza-order/` }, fixture.sessionId);
+  const beforeOrder = await waitFor(() => get("testMessages.filter(message=>message.type==='page' && message.page.url.includes('/pizza-order/') && message.tools.some(tool=>tool.name==='create-order')).at(-1)"), 'real Contoso page tools');
+  assert(!beforeOrder.tools.some(tool => tool.name === 'checkout'), 'Checkout should not be exposed before a cart exists.');
+  await get(`testMessages.length=0;testPort.postMessage({
+    type:'inspect_run',key:'0:create-order',args:{orderType:'carryout',items:[{productId:'pepperoni',quantity:1}]}
+  })`);
+  const created = await waitFor(() => get("testMessages.find(message=>message.type==='inspect_result' && message.key==='0:create-order')"), 'real Contoso create-order result');
+  assert(created.ok && created.result.includes('Order Created'), 'The synthetic carryout cart was not created.');
+  const ordering = await get(`({
+    resultIndex:testMessages.findIndex(message=>message.type==='inspect_result' && message.key==='0:create-order'),
+    toolsIndex:testMessages.findIndex(message=>message.type==='page' && message.page.url.includes('step=checkout') && message.tools.some(tool=>tool.name==='checkout')),
+    page:testMessages.filter(message=>message.type==='page').at(-1)
+  })`);
+  assert(ordering.toolsIndex>=0 && ordering.toolsIndex<ordering.resultIndex,
+    `New Contoso checkout tools must be discovered before returning create-order: ${JSON.stringify(ordering)}`);
+  assert.equal(ordering.page.page.documentId,beforeOrder.page.documentId,'Contoso changes steps within the same document.');
+  assert(ordering.page.tools.some(tool=>tool.name==='update-order'));
+  console.log('PASS: actual Contoso create-order exposes checkout/update-order before returning its result, without a model prompt or checkout execution.');
+  await send('Page.navigate', { url: `${fixtures.origins[0]}/hints.html` }, fixture.sessionId);
+  const afterNavigation = await waitFor(() => get(`testMessages.filter(message=>message.type==='page' &&
+    message.page.url.endsWith('/hints.html') && message.page.documentId!==${JSON.stringify(beforeOrder.page.documentId)} &&
+    message.tools.length===5).at(-1)`), 'replacement document tool snapshot');
+  assert(!afterNavigation.tools.some(tool=>tool.name==='checkout'),'A completed navigation must not restore tools from the previous page.');
+  console.log('PASS: hard navigation replaces the document identity and removes the previous checkout tool.');
 
-  if (process.argv.includes('--allow-model-calls')) {
+  if (requestedArguments.has('--allow-model-calls')) {
     // Exactly one synthetic model prompt; no production site data is sent.
     await send('Page.navigate', { url: `${fixtures.origins[0]}/hints.html` }, fixture.sessionId);
     await waitFor(() => get("testMessages.some(message => message.type === 'page' && message.tools.length === 5)"), 'live fixture');
@@ -414,13 +290,13 @@ try {
     assert(await get("testMessages.some(message => message.type === 'message' && message.text.includes('FIXTURE-42'))"));
     console.log('PASS: live SDK -> native host -> worker -> WebMCP; tab switch queues calls, Continue runs on the original tab.');
     await get("chrome.tabs.update(fixtureTabId,{active:true})");
-    // Reconnect only the host. SDK history, not a local transcript, reconstructs the UI.
+    // Resume SDK-owned history, not a local transcript.
     await get("globalThis.savedChatId=testMessages.find(message => message.type==='tool_done').chatId; testMessages.length=0; testPort.postMessage({type:'reconnect'})");
     await waitFor(() => get("testMessages.some(message => message.type === 'history' && message.done)"), 'reconnected history', 60000);
     assert(await get("testMessages.filter(message => message.type==='history').flatMap(message => message.items).some(item => item.kind==='assistant' && item.text.includes('FIXTURE-42'))"));
     assert(await get("testMessages.filter(message => message.type==='history').flatMap(message => message.items).filter(item => item.kind==='user').every(item => !item.text.includes('<browser-context>'))"));
     console.log('PASS: host restart resumes populated history with clean displayed user text.');
-    if (process.argv.includes('--confirm-test')) {
+    if (requestedArguments.has('--confirm-test')) {
       await get("testMessages.length=0; testPort.postMessage({type:'send',text:'Place a synthetic order using place_order. I have not confirmed the exact action yet. Ask me before doing so.'})");
       const question = await waitFor(() => get("testMessages.find(message => message.type==='question')"), 'consequential question card', 90000);
       assert(!await get("testMessages.some(message=>message.type==='tool_call' && message.key==='0:place_order')"), 'Consequential tool must not run before confirmation');
@@ -431,7 +307,7 @@ try {
       await waitFor(() => get("testMessages.some(message=>message.type==='status' && message.state==='idle')"), 'confirmed turn idle', 90000);
       console.log('PASS: consequential fixture asks before execution, and the question answer resumes the agent.');
     }
-    if (process.argv.includes('--stop-test')) {
+    if (requestedArguments.has('--stop-test')) {
       await send('Page.navigate', { url: `${fixtures.origins[0]}/slow.html` }, fixture.sessionId);
       await waitFor(() => get("testMessages.some(message=>message.type==='page' && message.page.url.endsWith('/slow.html') && message.tools.length===1)"), 'cancellation fixture');
       await get("testMessages.length=0; testPort.postMessage({type:'send',text:'Call the wait tool once for this synthetic cancellation test. Do not retry if the user stops the run.'})");
@@ -445,9 +321,11 @@ try {
   const output = process.env.WEBMCP_TEST_ARTIFACT_DIR;
   if (output) {
     await mkdir(output, { recursive: true });
+    await send('Page.bringToFront', {}, panel.sessionId);
     await send('Emulation.setDeviceMetricsOverride', { width: 440, height: 1000, deviceScaleFactor: 1, mobile: false }, panel.sessionId);
     await get("document.querySelector('nav [aria-label=\"Chat\"]').click()");
-    const screenshot = await send('Page.captureScreenshot', { format: 'png', captureBeyondViewport: true }, panel.sessionId);
+    await waitFor(() => get("!!document.querySelector('.transcript')"), 'final Chat screenshot');
+    const screenshot = await send('Page.captureScreenshot', { format: 'png', captureBeyondViewport: false }, panel.sessionId);
     await writeFile(join(output, `webmcp-agent-${browserName.toLowerCase()}.png`), Buffer.from(screenshot.data, 'base64'));
   }
   await get("testPort.disconnect()");

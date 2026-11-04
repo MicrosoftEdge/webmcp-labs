@@ -5,7 +5,8 @@
   "type": "module",
   "scripts": {
     "build": "vite build && vite build --config vite.content.config.ts",
-    "dev": "vite build --watch"
+    "dev": "vite build --watch",
+    "preview": "vite preview --host 127.0.0.1 --strictPort"
   },
   "dependencies": {
     "@fluentui-contrib/react-chat": "0.2.2",

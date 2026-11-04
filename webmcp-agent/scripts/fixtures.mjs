@@ -14,11 +14,16 @@ export async function startFixtures(firstPort = 0, secondPort = 0) {
     origins.push(`http://127.0.0.1:${server.address().port}`);
   }
   servers.forEach((server, index) => server.on('request', async (request, response) => {
-    const filename = new URL(request.url, origins[index]).pathname.slice(1) || 'hints.html';
-    if (!['hints.html', 'iframes.html', 'frame.html', 'dynamic.html', 'navigate.html', 'slow.html'].includes(filename)) { response.writeHead(404).end(); return; }
+    let filename = new URL(request.url, origins[index]).pathname.slice(1) || 'hints.html';
+    if (filename === 'pizza-order/') filename += 'index.html';
+    const demo = ['pizza-order/index.html', 'pizza-order/css/style.css', 'pizza-order/js/menu-data.js',
+      'pizza-order/js/app.js', 'pizza-order/js/webmcp-tools.js'].includes(filename);
+    if (!demo && !['hints.html', 'iframes.html', 'frame.html', 'dynamic.html', 'navigate.html', 'slow.html'].includes(filename)) { response.writeHead(404).end(); return; }
     try {
-      const text = await readFile(new URL(`../test/fixtures/${filename}`, import.meta.url), 'utf8');
-      response.writeHead(200, { 'Content-Type': 'text/html', 'Cache-Control': 'no-store' }).end(text.replaceAll('__OTHER_ORIGIN__', origins[1 - index]));
+      const source = demo ? `../../demos/${filename}` : `../test/fixtures/${filename}`;
+      const text = await readFile(new URL(source, import.meta.url), 'utf8');
+      const contentType = filename.endsWith('.js') ? 'text/javascript' : filename.endsWith('.css') ? 'text/css' : 'text/html';
+      response.writeHead(200, { 'Content-Type': contentType, 'Cache-Control': 'no-store' }).end(text.replaceAll('__OTHER_ORIGIN__', origins[1 - index]));
     } catch (error) { console.error(error); response.writeHead(500).end('Fixture read failed'); }
   }));
   return { origins, close: async () => {

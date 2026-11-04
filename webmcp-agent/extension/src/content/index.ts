@@ -17,13 +17,18 @@ let snapshot = new Map<string, LiveTool>();
 let origins: string[] = [];
 let listening: ModelContext | undefined;
 let revision = 0;
+let latestList: Promise<ContentResponse> | undefined;
 const calls = new Map<string, { controller: AbortController; tool: LiveTool }>();
 const notify = (message: ContentResponse) => chrome.runtime.sendMessage(message).catch(error => {
   console.debug('WebMCP Agent connection unavailable:', error instanceof Error ? error.message : String(error));
 });
 
-async function list(): Promise<ContentResponse> {
-  const currentRevision = ++revision;
+function list(): Promise<ContentResponse> {
+  const operation = collect(++revision);
+  latestList = operation;
+  return operation;
+}
+async function collect(currentRevision: number): Promise<ContentResponse> {
   const context = document.modelContext;
   if (!context) { snapshot.clear(); return { type: 'webmcp/snapshot', available: false, tools: [] }; }
   if (listening !== context) {
@@ -61,9 +66,11 @@ async function list(): Promise<ContentResponse> {
       };
     });
     if (JSON.stringify(projected).length > 500000) throw new Error('Page tool snapshot is too large to transport.');
-    if (currentRevision === revision) snapshot = latest;
+    if (currentRevision !== revision && latestList) return latestList;
+    snapshot = latest;
     return { type: 'webmcp/snapshot', available: true, tools: projected };
   } catch (error) {
+    if (currentRevision !== revision && latestList) return latestList;
     snapshot.clear();
     return { type: 'webmcp/snapshot', available: true, tools: [], error: error instanceof Error ? error.message : String(error) };
   }
@@ -96,8 +103,10 @@ chrome.runtime.onMessage.addListener((value: unknown, sender, respond) => {
   }
   const controller = new AbortController();
   calls.set(request.callId, { controller, tool });
-  void context.executeTool(tool, request.args, { signal: controller.signal }).then(result => {
+  void context.executeTool(tool, request.args, { signal: controller.signal }).then(async result => {
     if (result !== null && typeof result !== 'string') throw new TypeError('The browser returned a non-string tool result.');
+    // Let next-step registrations queued by the page's tool callback run first.
+    await new Promise<void>(resolve => setTimeout(resolve, 0));
     const capped = result !== null && result.length > 500000 ? result.slice(0, 500000) + '\n[Transport result truncated at 500000 characters]' : result;
     respond({ type: 'webmcp/result', callId: request.callId, ok: true, result: capped });
   }).catch((error: unknown) => {

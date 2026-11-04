@@ -5,6 +5,7 @@ import { pageTool, chatId } from './helpers.js';
 class Signal<T extends unknown[]> {
   listeners: ((...args: T) => unknown)[] = [];
   addListener = (listener: (...args: T) => unknown) => { this.listeners.push(listener); };
+  removeListener = (listener: (...args: T) => unknown) => { this.listeners = this.listeners.filter(current => current !== listener); };
   emit(...args: T) { for (const listener of this.listeners) listener(...args); }
 }
 interface Sender { id?: string; url?: string; tab?: { id: number }; frameId?: number; documentId?: string }
@@ -46,6 +47,8 @@ async function setup() {
     webNavigation: {
       getAllFrames: vi.fn(async () => [{ frameId: 0, url: 'https://pizza.example/menu', documentId: 'doc-7' }]),
       onCommitted: new Signal<[{ tabId: number; frameId: number; url: string; documentId: string }]>(),
+      onHistoryStateUpdated: new Signal<[{ tabId: number; frameId: number; url: string }]>(),
+      onReferenceFragmentUpdated: new Signal<[{ tabId: number; frameId: number; url: string }]>(),
     },
     windows: { onFocusChanged: new Signal<[number]>(), onRemoved: new Signal<[number]>() },
     alarms: { create: vi.fn(async () => {}), clear: vi.fn(async () => true), onAlarm: new Signal<[{ name: string }]>() },
@@ -70,9 +73,40 @@ async function setup() {
   });
   return { mock, runtime, native, panel, activate, begin, call };
 }
-afterEach(() => { vi.unstubAllGlobals(); vi.restoreAllMocks(); });
+afterEach(() => { vi.useRealTimers(); vi.unstubAllGlobals(); vi.restoreAllMocks(); });
 
 describe('worker message routing with mocked Chrome APIs', () => {
+  it('changes the SDK model once without refreshing page tools or sending other host settings', async () => {
+    const test = await setup();
+    test.native.postMessage.mockClear();
+    test.mock.tabs.sendMessage.mockClear();
+    test.panel.onMessage.emit({ type: 'set_model', model: 'sdk-model' });
+    await settle();
+    expect(test.native.postMessage).toHaveBeenCalledExactlyOnceWith({ type: 'set_model', chatId, model: 'sdk-model' });
+    expect(test.mock.tabs.sendMessage).not.toHaveBeenCalled();
+    expect(test.mock.storage.local.set).toHaveBeenCalledExactlyOnceWith({
+      settings: expect.objectContaining({ model: 'sdk-model' }),
+    });
+    expect(test.panel.postMessage).toHaveBeenCalledWith({
+      type: 'settings', settings: expect.objectContaining({ model: 'sdk-model' }),
+    });
+    test.panel.onMessage.emit({ type: 'set_model', model: 'auto' });
+    await settle();
+    expect(test.mock.storage.local.set).toHaveBeenLastCalledWith({
+      settings: expect.objectContaining({ model: '' }),
+    });
+  });
+  it('rejects model changes while a turn is running without touching stored settings', async () => {
+    const consoleError = vi.spyOn(console, 'error').mockImplementation(() => {});
+    const test = await setup();
+    await test.begin();
+    test.native.postMessage.mockClear();
+    test.panel.onMessage.emit({ type: 'set_model', model: 'sdk-model' });
+    await settle();
+    expect(test.native.postMessage).not.toHaveBeenCalled();
+    expect(test.mock.storage.local.set).not.toHaveBeenCalled();
+    expect(consoleError).toHaveBeenCalledWith('WebMCP Agent request failed', expect.any(Error));
+  });
   it('connects once, validates content senders, and binds sends to the active tab', async () => {
     const test = await setup();
     expect(test.runtime.connectNative).toHaveBeenCalledTimes(1);
@@ -82,6 +116,32 @@ describe('worker message routing with mocked Chrome APIs', () => {
     test.runtime.onMessage.emit({ type: 'webmcp/snapshot', available: true, tools: [] }, { id: 'malicious', tab: { id: 7 }, frameId: 0 });
     await settle();
     expect(test.mock.tabs.sendMessage).not.toHaveBeenCalled();
+  });
+  it('waits for the accepted SDK user event instead of inventing a user transcript entry', async () => {
+    const test = await setup();
+    test.panel.postMessage.mockClear();
+    await test.begin();
+    expect(test.panel.postMessage.mock.calls.some(([message]) => message.type === 'user')).toBe(false);
+    const accepted = { type: 'user', chatId, messageId: 'sdk-user', text: 'Accepted by the SDK' };
+    test.native.onMessage.emit(accepted);
+    await settle();
+    expect(test.panel.postMessage).toHaveBeenCalledWith(accepted);
+  });
+  it.each(['pending', 'failed'])('does not block SDK questions, idle or reconnect on a %s badge update', async state => {
+    const consoleWarning = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const test = await setup();
+    if (state === 'pending') test.mock.action.setBadgeText.mockImplementation(() => new Promise<void>(() => {}));
+    else test.mock.action.setBadgeText.mockRejectedValue(new Error('Synthetic badge failure'));
+    const question = { type: 'question', chatId, requestId: 'question-one', question: 'Continue?', allowFreeform: true };
+    test.native.onMessage.emit(question);
+    test.native.onMessage.emit({ type: 'status', chatId, state: 'idle' });
+    await settle();
+    expect(test.panel.postMessage).toHaveBeenCalledWith(question);
+    expect(test.panel.postMessage).toHaveBeenCalledWith({ type: 'status', chatId, state: 'idle' });
+    if (state === 'failed') expect(consoleWarning).toHaveBeenCalledWith('Cannot update the question badge', expect.any(Error));
+    test.panel.onMessage.emit({ type: 'reconnect' });
+    await settle();
+    expect(test.runtime.connectNative).toHaveBeenCalledTimes(2);
   });
   it('queues tools on a tab switch and Continue executes only on the original document', async () => {
     const test = await setup();
@@ -112,6 +172,23 @@ describe('worker message routing with mocked Chrome APIs', () => {
     await settle();
     expect(test.mock.tabs.sendMessage.mock.calls.some(([, request]) => request.type === 'webmcp/execute')).toBe(false);
     expect(test.native.postMessage).toHaveBeenCalledWith({ type: 'stop', chatId });
+  });
+  it('forwards SDK cancellation and drops held tools before a tab switch can resume them', async () => {
+    const test = await setup();
+    await test.begin();
+    test.activate(8);
+    await settle();
+    test.call();
+    await settle();
+    test.mock.tabs.sendMessage.mockClear();
+    const stopped = { type: 'abort', chatId, eventId: 'sdk-abort-one', reason: 'remote_command' };
+    test.native.onMessage.emit(stopped);
+    await settle();
+    expect(test.panel.postMessage).toHaveBeenCalledWith(stopped);
+    test.activate(7);
+    await settle();
+    expect(test.mock.tabs.sendMessage.mock.calls.some(([, request]) => request.type === 'webmcp/execute')).toBe(false);
+    expect(test.native.postMessage.mock.calls.some(([request]) => request.type === 'stop')).toBe(false);
   });
   it('stops the run when the bound tab closes', async () => {
     const test = await setup();
@@ -186,21 +263,131 @@ describe('worker message routing with mocked Chrome APIs', () => {
     expect(test.runtime.connectNative).toHaveBeenCalledTimes(1);
     expect(test.native.postMessage).toHaveBeenCalledWith(expect.objectContaining({ type: 'send', chatId: secondChat, page: expect.objectContaining({ tabId: 22 }) }));
   });
-  it('updates document identity before failing in-flight calls on navigation', async () => {
+  it('waits for the new document tools before completing a navigated call and ignores its late old result', async () => {
     const test = await setup();
     await test.begin();
+    let finishOldExecution = () => {};
+    const checkout = pageTool({ key: '0:checkout', name: 'checkout' });
+    let loading = true;
+    test.mock.tabs.sendMessage.mockImplementation(async (_tabId, message) => {
+      if (message.type === 'webmcp/list') return { type: 'webmcp/snapshot', available: !loading, tools: loading ? [] : [checkout] };
+      return new Promise<{ type: string; callId: string; ok: boolean; result: string }>(resolve => {
+        finishOldExecution = () => resolve({ type: 'webmcp/result', callId: 'call', ok: true, result: 'Late old-document result' });
+      });
+    });
     test.call();
     await settle();
+    test.mock.tabs.get.mockImplementation(async tabId => ({
+      id: tabId, windowId: 1, title: 'Checkout', url: 'https://pizza.example/new-page',
+      status: loading ? 'loading' : 'complete',
+    }));
+    test.mock.webNavigation.getAllFrames.mockResolvedValue([
+      { frameId: 0, url: 'https://pizza.example/new-page', documentId: 'new-document' },
+    ]);
     test.native.postMessage.mockClear();
+    test.panel.postMessage.mockClear();
     test.mock.webNavigation.onCommitted.emit({
       tabId: 7, frameId: 0, url: 'https://pizza.example/new-page', documentId: 'new-document',
     });
     await settle();
+    expect(test.native.postMessage.mock.calls.some(([message]) => message.type === 'tool_result')).toBe(false);
+    loading = false;
+    test.mock.tabs.onUpdated.emit(7, { status: 'complete' });
+    await settle();
     const sent = test.native.postMessage.mock.calls.map(([message]) => message);
-    const updateIndex = sent.findIndex(message => message.type === 'set_tools' && message.page.documentId === 'new-document');
+    const updateIndex = sent.findIndex(message => message.type === 'set_tools' && message.page.documentId === 'new-document' &&
+      message.tools.some((tool: { name: string }) => tool.name === 'checkout'));
     const failureIndex = sent.findIndex(message => message.type === 'tool_result' && !message.ok);
     expect(updateIndex).toBeGreaterThanOrEqual(0);
     expect(failureIndex).toBeGreaterThan(updateIndex);
+    finishOldExecution();
+    await settle();
+    expect(test.native.postMessage.mock.calls.filter(([message]) => message.type === 'tool_result')).toHaveLength(1);
+    expect(test.panel.postMessage.mock.calls.some(([message]) => message.type === 'notice')).toBe(false);
+  });
+  it('refreshes newly registered checkout tools before returning a tool result to the SDK', async () => {
+    const test = await setup();
+    await test.begin();
+    const checkout = pageTool({ key: '0:checkout', name: 'checkout' });
+    let tools = [pageTool()];
+    test.mock.tabs.sendMessage.mockImplementation(async (_tabId, message) => {
+      if (message.type === 'webmcp/list') return { type: 'webmcp/snapshot', available: true, tools };
+      tools = [pageTool(), checkout];
+      return { type: 'webmcp/result', callId: 'call', ok: true, result: 'Cart created' };
+    });
+    test.native.postMessage.mockClear();
+    test.call();
+    await settle();
+    const sent = test.native.postMessage.mock.calls.map(([message]) => message);
+    const updateIndex = sent.findIndex(message => message.type === 'set_tools' && message.tools.some((tool: { name: string }) => tool.name === 'checkout'));
+    const resultIndex = sent.findIndex(message => message.type === 'tool_result');
+    expect(updateIndex).toBeGreaterThanOrEqual(0);
+    expect(resultIndex).toBeGreaterThan(updateIndex);
+    expect(sent[resultIndex]).toMatchObject({ ok: true, result: 'Cart created' });
+  });
+  it.each(['onHistoryStateUpdated', 'onReferenceFragmentUpdated'] as const)('refreshes tools on %s and discards older in-flight snapshots', async event => {
+    const test = await setup();
+    await test.begin();
+    let finishOldDiscovery = () => {};
+    const checkout = pageTool({ key: '0:checkout', name: 'checkout' });
+    let discoveries = 0;
+    test.mock.tabs.sendMessage.mockImplementation(async () => {
+      if (++discoveries === 1) return new Promise<{ type: string; available: boolean; tools: ReturnType<typeof pageTool>[] }>(resolve => {
+        finishOldDiscovery = () => resolve({ type: 'webmcp/snapshot', available: true, tools: [pageTool()] });
+      });
+      return { type: 'webmcp/snapshot', available: true, tools: [checkout] };
+    });
+    test.native.postMessage.mockClear();
+    test.runtime.onMessage.emit({ type: 'webmcp/snapshot', available: true, tools: [] },
+      { id: test.runtime.id, tab: { id: 7 }, frameId: 0, documentId: 'doc-7' });
+    await settle();
+    test.mock.tabs.get.mockResolvedValue({
+      id: 7, windowId: 1, title: 'Checkout', url: 'https://pizza.example/menu?checkout',
+    });
+    test.mock.webNavigation[event].emit({ tabId: 7, frameId: 0, url: 'https://pizza.example/menu?checkout' });
+    await settle();
+    finishOldDiscovery();
+    await settle();
+    const updates = test.native.postMessage.mock.calls.map(([message]) => message).filter(message => message.type === 'set_tools');
+    expect(updates).toHaveLength(1);
+    expect(updates[0].tools.map((tool: { name: string }) => tool.name)).toEqual(['checkout']);
+    expect(updates[0].page.url).toBe('https://pizza.example/menu?checkout');
+    expect(test.mock.tabs.sendMessage).toHaveBeenCalledWith(7, expect.objectContaining({ type: 'webmcp/list' }), { documentId: 'doc-7' });
+  });
+  it('does not send a pending navigation result after Stop cancels the bound call', async () => {
+    const test = await setup();
+    await test.begin();
+    test.mock.tabs.get.mockImplementation(async tabId => ({
+      id: tabId, windowId: 1, title: 'Loading', url: 'https://pizza.example/menu', status: 'loading',
+    }));
+    test.call();
+    await settle();
+    test.native.postMessage.mockClear();
+    test.panel.onMessage.emit({ type: 'stop' });
+    await settle();
+    test.mock.tabs.onUpdated.emit(7, { status: 'complete' });
+    await settle();
+    expect(test.native.postMessage).toHaveBeenCalledWith({ type: 'stop', chatId });
+    expect(test.native.postMessage.mock.calls.some(([message]) => message.type === 'tool_result')).toBe(false);
+  });
+  it('surfaces a page-load timeout explicitly instead of leaving the SDK call pending forever', async () => {
+    const consoleError = vi.spyOn(console, 'error').mockImplementation(() => {});
+    const test = await setup();
+    await test.begin();
+    test.mock.tabs.get.mockImplementation(async tabId => ({
+      id: tabId, windowId: 1, title: 'Loading', url: 'https://pizza.example/menu', status: 'loading',
+    }));
+    test.native.postMessage.mockClear();
+    vi.useFakeTimers();
+    test.call();
+    await vi.advanceTimersByTimeAsync(29999);
+    expect(test.native.postMessage.mock.calls.some(([message]) => message.type === 'tool_result')).toBe(false);
+    await vi.advanceTimersByTimeAsync(1);
+    expect(test.native.postMessage).toHaveBeenCalledWith(expect.objectContaining({
+      type: 'tool_result', callId: 'call', ok: false,
+      error: expect.objectContaining({ name: 'ToolRefreshError', message: expect.stringContaining('did not finish loading') }),
+    }));
+    expect(consoleError).toHaveBeenCalledWith('WebMCP Agent request failed', expect.any(Error));
   });
   it('opens chats on browser pages without trying to discover page tools', async () => {
     const test = await setup();
@@ -261,13 +448,19 @@ describe('worker message routing with mocked Chrome APIs', () => {
     const newChatId = 'webmcp-agent-new-session';
     test.native.onMessage.emit({ type: 'chat_opened', chatId: newChatId, title: 'New SDK chat' });
     await settle();
-    expect(test.native.postMessage).toHaveBeenCalledWith({ type: 'list_chats' });
+    expect(test.native.postMessage).not.toHaveBeenCalledWith({ type: 'list_chats' });
+    test.native.onMessage.emit({ type: 'history', chatId: newChatId, items: [], done: true });
+    await settle();
+    expect(test.native.postMessage).toHaveBeenCalledExactlyOnceWith({ type: 'list_chats' });
     const response = {
       type: 'chats', chats: [{ chatId: newChatId, title: 'SDK title', updatedAt: '2026-11-02T19:00:00Z' }],
     };
     test.native.onMessage.emit(response);
     await settle();
     expect(test.panel.postMessage).toHaveBeenCalledWith(response);
+    test.native.onMessage.emit({ type: 'history', chatId: newChatId, items: [], done: true });
+    await settle();
+    expect(test.native.postMessage).toHaveBeenCalledExactlyOnceWith({ type: 'list_chats' });
   });
   it('does not close the active chat or silently replace a selection while another open is pending', async () => {
     const consoleError = vi.spyOn(console, 'error').mockImplementation(() => {});

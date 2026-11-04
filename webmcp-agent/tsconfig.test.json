@@ -9,5 +9,5 @@
     "moduleResolution": "Bundler",
     "lib": ["ES2022", "DOM"]
   },
-  "include": ["test/**/*.ts", "test/**/*.tsx"]
+  "include": ["test/**/*.ts", "test/**/*.tsx", "test-ui/**/*.ts", "playwright.config.ts", "vitest.config.ts"]
 }

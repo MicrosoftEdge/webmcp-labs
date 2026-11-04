@@ -7,7 +7,7 @@ import {
 } from '@github/copilot-sdk';
 import {
   CHAT_ID_PREFIX, type PageContext, type PageTool, type ToHost, type ToExtension,
-  type HostSettings, type HistoryItem, toolDisplaySchema,
+  type HostSettings, type HistoryItem, toolDisplaySchema, modelDisplaySchema,
 } from '@webmcp-agent/shared/protocol';
 import { buildSystemMessage, contextFingerprint, withPageContext } from './prompt.js';
 import { buildToolRegistry, toolResultForModel, unwrapPageResult } from './tools.js';
@@ -133,7 +133,7 @@ export class AgentHost {
   async listChats(cleared = false): Promise<void> {
     const sessions = await this.client.listSessions();
     this.emit({ type: 'chats', ...(cleared ? { cleared: true } : {}), chats: sessions.filter(item => item.sessionId.startsWith(CHAT_ID_PREFIX)).map(item => ({
-      chatId: item.sessionId, title: item.summary ?? 'WebMCP Agent chat', updatedAt: item.modifiedTime.toISOString(),
+      chatId: item.sessionId, title: this.displaySessionTitle(item.summary), updatedAt: item.modifiedTime.toISOString(),
     })) });
   }
 
@@ -161,24 +161,25 @@ export class AgentHost {
       case 'list_chats': return this.listChats();
       case 'open_chat': return this.open(message);
       case 'send': {
-        if (!(await this.client.getAuthStatus()).isAuthenticated) {
-          this.emit({ type: 'error', chatId: message.chatId, code: 'not_signed_in', message: 'Run npm run login in webmcp-agent, then reconnect.' });
-          return;
-        }
         const chat = this.chat(message.chatId);
         if (chat.running || chat.starting) throw new Error('A turn is already running. Stop it before sending another.');
         chat.starting = true;
         try {
-          await this.update(chat, message.page, message.tools);
+          if (!(await this.client.getAuthStatus()).isAuthenticated) {
+            this.emit({ type: 'error', chatId: message.chatId, code: 'not_signed_in', message: 'Run npm run login in webmcp-agent, then reconnect.' });
+            this.emit({ type: 'status', chatId: message.chatId, state: 'idle' });
+            return;
+          }
           if (!chat.starting) throw new Error('Stopped by the user');
-        } catch (error) { chat.starting = false; throw error; }
-        const fingerprint = contextFingerprint(message.page, message.tools);
-        const prompt = message.pageChanged || chat.fingerprint !== fingerprint
-          ? withPageContext(message.text, message.page, message.tools) : message.text;
-        chat.fingerprint = fingerprint;
-        chat.running = true;
-        this.emit({ type: 'status', chatId: message.chatId, state: 'running' });
-        try {
+          await this.update(chat, message.page, message.tools);
+          await this.waitForToolUpdates(chat);
+          if (!chat.starting) throw new Error('Stopped by the user');
+          const fingerprint = contextFingerprint(chat.page, chat.tools);
+          const prompt = message.pageChanged || chat.fingerprint !== fingerprint
+            ? withPageContext(message.text, chat.page, chat.tools) : message.text;
+          chat.fingerprint = fingerprint;
+          chat.running = true;
+          this.emit({ type: 'status', chatId: message.chatId, state: 'running' });
           await chat.session.send({ prompt, displayPrompt: message.text });
         } catch (error) {
           chat.running = false;
@@ -227,7 +228,14 @@ export class AgentHost {
   }
 
   private title(page: PageContext): string {
-    return `WebMCP Agent: ${page.origin === 'null' ? page.title || page.url : page.origin}`.replace(/["\r\n]/g, '').slice(0, 100);
+    const title = page.title.trim();
+    return (title && title !== page.url ? title : 'New chat').replace(/["\r\n]/g, '').slice(0, 100);
+  }
+
+  private displaySessionTitle(summary: string | undefined): string {
+    const title = summary?.trim();
+    if (!title || /^WebMCP Agent:\s*/i.test(title)) return 'New chat';
+    return title.slice(0, 100);
   }
 
   private async open(message: Extract<ToHost, { type: 'open_chat' }>): Promise<void> {
@@ -271,7 +279,7 @@ export class AgentHost {
   }
 
   private async update(chat: Chat, page: PageContext, tools: PageTool[]): Promise<void> {
-    const operation = chat.updates.then(async () => {
+    const operation = chat.updates.catch(() => {}).then(async () => {
       const registry = await buildToolRegistry(page, tools);
       // Retain unavailable declarations during a turn so old model calls still
       // emit external_tool.requested and can receive an explicit failure.
@@ -293,8 +301,16 @@ export class AgentHost {
       chat.declarations = registry.declarations;
       if (tools.length > 128) this.log('warn', `Large tool snapshot: ${tools.length} tools`);
     });
-    chat.updates = operation.catch(() => {});
+    chat.updates = operation;
     await operation;
+  }
+
+  private async waitForToolUpdates(chat: Chat): Promise<void> {
+    let update: Promise<void>;
+    do {
+      update = chat.updates;
+      await update;
+    } while (update !== chat.updates);
   }
 
   private question(id: string, request: UserInputRequest): Promise<UserInputResponse> {
@@ -314,13 +330,47 @@ export class AgentHost {
     if (event.agentId) return;
     this.log('debug', `SDK event ${event.type}`);
     switch (event.type) {
-      case 'assistant.message_delta': this.emit({ type: 'delta', chatId: id, text: event.data.deltaContent }); break;
-      case 'assistant.reasoning_delta': this.emit({ type: 'reasoning', chatId: id, text: event.data.deltaContent }); break;
-      case 'assistant.message': this.emit({ type: 'message', chatId: id, text: event.data.content }); break;
+      case 'user.message':
+        this.emit({ type: 'user', chatId: id, text: event.data.content, ...(event.data.messageId ? { messageId: event.data.messageId } : {}) });
+        break;
+      case 'assistant.message_delta':
+        this.emit({ type: 'delta', chatId: id, messageId: event.data.messageId, text: event.data.deltaContent });
+        break;
+      case 'assistant.reasoning_delta':
+        this.emit({ type: 'reasoning', chatId: id, reasoningId: event.data.reasoningId, text: event.data.deltaContent });
+        break;
+      case 'assistant.reasoning':
+        this.emit({ type: 'reasoning', chatId: id, reasoningId: event.data.reasoningId, text: event.data.content, complete: true });
+        break;
+      case 'assistant.message':
+        this.emit({ type: 'message', chatId: id, messageId: event.data.messageId, text: event.data.content });
+        break;
+      case 'assistant.usage': {
+        const model = modelDisplaySchema.parse({
+          id: event.data.model,
+          name: event.data.modelDisplayName ?? event.data.model,
+          isAuto: event.data.isAuto ?? false,
+        });
+        this.emit({ type: 'model_used', chatId: id, model });
+        await chat.session.log(JSON.stringify({ kind: 'webmcp-agent-model', model }));
+        break;
+      }
       case 'session.idle':
         chat.running = false;
         this.emit({ type: 'status', chatId: id, state: 'idle' });
         break;
+      case 'abort': {
+        const calls = [...(chat.active ? [chat.active] : []), ...chat.queue];
+        chat.running = false;
+        chat.starting = false;
+        chat.active = undefined;
+        chat.queue = [];
+        chat.question?.reject(new Error('The SDK aborted this turn.'));
+        chat.question = undefined;
+        for (const call of calls) this.emit({ type: 'tool_done', chatId: id, callId: call.callId, ok: false, result: 'The SDK aborted this turn.' });
+        this.emit({ type: 'abort', chatId: id, eventId: event.id, reason: event.data.reason });
+        break;
+      }
       case 'session.error':
         this.failure(id, new Error(event.data.message));
         break;
@@ -328,7 +378,7 @@ export class AgentHost {
         this.emit({ type: 'title', chatId: id, title: event.data.title });
         break;
       case 'external_tool.requested': {
-        await chat.updates;
+        await this.waitForToolUpdates(chat);
         const route = chat.routes.get(event.data.toolName);
         if (!route || !chat.running) {
           await chat.session.rpc.tools.handlePendingToolCall({ requestId: event.data.requestId, result: {
@@ -375,7 +425,7 @@ export class AgentHost {
 
   private async complete(message: Extract<ToHost, { type: 'tool_result' }>): Promise<void> {
     const chat = this.chat(message.chatId);
-    await chat.updates;
+    await this.waitForToolUpdates(chat);
     const call = chat.active;
     if (!call || call.callId !== message.callId) { this.log('warn', 'Ignored stale tool result'); return; }
     const navigation = chat.page.documentId !== call.page.documentId || chat.page.url !== call.page.url ? chat.page.url : undefined;
@@ -397,12 +447,20 @@ export class AgentHost {
     chat.queue = [];
     chat.question?.reject(new Error('Stopped by the user'));
     chat.question = undefined;
+    const failures: unknown[] = [];
     for (const call of calls) {
-      await chat.session.rpc.tools.handlePendingToolCall({ requestId: call.requestId, result: { resultType: 'failure', textResultForLlm: 'Stopped by the user' } });
-      this.emit({ type: 'tool_done', chatId: id, callId: call.callId, ok: false, result: 'Stopped by the user' });
+      try {
+        const handled = await chat.session.rpc.tools.handlePendingToolCall({ requestId: call.requestId, result: { resultType: 'failure', textResultForLlm: 'Stopped by the user' } });
+        if (!handled.success) throw new Error(`Runtime rejected stopped tool request ${call.requestId}.`);
+      } catch (error) {
+        failures.push(error);
+        this.log('error', `Failed to return stopped tool request ${call.requestId}: ${error instanceof Error ? error.message : String(error)}`);
+      }
     }
     await chat.session.abort();
+    for (const call of calls) this.emit({ type: 'tool_done', chatId: id, callId: call.callId, ok: false, result: 'Stopped by the user' });
     this.emit({ type: 'status', chatId: id, state: 'idle' });
+    if (failures.length) throw new AggregateError(failures, 'The SDK was aborted, but some stopped tool results could not be returned.');
   }
 
   private async close(id: string): Promise<void> {
@@ -423,18 +481,28 @@ export class AgentHost {
 export function renderHistory(events: SessionEvent[]): HistoryItem[] {
   const items: HistoryItem[] = [];
   const calls = new Map<string, Extract<HistoryItem, { kind: 'tool' }>>();
+  let pendingModel: Extract<HistoryItem, { kind: 'assistant' }>['model'];
   for (const event of events) {
     if (event.agentId) continue;
-    if (event.type === 'user.message') items.push({ kind: 'user', text: event.data.content });
-    if (event.type === 'assistant.message' && event.data.content.trim()) items.push({ kind: 'assistant', text: event.data.content });
+    if (event.type === 'abort') items.push({ kind: 'abort', eventId: event.id, reason: event.data.reason });
+    if (event.type === 'user.message') items.push({ kind: 'user', text: event.data.content, ...(event.data.messageId ? { messageId: event.data.messageId } : {}) });
+    if (event.type === 'assistant.message' && event.data.content.trim()) {
+      items.push({ kind: 'assistant', messageId: event.data.messageId, text: event.data.content, ...(pendingModel ? { model: pendingModel } : {}) });
+      pendingModel = undefined;
+    }
     if (event.type === 'session.info') {
       try {
         const metadata: unknown = JSON.parse(event.data.message);
-        if (typeof metadata === 'object' && metadata !== null && 'kind' in metadata &&
-            metadata.kind === 'webmcp-agent-tool' && 'callId' in metadata && typeof metadata.callId === 'string' && 'tool' in metadata) {
-          const parsed = toolDisplaySchema.safeParse(metadata.tool);
-          const item = calls.get(metadata.callId);
-          if (parsed.success && item) item.tool = parsed.data;
+        if (typeof metadata === 'object' && metadata !== null && 'kind' in metadata) {
+          if (metadata.kind === 'webmcp-agent-tool' && 'callId' in metadata && typeof metadata.callId === 'string' && 'tool' in metadata) {
+            const parsed = toolDisplaySchema.safeParse(metadata.tool);
+            const item = calls.get(metadata.callId);
+            if (parsed.success && item) item.tool = parsed.data;
+          }
+          if (metadata.kind === 'webmcp-agent-model' && 'model' in metadata) {
+            const parsed = modelDisplaySchema.safeParse(metadata.model);
+            if (parsed.success) pendingModel = parsed.data;
+          }
         }
       } catch { /* Ordinary SDK informational events are not tool metadata. */ }
     }

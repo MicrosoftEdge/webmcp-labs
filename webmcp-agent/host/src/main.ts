@@ -29,10 +29,13 @@ let fatal = false;
 function emit(message: ToExtension): void {
   const maximum = 100000;
   if ('text' in message && message.text.length > maximum &&
-      ['delta', 'reasoning', 'message'].includes(message.type)) {
+      ['user', 'delta', 'reasoning', 'message'].includes(message.type)) {
     // Final text can be reconstructed from SDK history; do not emit oversized frames.
-    if (message.type === 'message') {
-      emit({ ...message, text: message.text.slice(0, maximum) + '\n[Display truncated; full message is saved in this chat.]' });
+    if (message.type === 'user' || message.type === 'message' || (message.type === 'reasoning' && message.complete)) {
+      const notice = message.type === 'reasoning'
+        ? '\n[Display truncated]'
+        : '\n[Display truncated; full message is saved in this chat.]';
+      emit({ ...message, text: message.text.slice(0, maximum) + notice });
     } else for (let offset = 0; offset < message.text.length; offset += maximum) emit({ ...message, text: message.text.slice(offset, offset + maximum) });
     return;
   }

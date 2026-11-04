@@ -14,7 +14,7 @@
   "scripts": {
     "build": "tsc -b && npm run build --workspace @webmcp-agent/extension",
     "typecheck": "tsc -b && tsc --noEmit -p tsconfig.test.json",
-    "test": "npm run build && vitest run",
+    "test": "tsc -b && vitest run",
     "probe:sdk": "npm run build && node scripts/probe-sdk.mjs",
     "probe:live": "npm run build && node scripts/probe-live.mjs",
     "setup": "npm run build && node scripts/setup.mjs",
@@ -22,9 +22,14 @@
     "doctor": "tsc -b host && node scripts/doctor.mjs",
     "unregister": "node scripts/unregister.mjs",
     "fixtures": "node scripts/fixtures.mjs",
-    "test:browser": "node scripts/test-browser.mjs"
+    "test:browser": "node scripts/test-browser.mjs",
+    "test:ui": "npm run build && playwright test",
+    "test:ui:run": "playwright test",
+    "test:ui:update": "npm run build && playwright test --update-snapshots=all",
+    "test:ui:report": "playwright show-report"
   },
   "devDependencies": {
+    "@playwright/test": "1.64.1",
     "@types/node": "22.19.0",
     "typescript": "5.9.3",
     "vitest": "4.0.18"

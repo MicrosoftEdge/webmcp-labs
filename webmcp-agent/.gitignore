@@ -3,6 +3,8 @@ dist/
 dist-types/
 *.tsbuildinfo
 coverage/
+playwright-report*/
+test-results*/
 .probe/
 host/run-host.cmd
 host/run-host.sh

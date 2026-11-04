@@ -81,11 +81,18 @@ export const toolDisplaySchema = z.strictObject({
   name: pageToolSchema.shape.name, title: pageToolSchema.shape.title,
   origin, isTopFrame: z.boolean(), annotations: toolAnnotationsSchema,
 });
+export const modelDisplaySchema = z.strictObject({
+  id: identifier,
+  name: z.string().min(1),
+  isAuto: z.boolean(),
+});
+export const abortReasonSchema = z.enum(['user_initiated', 'remote_command', 'user_abort', 'autopilot_credit_limit']);
 
 export const historyItemSchema = z.discriminatedUnion('kind', [
-  z.strictObject({ kind: z.literal('user'), text: z.string() }),
-  z.strictObject({ kind: z.literal('assistant'), text: z.string() }),
+  z.strictObject({ kind: z.literal('user'), text: z.string(), messageId: identifier.optional() }),
+  z.strictObject({ kind: z.literal('assistant'), text: z.string(), messageId: identifier.optional(), model: modelDisplaySchema.optional() }),
   z.strictObject({ kind: z.literal('tool'), sdkName, args: z.json(), ok: z.boolean().optional(), result: z.string().optional(), callId: identifier.optional(), tool: toolDisplaySchema.optional() }),
+  z.strictObject({ kind: z.literal('abort'), eventId: identifier, reason: abortReasonSchema }),
 ]);
 
 export const errorCodeSchema = z.enum([
@@ -120,13 +127,16 @@ export const toExtensionSchema = z.discriminatedUnion('type', [
   z.strictObject({ type: z.literal('chat_opened'), chatId, title: z.string(), model: identifier.optional() }),
   z.strictObject({ type: z.literal('history'), chatId, items: z.array(historyItemSchema), done: z.boolean() }),
   z.strictObject({ type: z.literal('history_fragment'), chatId, fragment: z.string(), complete: z.boolean() }),
-  z.strictObject({ type: z.literal('delta'), chatId, text: z.string() }),
-  z.strictObject({ type: z.literal('reasoning'), chatId, text: z.string() }),
-  z.strictObject({ type: z.literal('message'), chatId, text: z.string() }),
+  z.strictObject({ type: z.literal('user'), chatId, text: z.string(), messageId: identifier.optional() }),
+  z.strictObject({ type: z.literal('delta'), chatId, text: z.string(), messageId: identifier.optional() }),
+  z.strictObject({ type: z.literal('reasoning'), chatId, text: z.string(), reasoningId: identifier.optional(), complete: z.boolean().optional() }),
+  z.strictObject({ type: z.literal('message'), chatId, text: z.string(), messageId: identifier.optional() }),
+  z.strictObject({ type: z.literal('model_used'), chatId, model: modelDisplaySchema }),
   z.strictObject({ type: z.literal('tool_call'), chatId, callId: identifier, sdkName, key: pageToolSchema.shape.key, args: z.json(), tabId: z.number().int().nonnegative().optional(), origin: origin.optional(), documentId: identifier.optional(), tool: pageToolSchema.optional(), executionState: z.enum(['queued', 'running']).optional() }),
   z.strictObject({ type: z.literal('tool_done'), chatId, callId: identifier, ok: z.boolean(), result: z.string() }),
   z.strictObject({ type: z.literal('question'), chatId, requestId: identifier, question: z.string(), choices: z.array(z.string()).optional(), allowFreeform: z.boolean() }),
   z.strictObject({ type: z.literal('status'), chatId, state: z.enum(['running', 'idle']) }),
+  z.strictObject({ type: z.literal('abort'), chatId, eventId: identifier, reason: abortReasonSchema }),
   z.strictObject({ type: z.literal('title'), chatId, title: z.string() }),
   z.strictObject({ type: z.literal('error'), chatId: chatId.optional(), code: errorCodeSchema, message: z.string() }),
   z.strictObject({ type: z.literal('log'), time: z.iso.datetime(), level: z.enum(['debug', 'info', 'warn', 'error']), text: z.string() }),
@@ -136,6 +146,7 @@ export type PageContext = z.infer<typeof pageContextSchema>;
 export type ToolAnnotations = z.infer<typeof toolAnnotationsSchema>;
 export type PageTool = z.infer<typeof pageToolSchema>;
 export type ToolDisplay = z.infer<typeof toolDisplaySchema>;
+export type ModelDisplay = z.infer<typeof modelDisplaySchema>;
 export type HostSettings = z.infer<typeof hostSettingsSchema>;
 export type HistoryItem = z.infer<typeof historyItemSchema>;
 export type ErrorCode = z.infer<typeof errorCodeSchema>;

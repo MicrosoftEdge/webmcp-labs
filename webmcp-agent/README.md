@@ -51,18 +51,69 @@ sessions are not used.
 ## Using the panel
 
 - **Chat:** send a task, see streamed Markdown and optional reasoning, inspect
-  tool arguments/results, answer question cards, or Stop. Enter sends; Shift+Enter
+  tool arguments/results, answer inline questions, or Stop. Enter sends; Shift+Enter
   inserts a newline. A model chip sits inside the empty composer before the first
-  message; afterward, change models in Settings. The header's **+** starts a new
-  chat.
-- **Tools:** inspect every tool grouped by origin. Debugging tools remain visible
-  but are hidden from the agent by default. **Run manually** executes directly on
-  the page, without the model; it can change page state immediately.
-- **History:** list, reopen, delete, or clear WebMCP Agent chats. Deletion requires
-  confirmation in the UI. Creating a chat refreshes this list from the SDK
-  automatically. Content is kept until deleted; there is no expiry.
-- **Settings:** model, debugging tools, reasoning visibility, maximum tool-result
-  characters, verbose logging, diagnostics, log copying, and host reconnect.
+  message; afterward, change models in the dedicated Settings view. Assistant
+  messages show the concrete model reported by the SDK as a small badge; its
+  tooltip explains when Auto selected that model. The empty state links to the
+  number of page tools available. Tool activity is collapsed by default. The
+  header's **+** starts a new chat. Reasoning is a collapsed disclosure in
+  conversation-event order, not a lingering "Thinking" status below the reply.
+  It is a transient SDK-event projection, not a second persisted transcript.
+  An explicit SDK abort adds a quiet **Response stopped** notice without
+  replacing the partial reply. The notice is reconstructed from the SDK's
+  stored abort event when reopening History; stopping does not delete the chat.
+  Questions appear inline without a separate
+  boxed heading. Choices are
+  full-width suggestion buttons; free-form answers use a compact input with an
+  accessible send action. These still answer the SDK's original question.
+- **Tools:** owns the active-page title, origin and tool counts. Tools are compact,
+  expandable rows grouped by origin, without a separate page-summary card.
+  Consequential and hidden-tool badges remain visible in collapsed rows; expanded
+  details show all declared hints. Technical names and JSON schemas are under
+  **Technical details**. Debugging tools remain visible but are hidden from the
+  agent by default. **Run manually** opens a compact JSON form with explicit
+  Execute and Cancel actions. Execution runs directly on the page,
+  without the model; it can change page state immediately.
+- **History:** opens directly into compact conversation rows, without a duplicate
+  heading or storage blurb. Rows open SDK-owned chats. Delete is in each
+  row's overflow menu, alongside **Copy chat ID** for debugging. Copying remains
+  available while the current turn runs; a clipboard failure shows the ID for
+  manual copying. Successful copying is announced only to screen readers,
+  without adding visible text or moving the chat list. The SDK-generated title is used when available; a new
+  untitled session is simply `New chat`. Creating a chat refreshes this list
+  from the SDK automatically. Content is kept until deleted; there is no expiry.
+- **Settings:** the single gear opens a dedicated view for model, chat display,
+  page tools, limits, diagnostics and deleting all chats. It never expands
+  inside Chat. Conversation, Page tools, Diagnostics and Data and privacy use
+  the same flat sections, field sizing, helper text and right-aligned switches.
+  Host metadata and the bounded log viewer stay in a disclosure; copying logs
+  reports success or an explicit clipboard error.
+
+The browser supplies the WebMCP Agent title. Inside the panel, Chat, Tools,
+History, **+** and Settings share a single navigation row; there is no duplicate
+product heading. Normal `Connected` state and repeated chat/page titles are omitted.
+Connecting, signed-out and offline states appear only when relevant.
+Chat shows page-context UI only for exceptional states; the full context belongs
+to Tools.
+
+The model control is a Fluent-styled native select, not an editable/searchable
+combobox. The browser handles opening, scrolling and keyboard navigation; there
+is no custom popup or query/focus synchronization. Choosing a different model
+sends one SDK `set_model` request and remembers the preference, without refreshing
+page tools. Opening or dismissing the picker does not make SDK requests.
+The composer and model selector share one borderless inner surface and one
+outer focus indicator. The footer matches the panel background; keyboard and
+Windows high-contrast focus remain visible without nested field outlines.
+Canvas styles apply only to the root Fluent provider, not to the provider
+classes Fluent copies into tooltip/menu portals. Floating controls must not
+become opaque, viewport-height overlays.
+Navigation and the composer stay inside a viewport-height layout. Only the
+conversation scrolls, including reasoning, tool activity and question prompts.
+New output follows the bottom while you are there; scrolling up to read older
+messages pauses that following until you return to the bottom or send a message.
+Tool activity uses a quiet, borderless disclosure row. Status, embedded origin,
+arguments and raw results remain available without stacked cards.
 
 There is one active chat per browser window. An idle chat follows the active tab
 on its next message. Switching tabs during a run pauses new tool calls. Continue
@@ -70,6 +121,59 @@ runs them on the **original** tab; switching back also continues. Stop cancels
 the browser's in-flight call and aborts the SDK turn. Closing the bound tab stops
 the run. Navigation invalidates old-document calls rather than routing them into
 the new page.
+
+### SDK proxy contract
+
+The SDK owns the agent loop, conversation persistence and completion decisions.
+The host adapts browser context and page-tool declarations, routes tool outcomes
+back to their SDK request IDs, and forwards the selected SDK events to the panel.
+There is no extension conversation database or second agent loop.
+
+User messages appear when the SDK emits `user.message`, not when the worker
+merely sends a request. SDK assistant message IDs are preserved through deltas,
+final replies and saved history, so separate replies cannot overwrite each
+other. Final text replaces the matching streamed projection. Reasoning blocks
+similarly retain their SDK IDs, with complete reasoning replacing its deltas.
+Legacy history/fixture items without IDs remain supported.
+Rejected authentication/tool preparation releases the pending send state,
+without inventing an accepted user message or leaving the browser stuck busy.
+New-session listing is requested after the SDK history-open completion, rather
+than the early `chat_opened` notification; rows still come only from SDK metadata.
+
+Normal completion is forwarded from `session.idle`, not `assistant.message`,
+`assistant.turn_end`, `assistant.idle`, a reasoning label or a timeout.
+SDK `abort` events are forwarded separately with their original event ID and
+reason. The panel displays cancellation only for that event, never from an idle,
+error or offline notification alone. Replayed abort IDs do not duplicate notices.
+SDK-originated aborts clear queued browser routes without invoking abort again.
+Toolbar-badge failures cannot block questions, idle delivery or reconnection. Stop returns
+failures for pending page calls and invokes SDK abort even if a result callback
+fails; callback errors remain explicit rather than being treated as success.
+Questions resolve the SDK's original input handler after an answer is validated.
+After a page tool settles, the worker discovers the bound page's current tools
+and sends any changed catalog before returning the tool result to the host.
+The host waits for all queued SDK `setTools()` calls to finish before completing
+the SDK's pending tool request, so the next model request sees the new tools.
+Failed SDK updates are not silently bypassed.
+
+Full-document navigation immediately invalidates old-document tools and holds
+the pending result until the replacement page finishes loading and is queried.
+The content-script receiver is installed at `document_start`, before load
+completion, so discovery does not race a later idle-time script injection.
+That wait is cancellable with Stop and fails explicitly after 30 seconds.
+History API navigation, fragment changes and WebMCP `toolchange` events also
+refresh discovery. Concurrent discovery results cannot overwrite a newer
+snapshot; queries target the captured browser document ID. A single event-loop
+yield after page execution lets deferred next-step registrations run before
+the worker queries them, as in Contoso's create-order-to-checkout transition.
+Unchanged snapshots do not trigger redundant SDK tool replacements.
+Routine navigation refresh does not add notices to the chat; genuine failures
+remain visible.
+
+Page-tool serialization and tab/document safety are transport responsibilities,
+not agent decisions. Tool-result truncation and untrusted-output wrapping are
+documented below; this is a scoped WebMCP adapter, not a pass-through for every
+Copilot SDK feature.
 Switching chats waits for SDK disconnect/resume and history loading to finish.
 Selecting the currently open history entry reloads its SDK history without
 disconnecting the session. The extension does not replay a separate transcript
@@ -197,9 +301,81 @@ npm run fixtures
 ```
 
 Fixtures run on two localhost origins, with hints, same-named iframe tools,
-dynamic registration, navigation, and a cancellable call. The test runner builds
-the extension and host first. CI checks types and unit tests on Windows, macOS,
-and Linux, with GitHub Actions pinned to full commit SHAs.
+dynamic registration, navigation, and a cancellable call. Unit tests compile the
+TypeScript projects without bundling the UI; `test:ui` builds the extension first.
+CI checks types and unit tests on Windows, macOS, and Linux, with GitHub Actions
+pinned to full commit SHAs.
+
+### Automated regression layers
+
+| Layer | Command | Scope |
+|-------|---------|-------|
+| Vitest | `npm test` | Protocol/framing, host lifecycle, SDK adapter, worker routing, static component and Markdown contracts |
+| Playwright | `npm run test:ui` | Built side-panel UI in pinned Chromium, real pointer/keyboard input, SDK-shaped events, and visual comparisons |
+| Native integration | `npm run test:browser` | Real installed extension, content scripts, native registration, SDK lifecycle and genuine cross-origin WebMCP fixtures |
+
+The Playwright suite needs **no sign-in, native host registration, secrets or
+model quota**. Only the Chrome port boundary and clipboard are replaced; the
+production React bundle and CSS run unchanged. Each test starts in a fresh
+browser context. Incoming host events and outgoing requests are schema-checked,
+external network requests are blocked, and unexpected console/page errors fail
+the test. SDK calls are not simulated as a second agent loop.
+
+```sh
+npx playwright install chromium
+npm run test:ui
+npm run test:ui -- --project=interactions
+# After one build, rerun without rebundling:
+npm run test:ui:run -- --workers=4
+npm run test:ui:report
+```
+
+The `interactions` project runs shared behavior once, rather than repeating
+identical routing/keyboard assertions for each theme and width. It covers the
+native model picker, composer, SDK question choices/free-form answers, history
+loading/fragments and ID copying, chronological reasoning, tooltip/menu portals, manual tools, reconnect and safe
+Markdown/copy failure behavior.
+The four layout projects retain 320/440 px in light/dark mode for animation-frame
+scroll checks, composer growth/focus and all 32 reviewed screenshots. Markdown
+and neutral tool metadata retain 4.5:1 contrast assertions. No reviewed image
+baselines were removed. Settings adds collapsed/expanded diagnostics views in
+each theme and width, plus alignment and text-contrast checks.
+
+Playwright runs independent test contexts concurrently, using all available
+CPU cores by default. Override with `--workers=4` to reduce concurrency (or
+`--workers=1` for debugging).
+CI uses the same scheduler; native integration remains separate from the fast
+UI loop. Playwright's `--shard=1/2` and `--shard=2/2` also work. For concurrent
+invocations on the **same machine**, build once, then use separate shells with
+distinct preview ports; reports and test output are isolated by port:
+
+```powershell
+# Shell 1
+$env:WEBMCP_UI_PORT = '4179'
+npm run test:ui:run -- --shard=1/2
+
+# Shell 2
+$env:WEBMCP_UI_PORT = '4180'
+npm run test:ui:run -- --shard=2/2
+```
+
+The corresponding output folders are `playwright-report-4179` /
+`test-results-4179` and `playwright-report-4180` / `test-results-4180`. Run
+`npm run test:ui:report -- playwright-report-4179` to open a nondefault report.
+
+CI runs the full UI suite on Windows Server 2025 with the lockfile-pinned
+Playwright browser to match the committed Windows/Segoe UI visual baselines.
+Interaction tests can also run on macOS/Linux; pixel comparisons are skipped there because
+font rasterization differs. UI failures upload the HTML report, screenshots,
+expected/actual pixel diffs and traces as `webmcp-agent-ui-failure` for seven days.
+There are no automatic retries or silently accepted missing baselines.
+
+For an **intentional** visual change, review each image before updating baselines
+on Windows with `npm run test:ui:update -- visuals.spec.ts`. Commit the reviewed
+PNG changes with the UI change. Do not refresh snapshots to make an unexplained
+failure green. `npx playwright show-trace <trace.zip>` opens a failure trace.
+These deterministic UI checks do not replace the real-extension/native-host
+integration tests below or prove that every browser compositor flash is fixed.
 
 ```sh
 # No model prompts; temporary isolated SDK home.
@@ -210,7 +386,6 @@ npm run test:browser
 npm run test:browser -- --chrome
 npm run test:browser -- --restricted-page
 npm run test:browser -- --history
-npm run test:browser -- --markdown
 
 # Explicit model-quota opt-in; synthetic fixtures only.
 npm run probe:live -- --allow-model-calls
@@ -222,10 +397,12 @@ npm run test:browser -- --allow-model-calls --stop-test
 The browser test defaults to Windows Edge or Chrome paths. It uses native
 Node.js CDP support and does not download browsers. On official Chrome builds,
 it loads the unpacked extension through the extension-debugging API rather than
-the unsupported `--load-extension` flag.
-The composer/Markdown presentation checks inject SDK-shaped messages into an
-isolated preview document. They exercise streaming and rendering without model
-calls or modifying production chat history.
+the unsupported `--load-extension` flag. Add `--headed` to watch integration
+execution. Each run owns its browser profile, data home and fixture/debugging
+ports, so Edge and Chrome integration can run independently in parallel.
+Synthetic composer/Markdown/picker/component scenarios now live only in
+Playwright; their old `test:browser` flags are rejected with a migration message.
+`WEBMCP_TEST_ARTIFACT_DIR` can save a final integration screenshot.
 
 `probe:live` uses up to three prompts; a browser run uses one, plus one each for
 `--confirm-test` and `--stop-test`. These commands are not run by CI. Browser
@@ -245,7 +422,10 @@ SDK **1.0.28**, bundled runtime **1.0.105**, Node.js **26.13.0**:
 | Chat startup on restricted browser pages | Passed in both browsers without a panel protocol error or invalid native message |
 | New chat and repeated History selection | Passed in both browsers, including reopening the current chat and switching among stored SDK sessions |
 | Fluent chat and Markdown presentation | Passed in both browsers at 320/440 px in light/dark themes, including streaming fences, GFM tables/lists, code copying, blocked HTML/media, and 4.5:1 body-text contrast |
+| Redesigned information architecture | Passed in both browsers: page context appears only in Tools, Settings is a dedicated gear destination, normal Connected state is hidden, tool/history rows are compact, the composer auto-grows without covering the response, and SDK model metadata renders on assistant messages |
+| Question and tool presentation | Passed at 320/440 px in both themes, including choices/free-form answers, high-contrast focus, tool provenance, 4.5:1 neutral metadata contrast, manual JSON validation, execution/cancel and explicit result/error states; also exercised in the actual Edge sidebar |
 | Same-named cross-origin iframe tools and manual inspector execution | Passed in both browsers |
+| Navigation/tool-result synchronization | Worker/content/host regressions cover deferred registration, SPA/hash changes, document loading, stale discovery, cancellation and SDK update ordering; browser integration builds a synthetic cart in the actual Contoso demo and sees checkout before create-order returns, then verifies hard-navigation replacement |
 | Dynamic registration/removal | Passed in both browsers |
 | Live SDK/native-host/page-tool/assistant round trip | Passed in both browsers |
 | Tab switch holds calls; Continue uses original tab | Passed in both browsers |
@@ -258,7 +438,9 @@ tasks or repository contents were sent to the model.
 
 Not yet manually verified: fresh interactive sign-in on a signed-out machine,
 macOS/Linux host registration and browser operation, elapsed five-minute idle
-shutdown, and tasks against Contoso Pizza/Idea Board. Unit tests cover idle-alarm
+shutdown, and live-agent tasks against Contoso Pizza/Idea Board. The Contoso
+navigation regression uses manual create-order only, without inference or
+checkout execution. Unit tests cover idle-alarm
 routing and the host's refusal to send while signed out; those checks do not
 substitute for manual platform and fresh-account testing.
 

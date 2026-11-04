@@ -7,18 +7,21 @@ import {
 } from '../messages';
 
 type ToolCall = Extract<ToExtension, { type: 'tool_call' }>;
+type BrowserCall = ToolCall & { finishing: boolean; completionController: AbortController };
 interface WindowState {
   ports: Set<chrome.runtime.Port>;
   binding: TabBinding;
   chatId?: string;
   page?: PageState;
   held: ToolCall[];
-  calls: Map<string, ToolCall>;
+  calls: Map<string, BrowserCall>;
   lastContext?: string;
   loading: boolean;
+  refreshChatsOnHistoryComplete: boolean;
 }
 const windows = new Map<number, WindowState>();
 const snapshots = new Map<number, PageState>();
+const refreshes = new Map<number, { generation: symbol; operation: Promise<PageState> }>();
 const pendingQuestions = new Set<string>();
 async function updateBadge(): Promise<void> {
   await chrome.action.setBadgeText({ text: pendingQuestions.size ? '?' : '' });
@@ -40,7 +43,7 @@ let resetAfterClear = false;
 function state(windowId: number): WindowState {
   let value = windows.get(windowId);
   if (!value) {
-    value = { ports: new Set(), binding: new TabBinding(), held: [], calls: new Map(), loading: false };
+    value = { ports: new Set(), binding: new TabBinding(), held: [], calls: new Map(), loading: false, refreshChatsOnHistoryComplete: false };
     windows.set(windowId, value);
   }
   return value;
@@ -106,6 +109,7 @@ function connect(): void {
     clearTimeout(openTimer);
     broadcast({ type: 'connection', status: 'Offline', error: connectionError(message) });
     for (const [id, window] of windows) {
+      window.refreshChatsOnHistoryComplete = false;
       setLoading(id, false);
       void cancelCalls(window).catch(error => report(id, error));
       window.binding.stop();
@@ -122,6 +126,7 @@ function queueOpen(windowId: number, chatId?: string): void {
     throw new Error('That chat is already open in another window.');
   }
   if (state(windowId).loading || opening?.windowId === windowId || opens.some(entry => entry.windowId === windowId)) return;
+  state(windowId).refreshChatsOnHistoryComplete = false;
   opens.push({ windowId, ...(chatId ? { chatId } : {}), ...(settings.model ? { model: settings.model } : {}) });
   setLoading(windowId, true);
   void nextOpen();
@@ -168,11 +173,11 @@ async function hostMessage(message: ToExtension): Promise<void> {
     const id = opening.windowId;
     const created = opening.chatId === undefined;
     state(id).chatId = message.chatId;
+    state(id).refreshChatsOnHistoryComplete = created;
     clearTimeout(openTimer);
     post(id, message);
     // History and status follow chat_opened; route by assigned chat id.
     opening = undefined;
-    if (created) send({ type: 'list_chats' });
     await chrome.storage.session.set({ windowChats: Object.fromEntries([...windows].filter(([, window]) => window.chatId).map(([id, window]) => [id, window.chatId])) });
     void nextOpen();
     return;
@@ -196,8 +201,17 @@ async function hostMessage(message: ToExtension): Promise<void> {
   const owner = [...windows].find(([, window]) => window.chatId === message.chatId);
   if (!owner) { console.warn('Host message has no owning window', message.type); return; }
   const [id, window] = owner;
-  if (message.type === 'history' && message.done) setLoading(id, false);
-  if (message.type === 'error' && window.loading) setLoading(id, false);
+  if (message.type === 'history' && message.done) {
+    setLoading(id, false);
+    if (window.refreshChatsOnHistoryComplete) {
+      window.refreshChatsOnHistoryComplete = false;
+      send({ type: 'list_chats' });
+    }
+  }
+  if (message.type === 'error' && window.loading) {
+    window.refreshChatsOnHistoryComplete = false;
+    setLoading(id, false);
+  }
   if (message.type === 'tool_call') {
     if (window.calls.has(message.callId) || window.held.some(call => call.callId === message.callId)) return;
     post(id, { ...message, executionState: window.binding.paused ? 'queued' : 'running' });
@@ -209,7 +223,7 @@ async function hostMessage(message: ToExtension): Promise<void> {
     if (message.state === 'running') window.binding.running = true;
     else {
       pendingQuestions.delete(message.chatId);
-      await updateBadge();
+      void updateBadge().catch(error => console.warn('Cannot update the question badge', error));
       window.binding.stop();
       window.held = [];
       if (window.calls.size) void cancelCalls(window).catch(error => report(id, error));
@@ -219,40 +233,69 @@ async function hostMessage(message: ToExtension): Promise<void> {
   }
   if (message.type === 'question') {
     pendingQuestions.add(message.chatId);
-    await updateBadge();
+    void updateBadge().catch(error => console.warn('Cannot update the question badge', error));
   }
-  if (message.type === 'tool_done') window.calls.delete(message.callId);
+  if (message.type === 'abort') {
+    pendingQuestions.delete(message.chatId);
+    void updateBadge().catch(error => console.warn('Cannot update the question badge', error));
+    window.binding.stop();
+    window.held = [];
+    if (window.calls.size) void cancelCalls(window).catch(error => report(id, error));
+    pauseState(id);
+  }
+  if (message.type === 'tool_done') {
+    const call = window.calls.get(message.callId);
+    window.calls.delete(message.callId);
+    call?.completionController.abort();
+  }
   post(id, message);
 }
-async function refresh(tabId: number): Promise<PageState> {
-  const tab = await chrome.tabs.get(tabId);
-  const url = tab.url ?? 'about:blank';
-  const page = { tabId, url, title: tab.title ?? url, origin: pageOrigin(url) };
-  let snapshot: PageState = { type: 'page', page, tools: [], available: false };
-  try {
-    const frames = page.origin === 'null' ? [] : await chrome.webNavigation.getAllFrames({ tabId }) ?? [];
-    const top = frames.find(frame => frame.frameId === 0);
-    const fromOrigins = trustedFrameOrigins(frames, page.origin);
-    if (page.origin !== 'null') {
-      const response: unknown = await chrome.tabs.sendMessage(tabId, { type: 'webmcp/list', fromOrigins }, { frameId: 0 });
-      const parsed = contentResponseSchema.parse(response);
-      if (parsed.type !== 'webmcp/snapshot') throw new Error('Unexpected page tool response.');
-      snapshot = {
-        type: 'page', page: { ...page, ...(top?.documentId ? { documentId: top.documentId } : {}) },
-        tools: parsed.tools, available: parsed.available, ...(parsed.error ? { error: parsed.error } : {}),
-      };
+function refresh(tabId: number): Promise<PageState> {
+  const generation = Symbol();
+  const operation: Promise<PageState> = (async () => {
+    const tab = await chrome.tabs.get(tabId);
+    const url = tab.url ?? 'about:blank';
+    const page = { tabId, url, title: tab.title ?? url, origin: pageOrigin(url) };
+    let snapshot: PageState = { type: 'page', page, tools: [], available: false };
+    try {
+      const frames = page.origin === 'null' ? [] : await chrome.webNavigation.getAllFrames({ tabId }) ?? [];
+      const top = frames.find(frame => frame.frameId === 0);
+      if (top?.documentId) snapshot.page.documentId = top.documentId;
+      const fromOrigins = trustedFrameOrigins(frames, page.origin);
+      if (page.origin !== 'null') {
+        const options = top?.documentId ? { documentId: top.documentId } : { frameId: 0 };
+        const response: unknown = await chrome.tabs.sendMessage(tabId, { type: 'webmcp/list', fromOrigins }, options);
+        const parsed = contentResponseSchema.parse(response);
+        if (parsed.type !== 'webmcp/snapshot') throw new Error('Unexpected page tool response.');
+        snapshot = {
+          type: 'page', page: { ...page, ...(top?.documentId ? { documentId: top.documentId } : {}) },
+          tools: parsed.tools, available: parsed.available, ...(parsed.error ? { error: parsed.error } : {}),
+        };
+      }
+    } catch (error) {
+      snapshot.error = error instanceof Error ? error.message : String(error);
     }
-  } catch (error) {
-    snapshot.error = error instanceof Error ? error.message : String(error);
-  }
-  snapshots.set(tabId, snapshot);
-  const window = state(tab.windowId);
-  const [active] = await chrome.tabs.query({ windowId: tab.windowId, active: true });
-  if (active?.id === tabId) { window.page = snapshot; post(tab.windowId, snapshot); }
-  if (window.binding.running && window.binding.boundTabId === tabId && window.chatId && ready) {
-    send({ type: 'set_tools', chatId: window.chatId, page: snapshot.page, tools: agentTools(snapshot) });
-  }
-  return snapshot;
+    const [active] = await chrome.tabs.query({ windowId: tab.windowId, active: true });
+    const latest = refreshes.get(tabId);
+    if (latest?.generation !== generation) {
+      if (latest) return latest.operation;
+      throw new DOMException('The tab closed during tool discovery.', 'AbortError');
+    }
+    snapshots.set(tabId, snapshot);
+    const window = state(tab.windowId);
+    if (active?.id === tabId) { window.page = snapshot; post(tab.windowId, snapshot); }
+    if (window.binding.running && window.binding.boundTabId === tabId && window.chatId && ready) {
+      const tools = agentTools(snapshot);
+      const context = JSON.stringify([snapshot.page, tools]);
+      if (context !== window.lastContext) {
+        send({ type: 'set_tools', chatId: window.chatId, page: snapshot.page, tools });
+        window.lastContext = context;
+      }
+    }
+    return snapshot;
+  })();
+  refreshes.set(tabId, { generation, operation });
+  return operation;
 }
 async function activePage(windowId: number): Promise<PageState> {
   const [tab] = await chrome.tabs.query({ windowId, active: true });
@@ -262,7 +305,7 @@ async function activePage(windowId: number): Promise<PageState> {
 async function execute(windowId: number, call: ToolCall): Promise<void> {
   const window = state(windowId);
   const tabId = window.binding.boundTabId;
-  window.calls.set(call.callId, call);
+  window.calls.set(call.callId, { ...call, finishing: false, completionController: new AbortController() });
   post(windowId, { ...call, executionState: 'running' });
   try {
     if (tabId === undefined || call.tabId !== tabId) throw new Error('Tool call does not belong to the bound tab.');
@@ -277,18 +320,66 @@ async function execute(windowId: number, call: ToolCall): Promise<void> {
     const parsed = contentResponseSchema.parse(response);
     if (parsed.type !== 'webmcp/result' || parsed.callId !== call.callId) throw new Error('Invalid tool execution response.');
     if (!window.calls.has(call.callId)) return;
-    send(parsed.ok
+    await finishCall(windowId, call, parsed.ok
       ? { type: 'tool_result', chatId: call.chatId, callId: call.callId, ok: true, result: parsed.result }
       : { type: 'tool_result', chatId: call.chatId, callId: call.callId, ok: false, error: parsed.error });
   } catch (error) {
     if (!window.calls.has(call.callId)) return;
-    send({ type: 'tool_result', chatId: call.chatId, callId: call.callId, ok: false, error: {
+    await finishCall(windowId, call, { type: 'tool_result', chatId: call.chatId, callId: call.callId, ok: false, error: {
       name: error instanceof Error ? error.name : 'Error', message: error instanceof Error ? error.message : String(error),
     } });
   }
 }
+async function waitForPageLoad(tabId: number, signal: AbortSignal): Promise<void> {
+  signal.throwIfAborted();
+  if ((await chrome.tabs.get(tabId)).status !== 'loading') return;
+  await new Promise<void>((resolve, reject) => {
+    const finish = (error?: unknown) => {
+      clearTimeout(timer);
+      chrome.tabs.onUpdated.removeListener(updated);
+      chrome.tabs.onRemoved.removeListener(removed);
+      signal.removeEventListener('abort', aborted);
+      if (error) reject(error); else resolve();
+    };
+    const updated = (id: number, change: chrome.tabs.OnUpdatedInfo) => {
+      if (id === tabId && change.status === 'complete') finish();
+    };
+    const removed = (id: number) => { if (id === tabId) finish(new Error('The bound tab closed.')); };
+    const aborted = () => finish(signal.reason);
+    const timer = setTimeout(() => finish(new Error('The page did not finish loading before its tools could be refreshed.')), 30000);
+    chrome.tabs.onUpdated.addListener(updated);
+    chrome.tabs.onRemoved.addListener(removed);
+    signal.addEventListener('abort', aborted, { once: true });
+    if (signal.aborted) { aborted(); return; }
+    void chrome.tabs.get(tabId).then(tab => { if (tab.status !== 'loading') finish(); }).catch(finish);
+  });
+}
+async function finishCall(windowId: number, call: ToolCall, result: Extract<ToHost, { type: 'tool_result' }>): Promise<void> {
+  const window = state(windowId);
+  const pending = window.calls.get(call.callId);
+  if (!pending || pending.finishing) return;
+  pending.finishing = true;
+  try {
+    const tabId = window.binding.boundTabId;
+    if (tabId === undefined) throw new Error('Tool call has no bound tab.');
+    await waitForPageLoad(tabId, pending.completionController.signal);
+    const page = await refresh(tabId);
+    if (page.error) throw new Error(`Could not refresh page tools: ${page.error}`);
+  } catch (error) {
+    if (window.calls.get(call.callId) !== pending || pending.completionController.signal.aborted) return;
+    report(windowId, error);
+    result = { type: 'tool_result', chatId: call.chatId, callId: call.callId, ok: false,
+      error: { name: 'ToolRefreshError', message: error instanceof Error ? error.message : String(error) } };
+  }
+  if (window.calls.get(call.callId) === pending && !pending.completionController.signal.aborted) {
+    try { send(result); } catch (error) { report(windowId, error); }
+  }
+}
 async function cancelCalls(window: WindowState): Promise<void> {
-  for (const call of window.calls.values()) {
+  const calls = [...window.calls.values()];
+  window.calls.clear();
+  for (const call of calls) {
+    call.completionController.abort();
     if (call.tabId !== undefined) {
       try {
         await chrome.tabs.sendMessage(call.tabId, { type: 'webmcp/cancel', callId: call.callId },
@@ -296,7 +387,6 @@ async function cancelCalls(window: WindowState): Promise<void> {
       } catch (error) { console.debug('Cancelled call document is unavailable', error); }
     }
   }
-  window.calls.clear();
 }
 async function panelMessage(windowId: number, message: PanelRequest): Promise<void> {
   const window = state(windowId);
@@ -313,7 +403,6 @@ async function panelMessage(windowId: number, message: PanelRequest): Promise<vo
         send({ type: 'send', chatId: window.chatId, text: message.text, page: page.page, tools, pageChanged: window.lastContext !== context });
       } catch (error) { window.binding.stop(); throw error; }
       window.lastContext = context;
-      post(windowId, { type: 'user', text: message.text });
       return;
     }
     case 'new_chat':
@@ -347,13 +436,15 @@ async function panelMessage(windowId: number, message: PanelRequest): Promise<vo
       if (!window.chatId) throw new Error('No chat is open.');
       send({ ...message, chatId: window.chatId });
       pendingQuestions.delete(window.chatId);
-      await updateBadge();
+      void updateBadge().catch(error => console.warn('Cannot update the question badge', error));
       return;
     case 'set_model':
       if (!window.chatId) throw new Error('No chat is open.');
+      if (window.binding.running || window.loading) throw new Error('Wait for the current chat to be idle before changing models.');
       send({ ...message, chatId: window.chatId });
-      settings.model = message.model;
+      settings.model = message.model === 'auto' ? '' : message.model;
       await chrome.storage.local.set({ settings });
+      broadcast({ type: 'settings', settings });
       return;
     case 'settings':
       settings = message.settings;
@@ -371,6 +462,7 @@ async function panelMessage(windowId: number, message: PanelRequest): Promise<vo
       }, page.page.documentId ? { documentId: page.page.documentId } : { frameId: 0 });
       const result = contentResponseSchema.parse(response);
       if (result.type !== 'webmcp/result') throw new Error('Unexpected manual tool result.');
+      await refresh(page.page.tabId);
       post(windowId, { type: 'inspect_result', key: message.key, ...('result' in result ? { result: result.result ?? '' } : { result: `${result.error.name}: ${result.error.message}` }), ok: result.ok });
       return;
     }
@@ -395,12 +487,13 @@ async function panelMessage(windowId: number, message: PanelRequest): Promise<vo
       native = undefined;
       ready = undefined;
       pendingQuestions.clear();
-      await updateBadge();
+      void updateBadge().catch(error => console.warn('Cannot update the question badge', error));
       opening = undefined;
       opens.splice(0);
       resetAfterClear = false;
       clearTimeout(openTimer);
       for (const [id, entry] of windows) {
+        entry.refreshChatsOnHistoryComplete = false;
         setLoading(id, false);
         await cancelCalls(entry);
         entry.binding.stop();
@@ -462,6 +555,7 @@ chrome.windows.onFocusChanged.addListener(id => {
 });
 chrome.tabs.onRemoved.addListener(tabId => {
   snapshots.delete(tabId);
+  refreshes.delete(tabId);
   for (const [id, window] of windows) if (window.binding.running && window.binding.boundTabId === tabId) {
     void panelMessage(id, { type: 'stop' }).catch(error => report(id, error));
     notice(id, 'The bound tab closed. The run was stopped.');
@@ -477,16 +571,21 @@ chrome.webNavigation.onCommitted.addListener(details => {
     };
     snapshots.set(details.tabId, empty);
     for (const [id, window] of windows) if (window.binding.running && window.binding.boundTabId === details.tabId) {
-      if (window.chatId && ready) send({ type: 'set_tools', chatId: window.chatId, page: empty.page, tools: [] });
-      for (const call of window.calls.values()) {
-        send({ type: 'tool_result', chatId: call.chatId, callId: call.callId, ok: false, error: { name: 'AbortError', message: 'The bound page navigated.' } });
+      if (window.chatId && ready) {
+        send({ type: 'set_tools', chatId: window.chatId, page: empty.page, tools: [] });
+        window.lastContext = JSON.stringify([empty.page, []]);
       }
-      window.calls.clear();
-      notice(id, 'The page navigated. Refreshing its tool list.');
+      for (const call of window.calls.values()) {
+        void finishCall(id, call, { type: 'tool_result', chatId: call.chatId, callId: call.callId, ok: false,
+          error: { name: 'AbortError', message: 'The bound page navigated.' } }).catch(error => report(id, error));
+      }
     }
   }
   void refresh(details.tabId).catch(error => console.debug('Navigation tool refresh unavailable', error));
 });
+for (const event of [chrome.webNavigation.onHistoryStateUpdated, chrome.webNavigation.onReferenceFragmentUpdated]) {
+  event.addListener(details => { void refresh(details.tabId).catch(error => console.debug('Same-document tool refresh unavailable', error)); });
+}
 chrome.tabs.onUpdated.addListener((tabId, change) => {
   if (change.url || change.status === 'complete') void refresh(tabId).catch(error => console.debug('Tab tool refresh unavailable', error));
 });
@@ -495,6 +594,7 @@ chrome.alarms.onAlarm.addListener(alarm => {
 });
 chrome.windows.onRemoved.addListener(id => {
   const window = windows.get(id);
+  if (window) void cancelCalls(window).catch(error => console.warn('Cannot cancel tools for the closing window', error));
   if (window?.chatId) pendingQuestions.delete(window.chatId);
   void updateBadge().catch(error => console.warn('Cannot update the question badge', error));
   if (window?.chatId && native && ready) send({ type: 'close_chat', chatId: window.chatId });
