@@ -1,9 +1,12 @@
 # WebMCP Agent
 
-A browser side-panel agent that completes tasks using a page's WebMCP tools.
-The Microsoft Copilot SDK runs the conversation and agent loop in a local
-native-messaging host. The extension discovers and executes page tools; it does
-not run another agent loop or persist another conversation transcript.
+A browser side-panel extension for testing WebMCP-enabled websites with an agent
+powered by the GitHub Copilot SDK. Inspect page tools, give the agent a task,
+and review its tool calls and results.
+
+The SDK runs the conversation and agent loop in a local native-messaging host.
+The extension discovers and executes page tools; it does not run another agent
+loop or persist another conversation transcript.
 
 This is an experimental lab, not a production browsing agent. Website-declared
 hints influence the model through its prompt, not through deterministic permission
@@ -11,36 +14,108 @@ gates. Use it on sites and fixtures you trust. WebMCP Explorer is unchanged.
 
 ## Setup
 
-Requires Node.js **22.12 or newer**, npm, and Edge or Chrome **156 or newer** with
-WebMCP for testing enabled. Version 156 is the minimum tested version; support for
-155 has not been established.
+These instructions cover **Windows and macOS**. This is a local source install:
+you build the extension and its Node.js host, then load the extension unpacked
+in your browser. You do not need a separate Copilot CLI installation, provider
+API key, or local HTTP server.
 
-From `webmcp-agent/`:
+Windows installation and browser flows have been verified. macOS build/unit
+checks pass in CI, but the macOS browser/native-host setup still needs
+end-to-end verification.
+
+### 1. Install the prerequisites
+
+- **Node.js 22.12 or newer**, including npm.
+- **Git**, to clone this repository.
+- **Microsoft Edge or Google Chrome 156 or newer**, with the WebMCP testing flag
+  available. Version 156 is the minimum tested version.
+- **A GitHub account with Copilot access.** Model requests use that account's
+  Copilot quota.
+
+On macOS, open your chosen browser once before running setup. This lets the
+installer detect its existing browser-channel profile directory.
+
+### 2. Get the code and run setup
+
+Use **PowerShell on Windows** or **Terminal on macOS**. The commands are the
+same on both platforms. If you already have the repository, go to its
+`webmcp-agent` directory and run just the two npm commands.
 
 ```sh
-npm install
+git clone https://github.com/MicrosoftEdge/webmcp-labs.git
+cd webmcp-labs
+cd webmcp-agent
+npm ci
 npm run setup
+```
+
+`npm run setup` builds all three workspaces and registers the native-messaging
+host for your current user. You do not need to run `npm run build` separately
+for this first installation, or run the terminal as an administrator.
+
+Keep the cloned folder after setup. The browser launches the host from this
+checkout, using the Node executable that ran setup.
+
+### 3. Sign in and check the installation
+
+From the same directory:
+
+```sh
 npm run login
 npm run doctor
 ```
 
-Then:
+If login prints a browser URL, open it and complete GitHub sign-in. An existing
+GitHub CLI sign-in can be reused; GitHub CLI itself is not a prerequisite.
 
-1. Open `edge://extensions` or `chrome://extensions` and enable Developer mode.
-2. Choose **Load unpacked** and select `webmcp-agent/extension/dist`.
-3. Enable **WebMCP for testing** at `edge://flags/#enable-webmcp-testing` or
-   `chrome://flags/#enable-webmcp-testing`, then restart the browser.
-4. Open a WebMCP-enabled page and reload it if it was open before installation.
-5. Click the extension action to open WebMCP Agent.
+Doctor should report passing checks for the host launcher, registration, SDK
+handshake, and sign-in. It does not send a model prompt or check your remaining
+Copilot quota.
 
-Setup builds all three workspaces and registers the native host for the current
-user. No terminal or HTTP server needs to remain open. The browser launches the
-host when the panel connects. When no panel is open and no run is active, the
-worker disconnects after five minutes and the host exits.
+### 4. Enable WebMCP in the browser
 
-The committed public key gives all unpacked installations the same extension ID:
-**`keoelciaibdnnbgchdgiamlafbedcmbj`**. Only this ID is allowed in the native-host
-manifest. No private signing key is stored.
+| Browser | Open this flags page |
+|---------|----------------------|
+| Edge | `edge://flags/#enable-webmcp-testing` |
+| Chrome | `chrome://flags/#enable-webmcp-testing` |
+
+Set **WebMCP for testing** to **Enabled**, then relaunch the browser. If the flag
+is missing, use a current Canary build that exposes it. On macOS, if you switch
+to Canary after setup, open that browser once and rerun `npm run setup` so its
+profile receives the native-host registration.
+
+### 5. Load the extension
+
+1. Open `edge://extensions` or `chrome://extensions`.
+2. Enable **Developer mode**.
+3. Choose **Load unpacked**.
+4. Select the built extension folder inside your checkout:
+
+| Platform | Folder to select |
+|----------|------------------|
+| Windows | `webmcp-agent\extension\dist` |
+| macOS | `webmcp-agent/extension/dist` |
+
+Select `dist`, not the source `extension` folder. It should contain
+`manifest.json`.
+
+### 6. Try a first task
+
+Open the [Contoso Pizza demo](https://microsoftedge.github.io/webmcp-labs/pizza-order/).
+Reload the page if it was already open before you installed the extension.
+Click **WebMCP Agent** in the browser's Extensions menu or toolbar to open the
+side panel.
+
+The **Tools** tab should show the page's registered tools. In **Chat**, try:
+
+> Show me the menu. Don't create an order.
+
+The agent can call the page's tools through the SDK; Chat shows those calls
+and their results.
+
+After setup, you can close the terminal. The browser starts the host when the
+panel connects. When no panel is open and no run is active, the worker
+disconnects after five minutes and the host exits.
 
 `npm run login` first checks the SDK's sign-in state. An existing GitHub CLI
 sign-in works without signing in again. Otherwise it starts the bundled runtime's
@@ -259,6 +334,10 @@ explicit tokens and runtime-path overrides. It does not configure `~/.copilot`.
 
 Host name: **`com.microsoft.webmcp_agent`**. Generated launchers use the exact
 Node executable from setup, independent of the browser's PATH.
+
+The committed public key gives all unpacked installations the same extension ID:
+**`keoelciaibdnnbgchdgiamlafbedcmbj`**. Only this ID is allowed in the native-host
+manifest. No private signing key is stored.
 
 | OS | Per-user registrations |
 |----|------------------------|
