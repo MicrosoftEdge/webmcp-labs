@@ -1,7 +1,7 @@
 # WebMCP Agent
 
 A browser side-panel extension for testing WebMCP-enabled websites with an agent
-powered by the GitHub Copilot SDK. Inspect page tools, give the agent a task,
+powered by the Microsoft Copilot SDK. Inspect page tools, give the agent a task,
 and review its tool calls and results.
 
 The SDK runs the conversation and agent loop in a local native-messaging host.
@@ -531,7 +531,7 @@ silently invoking another tool.
 
 ## References
 
-- [Copilot SDK](https://github.com/github/copilot-sdk)
+- [Microsoft Copilot SDK](https://github.com/github/copilot-sdk)
 - [Current WebMCP draft](https://webmachinelearning.github.io/webmcp/)
 - [Chrome native messaging](https://developer.chrome.com/docs/extensions/develop/concepts/native-messaging)
 - [Edge native messaging](https://learn.microsoft.com/en-us/microsoft-edge/extensions/developer-guide/native-messaging)
