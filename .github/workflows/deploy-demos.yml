@@ -29,14 +29,7 @@ jobs:
         uses: actions/configure-pages@983d7736d9b0ae728b81ab479565c72886d7745b # v5.0.0
 
       - name: Archive artifact
-        run: |
-          tar \
-            --dereference --hard-dereference \
-            --directory demos \
-            -cvf "$RUNNER_TEMP/artifact.tar" \
-            --exclude=.git \
-            --exclude=.github \
-            .
+        run: tar --dereference --hard-dereference -C demos -cf "$RUNNER_TEMP/artifact.tar" --exclude=.git --exclude=.github .
 
       - name: Upload artifact
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
