@@ -1,0 +1,27 @@
+{
+  "name": "@webmcp-agent/extension",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "vite build && vite build --config vite.content.config.ts",
+    "dev": "vite build --watch",
+    "preview": "vite preview --host 127.0.0.1 --strictPort"
+  },
+  "dependencies": {
+    "@fluentui-contrib/react-chat": "0.2.2",
+    "@fluentui/react-components": "9.75.1",
+    "@fluentui/react-icons": "2.0.345",
+    "@webmcp-agent/shared": "0.1.0",
+    "react": "19.2.0",
+    "react-dom": "19.2.0",
+    "react-markdown": "10.1.0",
+    "remark-gfm": "4.0.1"
+  },
+  "devDependencies": {
+    "@types/chrome": "0.1.24",
+    "@types/react": "19.2.2",
+    "@types/react-dom": "19.2.2",
+    "vite": "6.4.1"
+  }
+}

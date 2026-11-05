@@ -1,0 +1,16 @@
+<!doctype html>
+<html lang="en"><meta charset="utf-8"><title>WebMCP Agent cancellation fixture</title><h1>Cancellable tool</h1>
+<output id="state">idle</output>
+<script>
+if (document.modelContext) document.modelContext.registerTool({
+  name: 'wait', description: 'Wait for 60 seconds. This is a harmless cancellation test.',
+  inputSchema: { type: 'object', properties: {} }, annotations: { readOnlyHint: true },
+  execute: (_args, { signal }) => new Promise((resolve, reject) => {
+    document.getElementById('state').textContent = 'running';
+    const timer = setTimeout(() => { document.getElementById('state').textContent = 'done'; resolve({ done: true }); }, 60000);
+    const abort = () => { clearTimeout(timer); document.getElementById('state').textContent = 'cancelled'; reject(new DOMException('Stopped', 'AbortError')); };
+    if (signal.aborted) abort();
+    else signal.addEventListener('abort', abort, { once: true });
+  })
+});
+</script></html>
