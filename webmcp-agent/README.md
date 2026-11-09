@@ -300,7 +300,11 @@ Messages use React Markdown with GFM support for tables, task lists, strikethrou
 and autolinks, alongside headings, nested lists, blockquotes, and fenced code.
 Code blocks preserve whitespace, show their language, and have a copy button.
 Wide code and tables scroll inside their message rather than widening the panel.
-Colors and typography follow the system's light/dark Fluent theme. Raw HTML and
+Colors and typography follow the system's light/dark Fluent theme. All panels
+and controls use Fluent's system UI font stack. Code, JSON and logs share its
+monospace stack; no fonts are downloaded. Headings use
+semibold, tool titles and form labels use medium, and saved-chat titles, body text
+and metadata use regular weight. Markdown retains bold emphasis. Raw HTML and
 remote images remain disabled, and unsafe link protocols are not rendered as links.
 These components do not manage SDK sessions or run an agent loop.
 
@@ -415,10 +419,13 @@ native model picker, composer, SDK question choices/free-form answers, history
 loading/fragments and ID copying, chronological reasoning, tooltip/menu portals, manual tools, reconnect and safe
 Markdown/copy failure behavior.
 The four layout projects retain 320/440 px in light/dark mode for animation-frame
-scroll checks, composer growth/focus and all 32 reviewed screenshots. Markdown
+scroll checks, composer growth/focus and all 36 reviewed screenshots. Markdown
 and neutral tool metadata retain 4.5:1 contrast assertions. No reviewed image
 baselines were removed. Settings adds collapsed/expanded diagnostics views in
-each theme and width, plus alignment and text-contrast checks.
+each theme and width, plus alignment and text-contrast checks. History has its
+own visual baseline. Computed font-weight assertions cover headings, labels,
+row titles, supporting text and Markdown emphasis across the panels. Font-family
+checks ensure UI text and technical content use their respective Fluent stacks.
 
 Playwright runs independent test contexts concurrently, using all available
 CPU cores by default. Override with `--workers=4` to reduce concurrency (or

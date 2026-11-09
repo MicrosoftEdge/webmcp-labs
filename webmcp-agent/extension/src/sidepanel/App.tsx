@@ -340,7 +340,7 @@ function HistoryView({ chats, disabled, open, remove }: {
       role={copyFeedback.failed ? 'alert' : 'status'}>{copyFeedback.text}</p>}
     <div className="history-list">{chats.map(chat => <div className="history-row" key={chat.chatId}>
       <Button className="history-open" appearance="subtle" disabled={disabled} onClick={() => open(chat.chatId)}>
-        <span><strong>{chat.title}</strong><small>{new Date(chat.updatedAt).toLocaleString()}</small></span>
+        <span><span className="history-title">{chat.title}</span><small>{new Date(chat.updatedAt).toLocaleString()}</small></span>
       </Button>
       <Menu><MenuTrigger disableButtonEnhancement><Button appearance="subtle" icon={<MoreHorizontal20Regular />}
         aria-label={`More options for ${chat.title}`} /></MenuTrigger>

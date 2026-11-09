@@ -242,6 +242,7 @@ test('Tools preserve safety/provenance, validate manual arguments and show expli
   await expect(activity.first()).not.toContainText(menuTool.origin);
   await expect(activity.nth(1)).toContainText('Queued');
   await expect(activity.nth(1)).toContainText('Embedded · delivery.example');
+  await expect(activity.nth(1).locator('.tool-summary-label > span')).toHaveCSS('font-weight', '400');
   await panel.emit({ type: 'tool_done', chatId, callId: 'running-menu', ok: false, result: 'Synthetic tool failure' });
   await expect(activity.first()).toContainText('Failed');
   await activity.first().getByRole('button').click();
@@ -301,6 +302,7 @@ test('saved chat IDs copy exactly while running and clipboard failures remain vi
   );
   await page.getByRole('tab', { name: 'History', exact: true }).click();
   await expect(page.getByRole('button', { name: /^Saved order / })).toBeDisabled();
+  await expect(page.locator('.history-title').first()).toHaveCSS('font-weight', '400');
   const originalListBounds = await page.locator('.history-list').boundingBox();
   await page.getByRole('button', { name: 'More options for Saved order' }).click();
   await expect(page.getByRole('menuitem', { name: 'Delete', exact: true })).toBeDisabled();
@@ -340,7 +342,9 @@ test('reasoning remains in conversation order and is not an idle Thinking status
   })).toBe(true);
   await testInfo.attach('reasoning-order', { body: await page.screenshot(), contentType: 'image/png' });
   await reasoning.getByRole('button', { name: 'Reasoning', exact: true }).click();
+  await expect(reasoning.getByRole('button', { name: 'Reasoning', exact: true })).toHaveCSS('font-weight', '500');
   await expect(reasoning.getByText('Check the page tools.', { exact: true })).toBeVisible();
+  await expect(reasoning.locator('.markdown p')).toHaveCSS('font-weight', '400');
   await panel.emit(
     { type: 'user', text: 'Continue' },
     { type: 'status', chatId, state: 'running' },
@@ -401,7 +405,7 @@ test('SDK identities keep distinct replies and reasoning blocks from overwriting
 test('Markdown renders GFM safely, keeps overflow local and reports copy failures', async ({ panel, page, consoleErrors }) => {
   const code = `const result = "${'long-query-'.repeat(30)}";\n`;
   const markdown = [
-    '# Menu help', '', 'A **useful** reply with `inline code`.', '',
+    '# Menu **help**', '', 'A **useful** reply with `inline code`.', '',
     '| Tool | Purpose | Status |', '| --- | --- | --- |', '| Search | Find pizza | Ready |', '',
     '- [x] Read menu', '- [ ] Order pizza', '', '> Confirm the exact order.', '',
     '```ts', code.trimEnd(), '```', '',
@@ -420,6 +424,9 @@ test('Markdown renders GFM safely, keeps overflow local and reports copy failure
     { type: 'model_used', chatId, model: { id: 'gpt-test', name: 'GPT Test', isAuto: true } },
   );
   await expect(page.getByRole('heading', { name: 'Menu help' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Menu help' })).toHaveCSS('font-weight', '600');
+  await expect(page.getByRole('heading', { name: 'Menu help' }).locator('strong')).toHaveCSS('font-weight', '700');
+  await expect(page.getByText('useful', { exact: true })).toHaveCSS('font-weight', '700');
   await expect(page.getByRole('table')).toHaveCount(1);
   await expect(page.getByRole('checkbox')).toHaveCount(2);
   await expect(page.locator('.response-model')).toHaveText('GPT Test');
