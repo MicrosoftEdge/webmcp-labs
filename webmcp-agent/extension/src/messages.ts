@@ -1,4 +1,5 @@
-// Copyright (c) Microsoft Corporation. Licensed under the MIT License.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 import { z } from 'zod';
 import { hostSettingsSchema, pageContextSchema, pageToolSchema } from '@webmcp-agent/shared/protocol';
 

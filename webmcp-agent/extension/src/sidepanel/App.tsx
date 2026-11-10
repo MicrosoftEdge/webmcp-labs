@@ -1,4 +1,5 @@
-// Copyright (c) Microsoft Corporation. Licensed under the MIT License.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 import { useEffect, useId, useLayoutEffect, useRef, useState } from 'react';
 import {
   Accordion, AccordionHeader, AccordionItem, AccordionPanel, Badge, Button,

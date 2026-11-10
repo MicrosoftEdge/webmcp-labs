@@ -1,4 +1,5 @@
-// Copyright (c) Microsoft Corporation. Licensed under the MIT License.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 // Transport test peer only. This is not the application host.
 
 import { NativeMessageDecoder, writeNativeMessage } from '../../host/dist/nativeMessaging.js';

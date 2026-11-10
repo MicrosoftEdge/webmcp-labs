@@ -1,4 +1,5 @@
-// Copyright (c) Microsoft Corporation. Licensed under the MIT License.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 import type { PageContext, PageTool } from '@webmcp-agent/shared/protocol';
 
 export function buildSystemMessage() {

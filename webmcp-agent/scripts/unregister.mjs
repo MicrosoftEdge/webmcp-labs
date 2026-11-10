@@ -1,4 +1,5 @@
-// Copyright (c) Microsoft Corporation. Licensed under the MIT License.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 import { unlinkSync } from 'node:fs';
 import { execFileSync } from 'node:child_process';
 import { registrations, registrationValue, isMissingRegistration, manifestPath, launcherPath } from './platform.mjs';

@@ -1,4 +1,5 @@
-// Copyright (c) Microsoft Corporation. Licensed under the MIT License.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 import { test, expect, chatId, question } from './fixtures.js';
 import type { HistoryItem } from '../shared/src/protocol.js';
 

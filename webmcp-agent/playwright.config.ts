@@ -1,4 +1,5 @@
-// Copyright (c) Microsoft Corporation. Licensed under the MIT License.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 import { defineConfig } from '@playwright/test';
 
 const port = Number(process.env.WEBMCP_UI_PORT ?? 4178);

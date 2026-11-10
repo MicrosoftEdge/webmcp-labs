@@ -1,4 +1,5 @@
-// Copyright (c) Microsoft Corporation. Licensed under the MIT License.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 import { test, expect, chatId, conversation, question, menuTool } from './fixtures.js';
 import type { Locator } from '@playwright/test';
 

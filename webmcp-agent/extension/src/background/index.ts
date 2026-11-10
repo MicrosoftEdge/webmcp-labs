@@ -1,4 +1,5 @@
-// Copyright (c) Microsoft Corporation. Licensed under the MIT License.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 import { validateToExtension } from '@webmcp-agent/shared/validate';
 import { pageOrigin, type ToHost, type ToExtension } from '@webmcp-agent/shared/protocol';
 import {

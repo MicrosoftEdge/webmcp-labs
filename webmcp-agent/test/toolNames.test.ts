@@ -1,4 +1,5 @@
-// Copyright (c) Microsoft Corporation. Licensed under the MIT License.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 
 import { describe, expect, it } from 'vitest';
 import { namePageTools, originLabel, sanitizePageText } from '../shared/src/toolNames.js';

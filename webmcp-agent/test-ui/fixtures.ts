@@ -1,4 +1,5 @@
-// Copyright (c) Microsoft Corporation. Licensed under the MIT License.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 import { test as base, expect, type Page } from '@playwright/test';
 import { z } from 'zod';
 import { toExtensionSchema, type HistoryItem, type PageTool } from '../shared/src/protocol.js';

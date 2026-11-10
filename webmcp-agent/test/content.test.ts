@@ -1,4 +1,5 @@
-// Copyright (c) Microsoft Corporation. Licensed under the MIT License.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { contentResponseSchema, type ContentRequest } from '../extension/src/messages.js';
 
