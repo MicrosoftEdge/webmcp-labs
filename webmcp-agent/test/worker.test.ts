@@ -231,6 +231,122 @@ describe('worker message routing with mocked Chrome APIs', () => {
     test.mock.alarms.onAlarm.emit({ name: 'host-idle' });
     expect(test.native.disconnect).toHaveBeenCalledTimes(1);
   });
+  it.each(['idle', 'opening', 'clearing'])('reopens on a fresh native port after locally disconnecting a chat in the %s phase', async phase => {
+    const consoleError = vi.spyOn(console, 'error').mockImplementation(() => {});
+    const test = await setup();
+    const replacement = port({});
+    test.runtime.connectNative.mockReturnValue(replacement);
+    test.native.disconnect.mockImplementation(() => {
+      test.native.postMessage.mockImplementation(() => { throw new Error('Attempting to use a disconnected port object'); });
+    });
+    if (phase === 'opening') test.panel.onMessage.emit({ type: 'open_chat', chatId });
+    if (phase === 'clearing') test.panel.onMessage.emit({ type: 'clear_chats' });
+    await settle();
+    test.panel.onDisconnect.emit();
+    test.mock.alarms.onAlarm.emit({ name: 'host-idle' });
+    await settle();
+    expect(test.native.disconnect).toHaveBeenCalledTimes(1);
+    const reopened = port({ id: test.runtime.id, url: test.runtime.getURL('sidepanel.html') }, 'panel:1');
+    test.runtime.onConnect.emit(reopened);
+    await settle();
+    expect(test.runtime.connectNative).toHaveBeenCalledTimes(2);
+    expect(replacement.postMessage).toHaveBeenCalledExactlyOnceWith({
+      type: 'hello', protocolVersion: 1, extensionVersion: '0.1.0',
+    });
+    replacement.onMessage.emit({ type: 'ready', protocolVersion: 1, hostVersion: '0.1.0', sdkVersion: '1.0.28', signedIn: true });
+    await settle();
+    const openRequests = replacement.postMessage.mock.calls.map(([message]) => message).filter(message => message.type === 'open_chat');
+    expect(openRequests).toHaveLength(1);
+    if (phase !== 'clearing') expect(openRequests[0]).toMatchObject({ chatId });
+    replacement.onMessage.emit({ type: 'chat_opened', chatId, title: 'Resumed SDK chat' });
+    const history = { type: 'history', chatId, items: [{ kind: 'assistant', text: 'Saved by the SDK.' }], done: true };
+    replacement.onMessage.emit(history);
+    await settle();
+    expect(reopened.postMessage).toHaveBeenCalledWith(history);
+    expect(reopened.postMessage).toHaveBeenCalledWith({ type: 'chat_loading', loading: false });
+    reopened.onMessage.emit({ type: 'send', text: 'After reopening' });
+    await settle();
+    expect(replacement.postMessage).toHaveBeenCalledWith(expect.objectContaining({ type: 'send', chatId, text: 'After reopening' }));
+    expect(consoleError).not.toHaveBeenCalled();
+  });
+  it('clears a locally disconnected opening timeout before reconnecting', async () => {
+    const consoleError = vi.spyOn(console, 'error').mockImplementation(() => {});
+    const test = await setup();
+    const replacement = port({});
+    test.runtime.connectNative.mockReturnValue(replacement);
+    vi.useFakeTimers();
+    test.panel.onMessage.emit({ type: 'open_chat', chatId });
+    await vi.advanceTimersByTimeAsync(45001);
+    expect(test.native.disconnect).toHaveBeenCalledTimes(1);
+    expect(test.panel.postMessage).toHaveBeenCalledWith({ type: 'notice', text: 'Opening the chat timed out. Reconnect the host.' });
+    expect(consoleError).toHaveBeenCalledExactlyOnceWith('WebMCP Agent request failed', expect.any(Error));
+    const reopened = port({ id: test.runtime.id, url: test.runtime.getURL('sidepanel.html') }, 'panel:1');
+    test.runtime.onConnect.emit(reopened);
+    await vi.advanceTimersByTimeAsync(1);
+    expect(test.runtime.connectNative).toHaveBeenCalledTimes(2);
+    replacement.onMessage.emit({ type: 'ready', protocolVersion: 1, hostVersion: '0.1.0', sdkVersion: '1.0.28', signedIn: true });
+    await vi.advanceTimersByTimeAsync(1);
+    expect(replacement.postMessage).toHaveBeenCalledWith(expect.objectContaining({ type: 'open_chat', chatId }));
+    replacement.onMessage.emit({ type: 'chat_opened', chatId, title: 'Resumed SDK chat' });
+    replacement.onMessage.emit({ type: 'history', chatId, items: [], done: true });
+    await vi.advanceTimersByTimeAsync(45001);
+    expect(replacement.disconnect).not.toHaveBeenCalled();
+  });
+  it('ignores late messages and disconnect callbacks from a replaced native port', async () => {
+    const test = await setup();
+    const replacement = port({});
+    test.runtime.connectNative.mockReturnValue(replacement);
+    test.panel.onMessage.emit({ type: 'reconnect' });
+    await settle();
+    replacement.onMessage.emit({ type: 'ready', protocolVersion: 1, hostVersion: '0.1.0', sdkVersion: '1.0.28', signedIn: true });
+    await settle();
+    replacement.onMessage.emit({ type: 'chat_opened', chatId, title: 'Resumed SDK chat' });
+    replacement.onMessage.emit({ type: 'history', chatId, items: [], done: true });
+    await settle();
+    test.panel.postMessage.mockClear();
+    replacement.postMessage.mockClear();
+    test.native.onMessage.emit({ type: 'ready', protocolVersion: 1, hostVersion: 'old', sdkVersion: 'old', signedIn: false });
+    test.native.onMessage.emit({ type: 'delta', chatId, text: 'Stale response' });
+    test.native.onDisconnect.emit();
+    await settle();
+    expect(test.panel.postMessage).not.toHaveBeenCalled();
+    expect(replacement.postMessage).not.toHaveBeenCalled();
+    await test.begin();
+    expect(replacement.postMessage).toHaveBeenCalledWith(expect.objectContaining({ type: 'send', chatId }));
+  });
+  it('does not let an old pending discovery reopen or reset a resumed chat', async () => {
+    const test = await setup();
+    const replacement = port({});
+    test.runtime.connectNative.mockReturnValue(replacement);
+    let finishDiscovery = () => {};
+    test.mock.tabs.sendMessage.mockImplementationOnce(() => new Promise(resolve => {
+      finishDiscovery = () => resolve({ type: 'webmcp/snapshot', available: true, tools: [pageTool()] });
+    }));
+    test.panel.onMessage.emit({ type: 'open_chat', chatId });
+    await settle();
+    test.panel.onDisconnect.emit();
+    test.mock.alarms.onAlarm.emit({ name: 'host-idle' });
+    await settle();
+    const reopened = port({ id: test.runtime.id, url: test.runtime.getURL('sidepanel.html') }, 'panel:1');
+    test.runtime.onConnect.emit(reopened);
+    await settle();
+    replacement.onMessage.emit({ type: 'ready', protocolVersion: 1, hostVersion: '0.1.0', sdkVersion: '1.0.28', signedIn: true });
+    await settle();
+    replacement.onMessage.emit({ type: 'chat_opened', chatId, title: 'Resumed SDK chat' });
+    replacement.onMessage.emit({ type: 'history', chatId, items: [], done: true });
+    await settle();
+    reopened.postMessage.mockClear();
+    replacement.postMessage.mockClear();
+    finishDiscovery();
+    await settle();
+    expect(reopened.postMessage).not.toHaveBeenCalled();
+    expect(replacement.postMessage).not.toHaveBeenCalled();
+    reopened.onMessage.emit({ type: 'send', text: 'After delayed discovery' });
+    await settle();
+    expect(replacement.postMessage).toHaveBeenCalledWith(expect.objectContaining({
+      type: 'send', chatId, text: 'After delayed discovery',
+    }));
+  });
   it('waits for the explicit clear acknowledgment before creating replacement chats', async () => {
     const test = await setup();
     test.native.postMessage.mockClear();

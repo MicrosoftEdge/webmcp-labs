@@ -80,12 +80,40 @@ function connectionError(message: string): string {
 function scheduleDisconnect(): void {
   void chrome.alarms.create('host-idle', { delayInMinutes: 5 });
 }
+async function resetHostConnection(): Promise<void> {
+  native = undefined;
+  ready = undefined;
+  pendingQuestions.clear();
+  void updateBadge().catch(error => console.warn('Cannot update the question badge', error));
+  opening = undefined;
+  opens.splice(0);
+  resetAfterClear = false;
+  clearTimeout(openTimer);
+  const cancellations: Promise<void>[] = [];
+  for (const [id, window] of windows) {
+    window.refreshChatsOnHistoryComplete = false;
+    setLoading(id, false);
+    cancellations.push(cancelCalls(window).catch(error => report(id, error)));
+    window.binding.stop();
+    window.held = [];
+    pauseState(id);
+  }
+  await Promise.all(cancellations);
+}
+async function disconnectHost(): Promise<void> {
+  const port = native;
+  // A local Port.disconnect() does not fire that port's onDisconnect listener.
+  const reset = resetHostConnection();
+  port?.disconnect();
+  await reset;
+}
 function connect(): void {
   if (native) return;
   broadcast({ type: 'connection', status: 'Connecting' });
   const port = chrome.runtime.connectNative('com.microsoft.webmcp_agent');
   native = port;
   port.onMessage.addListener((value: unknown) => {
+    if (native !== port) return;
     const parsed = validateToExtension(value);
     if (!parsed.success) {
       console.error('WebMCP Agent rejected a host message', parsed.error.issues);
@@ -100,21 +128,9 @@ function connect(): void {
   port.onDisconnect.addListener(() => {
     if (native !== port) return;
     const message = chrome.runtime.lastError?.message ?? 'Connection closed';
-    native = undefined;
-    ready = undefined;
-    pendingQuestions.clear();
-    void updateBadge().catch(error => console.warn('Cannot update the question badge', error));
-    opening = undefined;
-    opens.splice(0);
-    clearTimeout(openTimer);
     broadcast({ type: 'connection', status: 'Offline', error: connectionError(message) });
+    void resetHostConnection().catch(error => console.error('Cannot reset native host connection', error));
     for (const [id, window] of windows) {
-      window.refreshChatsOnHistoryComplete = false;
-      setLoading(id, false);
-      void cancelCalls(window).catch(error => report(id, error));
-      window.binding.stop();
-      window.held = [];
-      pauseState(id);
       if (window.chatId) post(id, { type: 'status', chatId: window.chatId, state: 'idle' });
       notice(id, 'Host disconnected. Your chat remains saved; reconnect to resume it.');
     }
@@ -138,6 +154,7 @@ async function nextOpen(): Promise<void> {
   const request = opening;
   try {
     const page = await activePage(request.windowId);
+    if (opening !== request) return;
     post(request.windowId, { type: 'reset' });
     send({
       type: 'open_chat', page: page.page, tools: agentTools(page),
@@ -145,9 +162,10 @@ async function nextOpen(): Promise<void> {
     });
     openTimer = setTimeout(() => {
       report(request.windowId, new Error('Opening the chat timed out. Reconnect the host.'));
-      native?.disconnect();
+      void disconnectHost().catch(error => report(request.windowId, error));
     }, 45000);
   } catch (error) {
+    if (opening !== request) return;
     opening = undefined;
     setLoading(request.windowId, false);
     report(request.windowId, error);
@@ -483,23 +501,7 @@ async function panelMessage(windowId: number, message: PanelRequest): Promise<vo
       if (window.chatId === message.chatId) { delete window.chatId; queueOpen(windowId); }
       return;
     case 'reconnect':
-      native?.disconnect();
-      native = undefined;
-      ready = undefined;
-      pendingQuestions.clear();
-      void updateBadge().catch(error => console.warn('Cannot update the question badge', error));
-      opening = undefined;
-      opens.splice(0);
-      resetAfterClear = false;
-      clearTimeout(openTimer);
-      for (const [id, entry] of windows) {
-        entry.refreshChatsOnHistoryComplete = false;
-        setLoading(id, false);
-        await cancelCalls(entry);
-        entry.binding.stop();
-        entry.held = [];
-        pauseState(id);
-      }
+      await disconnectHost();
       connect();
       return;
   }
@@ -590,7 +592,9 @@ chrome.tabs.onUpdated.addListener((tabId, change) => {
   if (change.url || change.status === 'complete') void refresh(tabId).catch(error => console.debug('Tab tool refresh unavailable', error));
 });
 chrome.alarms.onAlarm.addListener(alarm => {
-  if (alarm.name === 'host-idle' && ![...windows.values()].some(window => window.ports.size || window.binding.running)) native?.disconnect();
+  if (alarm.name === 'host-idle' && ![...windows.values()].some(window => window.ports.size || window.binding.running)) {
+    void disconnectHost().catch(error => console.error('Cannot disconnect idle native host', error));
+  }
 });
 chrome.windows.onRemoved.addListener(id => {
   const window = windows.get(id);

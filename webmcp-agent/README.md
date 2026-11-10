@@ -197,6 +197,11 @@ the browser's in-flight call and aborts the SDK turn. Closing the bound tab stop
 the run. Navigation invalidates old-document calls rather than routing them into
 the new page.
 
+When no panels are open and no turns are running, the native host disconnects
+after five minutes. Reopening the panel establishes a fresh native connection
+and resumes the same SDK chat. Local disconnects clear pending connection state
+explicitly rather than relying on a remote-disconnect event.
+
 ### SDK proxy contract
 
 The SDK owns the agent loop, conversation persistence and completion decisions.
@@ -494,7 +499,7 @@ Playwright; their old `test:browser` flags are rejected with a migration message
 `--confirm-test` and `--stop-test`. These commands are not run by CI. Browser
 tests remove their owned temporary profile and data home after shutting down.
 
-### Verified behavior (Windows, November 2, 2026)
+### Verified behavior (Windows, November 2026)
 
 SDK **1.0.28**, bundled runtime **1.0.105**, Node.js **26.13.0**:
 
@@ -516,6 +521,7 @@ SDK **1.0.28**, bundled runtime **1.0.105**, Node.js **26.13.0**:
 | Live SDK/native-host/page-tool/assistant round trip | Passed in both browsers |
 | Tab switch holds calls; Continue uses original tab | Passed in both browsers |
 | Host restart restores populated history and clean displayed user text | Passed in both browsers |
+| Five-minute idle shutdown and automatic recovery | Passed in Edge on November 10 with a real 300-second idle interval; reopening resumes the same SDK chat, completes history loading and re-enables the composer without a model prompt |
 | Consequential tool waits for confirmation | Passed in Chrome's synthetic order fixture; still model-dependent |
 | Stop cancels a real in-flight WebMCP call | Passed in Edge's cancellation fixture |
 
@@ -523,8 +529,8 @@ Ten synthetic model prompts were used in the initial verification. No real-site
 tasks or repository contents were sent to the model.
 
 Not yet manually verified: fresh interactive sign-in on a signed-out machine,
-macOS/Linux host registration and browser operation, elapsed five-minute idle
-shutdown, and live-agent tasks against Contoso Pizza/Idea Board. The Contoso
+macOS/Linux host registration and browser operation, and live-agent tasks against
+Contoso Pizza/Idea Board. The Contoso
 navigation regression uses manual create-order only, without inference or
 checkout execution. Unit tests cover idle-alarm
 routing and the host's refusal to send while signed out; those checks do not
