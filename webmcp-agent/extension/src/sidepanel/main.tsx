@@ -1,4 +1,5 @@
-// Copyright (c) Microsoft Corporation. Licensed under the MIT License.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 import { createRoot } from 'react-dom/client';
 import { useEffect, useState } from 'react';
 import { FluentProvider, webDarkTheme, webLightTheme } from '@fluentui/react-components';

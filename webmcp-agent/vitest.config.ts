@@ -1,4 +1,5 @@
-// Copyright (c) Microsoft Corporation. Licensed under the MIT License.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 import { defineConfig } from 'vitest/config';
 
 export default defineConfig({

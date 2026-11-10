@@ -1,4 +1,5 @@
-// Copyright (c) Microsoft Corporation. Licensed under the MIT License.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 import { test, expect, chatId, conversation, question, menuTool, pageContext, defaultSettings } from './fixtures.js';
 
 test('composer sends once, respects multiline input, and stops the SDK turn', async ({ panel, page }) => {

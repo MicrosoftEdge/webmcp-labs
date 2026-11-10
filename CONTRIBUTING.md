@@ -17,3 +17,4 @@ contact [opencode@microsoft.com](mailto:opencode@microsoft.com) with any additio
 Each project has its own setup and development instructions. See the README or CONTRIBUTING file in the project folder:
 
 - [webmcp-explorer](webmcp-explorer/)
+- [webmcp-agent](webmcp-agent/CONTRIBUTING.md)

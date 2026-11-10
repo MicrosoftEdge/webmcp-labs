@@ -1,3 +1,5 @@
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 import { defineConfig } from 'vite';
 import { copyFileSync } from 'node:fs';
 

@@ -1,4 +1,5 @@
-// Copyright (c) Microsoft Corporation. Licensed under the MIT License.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 import { homedir } from 'node:os';
 import { join } from 'node:path';
 

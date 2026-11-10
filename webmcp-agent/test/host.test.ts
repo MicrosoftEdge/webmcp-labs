@@ -1,4 +1,5 @@
-// Copyright (c) Microsoft Corporation. Licensed under the MIT License.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 import { describe, expect, it, vi } from 'vitest';
 import { AgentHost, renderHistory, type ClientPort, type SessionPort } from '../host/src/copilot.js';
 import { buildToolRegistry, toolResultForModel, unwrapPageResult } from '../host/src/tools.js';

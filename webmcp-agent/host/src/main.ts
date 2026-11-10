@@ -1,4 +1,5 @@
-// Copyright (c) Microsoft Corporation. Licensed under the MIT License.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 import { createHash } from 'node:crypto';
 import { readFileSync, mkdirSync } from 'node:fs';
 import { join } from 'node:path';

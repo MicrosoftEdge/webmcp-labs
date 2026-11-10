@@ -1,4 +1,5 @@
-// Copyright (c) Microsoft Corporation. Licensed under the MIT License.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 import { randomBytes } from 'node:crypto';
 import { namePageTools, type NamedPageTool } from '@webmcp-agent/shared/toolNames';
 import type { PageContext, PageTool, ToHost } from '@webmcp-agent/shared/protocol';
