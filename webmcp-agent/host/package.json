@@ -1,0 +1,13 @@
+{
+  "name": "@webmcp-agent/host",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    "./copilot": "./dist/copilot.js"
+  },
+  "dependencies": {
+    "@github/copilot-sdk": "1.0.28",
+    "@webmcp-agent/shared": "0.1.0"
+  }
+}

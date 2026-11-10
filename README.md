@@ -11,6 +11,7 @@ In WebMCP, tools are registered either via JavaScript functions or HTML `<form>`
 | Project | Description |
 |---------|-------------|
 | [WebMCP Explorer](webmcp-explorer/) | WebMCP Explorer is a browser extension that lets you interact with web pages through WebMCP, with an autonomous agent loop and multi-provider LLM support. |
+| [WebMCP Agent](webmcp-agent/) | A browser side-panel agent that uses page WebMCP tools, with SDK-owned conversations and a local native-messaging host. |
 
 ## Samples
 
