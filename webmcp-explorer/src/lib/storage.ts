@@ -30,6 +30,11 @@ export async function loadConfig(): Promise<AppConfig> {
     if (!result[STORAGE_KEY].providerConfigs && raw.provider) {
       raw.providerConfigs = { [raw.provider.provider]: raw.provider };
     }
+    if (raw.provider?.provider === 'github-copilot' || Object.hasOwn(raw.providerConfigs, 'github-copilot')) {
+      delete raw.providerConfigs['github-copilot'];
+      if (raw.provider?.provider === 'github-copilot') raw.provider = null;
+      await saveConfig(raw);
+    }
     return raw;
   }
   return { ...DEFAULT_CONFIG };
