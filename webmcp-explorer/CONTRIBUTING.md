@@ -41,12 +41,15 @@ The Prompt API tests use a mock of the native tool-use contract to cover transla
 
 ### Browser integration tests
 
-The Playwright tests exercise the built side panel in an installed Chromium browser, using an isolated temporary profile. Set `WEBRUN_BROWSER` to the absolute executable path, for example in PowerShell:
+The Playwright tests exercise the built side panel using an isolated temporary profile. Playwright is pinned to 1.65.1, which provides Chromium 159.0.8154.6 (revision 1255). From `webmcp-explorer`, install and select that browser in PowerShell:
 
 ```powershell
-$env:WEBRUN_BROWSER = 'C:\Program Files (x86)\Microsoft\Edge Beta\Application\msedge.exe'
+npx playwright install chromium
+$env:WEBRUN_BROWSER = node --input-type=module -e "import { chromium } from 'playwright'; console.log(chromium.executablePath());"
 npm run test:browser
 ```
+
+In a macOS/Linux shell, use `export WEBRUN_BROWSER="$(node --input-type=module -e "import { chromium } from 'playwright'; console.log(chromium.executablePath());")"` after installing Chromium. To test another installed Chromium browser, set `WEBRUN_BROWSER` to its absolute executable path instead. Rerun `npx playwright install chromium` after updating Playwright.
 
 This command rebuilds the extension before running the tests. The tests serve only local build assets and mock extension APIs, page-tool execution, and model responses; no cloud credentials, real page tools, or model downloads are used. They cover Config's native round trip, Chat replay, Agent stepping and user replies, unsupported APIs, and cancellation/reset races. A separate check reports the browser's real Prompt API globals without installing the model mocks. That capability check is not a real-model inference test or proof of API availability in an extension context.
 
@@ -63,7 +66,7 @@ This suite loads the actual unpacked extension and opens its actual side panel i
 
 It also requires Config's native model round trip to succeed before exercising model-driven Chat and Agent page mutations. Missing native support or model provisioning failures **fail** the prerequisite test; dependent model tests are explicitly reported as blocked/skipped, never as successful. The browser can download a model, and model preparation is allowed up to ten minutes. Availability itself has the provider's 30-second limit.
 
-The runner enables the Prompt API, native tool-use backend/model flags, the model manifest broker, and WebMCP. It keeps component updates and `OptimizationHints` enabled, unlike Playwright's default setup. Extra native features can be appended using `WEBRUN_ENABLE_FEATURES`. No personal browser profile or cloud credentials are used. The current launch settings match Playwright 1.64.0 and Chrome Beta 156; revisit the flags when updating either.
+The runner enables the Prompt API, native tool-use backend/model flags, the model manifest broker, and WebMCP. It keeps component updates and `OptimizationHints` enabled, unlike Playwright's default setup. Extra native features can be appended using `WEBRUN_ENABLE_FEATURES`. No personal browser profile or cloud credentials are used. Its launch arguments match Playwright 1.65.1's defaults; revisit the flags when updating Playwright. A matching browser installation does not guarantee that its experimental native tool-use interface matches the provider or that the on-device model is available.
 
 ## Load the extension
 

@@ -66,9 +66,9 @@ before(async () => {
   const debugPort = reservation.address().port;
   await new Promise(resolve => reservation.close(resolve));
 
-  // This is Playwright 1.64.0's disabled-feature argument. OptimizationHints must
+  // This is Playwright 1.65.1's disabled-feature argument. OptimizationHints must
   // remain enabled for Chrome's real on-device model service.
-  const disabledFeatures = '--disable-features=AvoidUnnecessaryBeforeUnloadCheckSync,DestroyProfileOnBrowserClose,DialMediaRouteProvider,GlobalMediaControls,HttpsUpgrades,LensOverlay,MediaRouter,PaintHolding,ThirdPartyStoragePartitioning,BlockOriginHeaderModificationOnRedirect,Translate,AutoDeElevate,OptimizationHints,NetworkTimeServiceQuerying,AimEnabled,msForceBrowserSignIn,msEdgeUpdateLaunchServicesPreferredVersion';
+  const disabledFeatures = '--disable-features=AvoidUnnecessaryBeforeUnloadCheckSync,DestroyProfileOnBrowserClose,HttpsUpgrades,HttpsFirstBalancedModeAutoEnable,LensOverlay,MediaRouter,PaintHolding,ThirdPartyStoragePartitioning,AvoidCorsURLLoaderRestartOnRedirect,TcpPortRandomizationWin,OptimizationHints,NetworkTimeServiceQuerying,AimEnabled,PreconnectToSearch,msForceBrowserSignIn,msEdgeUpdateLaunchServicesPreferredVersion';
   const features = [
     'AIPromptAPI', 'AIPromptAPIToolUse', 'OnDeviceModelConversationBackend',
     'AIApiFoundationalModel:model_version/v4', 'OptimizationGuideManifestBroker',
