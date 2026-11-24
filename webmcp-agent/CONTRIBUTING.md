@@ -123,6 +123,8 @@ The tool allowlist is `custom:*` plus `builtin:ask_user`. File, shell, MCP and
 other built-in tools are not enabled. SDK permission requests are rejected.
 The model receives page context and declared tools, not DOM access or screenshots.
 Consequential annotations influence the prompt; they are not permission gates.
+Tools registered without an input schema expose `inputSchema: null` in browser
+snapshots. Omit that field from the transport so those tools remain available.
 Tool results are capped and untrusted output is wrapped, but these measures do
 not guarantee protection against prompt injection.
 

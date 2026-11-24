@@ -6,7 +6,7 @@ import { contentResponseSchema, type ContentRequest } from '../extension/src/mes
 async function setup() {
   vi.resetModules();
   const owningWindow = {};
-  const tool = (name: string) => ({ name, description: name, origin: 'https://pizza.example', window: owningWindow });
+  const tool = (name: string, inputSchema: unknown = null) => ({ name, description: name, inputSchema, origin: 'https://pizza.example', window: owningWindow });
   let tools = [tool('create_order')];
   const context = Object.assign(new EventTarget(), {
     getTools: vi.fn(async () => tools),
@@ -33,6 +33,32 @@ async function setup() {
 afterEach(() => { vi.unstubAllGlobals(); vi.restoreAllMocks(); });
 
 describe('content tool discovery', () => {
+  it('keeps tools without input schemas discoverable and executable alongside tools with schemas', async () => {
+    const test = await setup();
+    const inputSchema = { type: 'object', properties: { query: { type: 'string' } } };
+    test.setTools([
+      test.tool('no_schema'),
+      test.tool('object_schema', inputSchema),
+      test.tool('serialized_schema', JSON.stringify(inputSchema)),
+    ]);
+    const response = await test.request({ type: 'webmcp/list', fromOrigins: [] });
+    expect(response).toMatchObject({
+      type: 'webmcp/snapshot', available: true,
+      tools: [
+        expect.objectContaining({ name: 'no_schema' }),
+        expect.objectContaining({ name: 'object_schema', inputSchema }),
+        expect.objectContaining({ name: 'serialized_schema', inputSchema }),
+      ],
+    });
+    if (response.type !== 'webmcp/snapshot') throw new Error('Expected a tool snapshot.');
+    expect(response).not.toHaveProperty('error');
+    expect(response.tools[0]).not.toHaveProperty('inputSchema');
+    expect(await test.request({ type: 'webmcp/execute', callId: 'no-schema', key: '0:no_schema', args: {} }))
+      .toMatchObject({ type: 'webmcp/result', ok: true, result: 'Synthetic result' });
+    expect(test.context.executeTool).toHaveBeenCalledWith(
+      expect.objectContaining({ name: 'no_schema', inputSchema: null }), {}, { signal: expect.any(AbortSignal) },
+    );
+  });
   it('lets next-step tool registrations run before returning the completed page tool', async () => {
     const test = await setup();
     test.context.executeTool.mockImplementationOnce(async () => {

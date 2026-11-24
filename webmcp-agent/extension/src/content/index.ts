@@ -51,7 +51,7 @@ async function collect(currentRevision: number): Promise<ContentResponse> {
       const key = `${frame}:${tool.name}`;
       if (latest.has(key)) throw new Error('The browser returned duplicate tool identities.');
       latest.set(key, tool);
-      let schema = tool.inputSchema;
+      let schema = tool.inputSchema ?? undefined;
       if (typeof schema === 'string') schema = JSON.parse(schema);
       if (schema !== undefined && (schema === null || typeof schema !== 'object' || Array.isArray(schema))) throw new Error('Tool inputSchema must be an object.');
       return {
