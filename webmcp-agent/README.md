@@ -1,6 +1,8 @@
 # WebMCP Agent
 
-WebMCP Agent is an experimental browser side-panel extension for talking to and testing [WebMCP](https://github.com/webmachinelearning/webmcp)-enabled web pages with your GitHub Copilot account. Conversations, tool calling, and chat history are handled by the [Microsoft Copilot SDK](https://github.com/github/copilot-sdk) through a local native-messaging host, so no LLM API keys or separate Copilot CLI install are needed.
+WebMCP Agent is an experimental side-panel extension for testing [WebMCP](https://github.com/webmachinelearning/webmcp)-enabled web pages with your GitHub Copilot account.
+
+It uses the [Microsoft Copilot SDK](https://github.com/github/copilot-sdk) over a local native-messaging host to handle conversations, tool calling, and chat history. No LLM API keys or separate Copilot CLI install needed.
 
 ## Prerequisites
 
