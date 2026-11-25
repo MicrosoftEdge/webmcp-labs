@@ -30,9 +30,9 @@ After changing source files, rebuild, reload WebMCP Agent on the browser's
 extensions page, then close and reopen the side panel. If the host still uses an
 older build, use **Settings > Diagnostics > Reconnect host**.
 
-`npm run setup` builds and registers the host for the current user. It is needed
-for first installation, or after moving the checkout or changing Node
-installations, not after every source edit.
+`npm run setup` builds and registers the host for the current user, signs in,
+and runs `doctor`. It is needed for first installation, or after moving the
+checkout or changing Node installations, not after every source edit.
 
 ## Tests
 
@@ -76,8 +76,8 @@ output are separated by port. Playwright's `--shard` option is also supported.
 
 ### Native browser integration
 
-Install the native host with `npm run setup`, authenticate with `npm run login`,
-and check it with `npm run doctor`. Then run:
+Install, authenticate, and verify the native host with `npm run setup` (or run
+`npm run login` and `npm run doctor` individually). Then run:
 
 ```sh
 npm run test:browser -- --history --restricted-page

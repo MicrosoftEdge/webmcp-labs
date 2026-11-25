@@ -2,7 +2,8 @@
 // Licensed under the MIT License.
 import { mkdirSync, writeFileSync, readFileSync, chmodSync } from 'node:fs';
 import { dirname } from 'node:path';
-import { execFileSync } from 'node:child_process';
+import { fileURLToPath } from 'node:url';
+import { execFileSync, spawnSync } from 'node:child_process';
 import { dataDirectory } from '../host/dist/paths.js';
 import { requireNode, root, launcherPath, manifestPath, registrations, registrationValue, isMissingRegistration, callerOrigin, extensionId, hostName } from './platform.mjs';
 
@@ -31,6 +32,11 @@ for (const registration of registrations()) {
   else { mkdirSync(dirname(registration), { recursive: true }); writeFileSync(registration, readFileSync(manifestPath)); }
 }
 console.log(`WebMCP Agent host registered. Extension ID: ${extensionId}`);
+for (const script of ['./login.mjs', './doctor.mjs']) {
+  const result = spawnSync(process.execPath, [fileURLToPath(new URL(script, import.meta.url))], { stdio: 'inherit' });
+  if (result.error) throw result.error;
+  if (result.status !== 0) process.exit(result.status ?? 1);
+}
 console.log(`Load unpacked: ${root}${process.platform === 'win32' ? '\\extension\\dist' : '/extension/dist'}`);
-console.log('Enable WebMCP for testing in edge://flags or chrome://flags, then restart.');
-console.log('Run npm run login, then npm run doctor. No terminal needs to stay open afterwards.');
+console.log('Enable WebMCP for testing in about://flags/#enable-webmcp-testing, then restart.');
+console.log('Setup complete. No terminal needs to stay open afterwards.');
