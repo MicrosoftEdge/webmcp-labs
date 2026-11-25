@@ -7,7 +7,7 @@ It uses the [Microsoft Copilot SDK](https://github.com/github/copilot-sdk) over 
 ## Prerequisites
 
 - **Node.js 22.12+** (includes npm) and **Git**
-- **Microsoft Edge or Google Chrome 156+** with the WebMCP testing flag (for Edge, use [Edge Canary or Dev](https://explore.microsoft.com/edge/download/insider))
+- **Microsoft Edge or Google Chrome 156+** with the WebMCP testing flag
 - **A GitHub account with Copilot access** (requests use your Copilot quota)
 
 ## Quick start
@@ -87,7 +87,7 @@ Run `npm run doctor` from `webmcp-agent` to check host files, registration, poli
 | "Another WebMCP Agent installation owns..." | Unregister the old checkout, or run `npm run setup -- --replace`. |
 | Checkout moved or Node version changed | Rerun `npm run setup` to regenerate the launcher. |
 | Native messaging blocked | Check `about://policy` for `NativeMessagingUserLevelHosts` or `NativeMessagingBlocklist`. |
-| WebMCP testing flag missing | Update to Edge Canary/Dev or Chrome 156+. On macOS, launch the new browser channel once and rerun `npm run setup`. |
+| WebMCP testing flag missing | Update to Edge or Chrome 156+. On macOS, launch the new browser channel once and rerun `npm run setup`. |
 | No tools appear on a page | Confirm the flag is enabled, reload the page, and test with [Contoso Pizza](https://microsoftedge.github.io/webmcp-labs/pizza-order/). Browser and extension pages never expose tools. |
 | Panel behaves strangely after updating | Reload the extension on `about://extensions`, then reopen the side panel (or click **Reconnect host** in Settings). |
 
