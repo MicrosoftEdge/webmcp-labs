@@ -27,6 +27,20 @@ cd webmcp-explorer
 npm run dev
 ```
 
+## Copilot provider tests
+
+The optional Copilot subscription provider runs entirely in the extension.
+See [Provider setup](README.md#github-copilot-subscription) for its experimental
+API and OAuth identity limitations. No companion or SDK dependency is needed.
+
+From `webmcp-explorer`, run the mocked authentication/provider tests with Node.js 20+:
+
+```sh
+npm test
+```
+
+The automated tests do not require GitHub credentials.
+
 ## Load the extension
 
 To use the extension in your browser, load it from the `webmcp-explorer/dist/` folder, as an unpacked extension:

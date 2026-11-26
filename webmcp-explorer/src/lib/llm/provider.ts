@@ -57,6 +57,8 @@ export interface FieldDefinition {
   configKey: string;
   label: string;
   type: 'text' | 'password' | 'url' | 'select';
+  description?: string;
+  documentationUrl?: string;
   placeholder?: string;
   defaultValue?: string;
   optional?: boolean;
@@ -67,6 +69,17 @@ export interface FieldDefinition {
 export interface ProviderMetadata {
   key: string;
   label: string;
+  description?: string;
+  hostPermissions?: string[];
   fields: FieldDefinition[];
+  authentication?: {
+    isSignedIn: (config: ProviderConfig) => Promise<boolean>;
+    signIn: (
+      config: ProviderConfig,
+      onDeviceCode: (code: string, verificationUrl: string) => void,
+      signal: AbortSignal
+    ) => Promise<void>;
+    signOut: () => Promise<void>;
+  };
   createProvider: (config: ProviderConfig) => Promise<LLMProvider>;
 }
