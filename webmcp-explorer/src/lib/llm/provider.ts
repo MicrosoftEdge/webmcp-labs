@@ -36,6 +36,7 @@ export interface LLMResponse {
  * LLMProvider — every LLM backend implements this.
  */
 export interface LLMProvider {
+  dispose?(): Promise<void>;
   sendMessage(
     systemPrompt: string,
     messages: Message[],
@@ -67,6 +68,9 @@ export interface FieldDefinition {
 export interface ProviderMetadata {
   key: string;
   label: string;
+  description?: string;
   fields: FieldDefinition[];
+  credentialKey?: string;
+  loadModels?: (config: ProviderConfig, signal: AbortSignal) => Promise<{ value: string; label: string }[]>;
   createProvider: (config: ProviderConfig) => Promise<LLMProvider>;
 }
